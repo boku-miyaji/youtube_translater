@@ -44,9 +44,23 @@ let sessionCosts = {
 // 料金設定（2024年6月時点の価格）
 const pricing = {
   whisper: 0.006, // $0.006 per minute
-  gpt4oMini: {
-    input: 0.15 / 1000000, // $0.15 per 1M tokens
-    output: 0.60 / 1000000  // $0.60 per 1M tokens
+  models: {
+    'gpt-4o-mini': {
+      input: 0.15 / 1000000, // $0.15 per 1M tokens
+      output: 0.60 / 1000000  // $0.60 per 1M tokens
+    },
+    'gpt-4o': {
+      input: 5.00 / 1000000, // $5.00 per 1M tokens
+      output: 15.00 / 1000000  // $15.00 per 1M tokens
+    },
+    'gpt-4-turbo': {
+      input: 10.00 / 1000000, // $10.00 per 1M tokens
+      output: 30.00 / 1000000  // $30.00 per 1M tokens
+    },
+    'gpt-3.5-turbo': {
+      input: 0.50 / 1000000, // $0.50 per 1M tokens
+      output: 1.50 / 1000000  // $1.50 per 1M tokens
+    }
   }
 };
 
@@ -73,7 +87,7 @@ function saveHistory(history) {
   }
 }
 
-function addToHistory(videoId, title, url, transcript, method, cost = 0, metadata = null, summary = null) {
+function addToHistory(videoId, title, url, transcript, method, cost = 0, metadata = null, summary = null, language = 'original', gptModel = 'gpt-4o-mini') {
   const history = loadHistory();
   const entry = {
     id: videoId,
@@ -81,6 +95,8 @@ function addToHistory(videoId, title, url, transcript, method, cost = 0, metadat
     url,
     transcript,
     method, // 'subtitle', 'whisper'
+    language, // 'original', 'ja', 'en'
+    gptModel, // GPTモデル情報
     cost,
     metadata,
     summary,
@@ -209,7 +225,7 @@ function formatTranscript(transcript) {
 }
 
 // 要約生成機能
-async function generateSummary(transcript, metadata) {
+async function generateSummary(transcript, metadata, gptModel = 'gpt-4o-mini') {
   try {
     const systemMessage = `あなたは動画コンテンツの分析専門家です。以下のYouTube動画の文字起こしを分析し、構造化された要約を生成してください。
 
@@ -243,27 +259,31 @@ async function generateSummary(transcript, metadata) {
 文字起こし内容:
 ${transcript}`;
 
+    const maxTokens = gptModel === 'gpt-3.5-turbo' ? 1500 : 2000;
+
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: gptModel,
       messages: [
         {
           role: 'system',
           content: systemMessage
         }
       ],
-      max_tokens: 2000,
+      max_tokens: maxTokens,
       temperature: 0.3
     });
 
     const inputTokens = Math.ceil(systemMessage.length / 4);
     const outputTokens = Math.ceil(response.choices[0].message.content.length / 4);
-    const summaryCost = (inputTokens * pricing.gpt4oMini.input) + (outputTokens * pricing.gpt4oMini.output);
+    const modelPricing = pricing.models[gptModel];
+    const summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
     
     sessionCosts.gpt += summaryCost;
     sessionCosts.total += summaryCost;
 
     return {
       content: response.choices[0].message.content,
+      model: gptModel,
       cost: summaryCost,
       tokens: { input: inputTokens, output: outputTokens }
     };
@@ -296,28 +316,34 @@ async function downloadYouTubeAudio(url, outputPath) {
   });
 }
 
-async function transcribeAudio(audioPath) {
+async function transcribeAudio(audioPath, language = 'original') {
   const stats = fs.statSync(audioPath);
   const fileSizeInBytes = stats.size;
   const maxSize = 25 * 1024 * 1024; // 25MB
   
   if (fileSizeInBytes > maxSize) {
     // ファイルが大きすぎる場合は分割処理
-    return await transcribeLargeAudio(audioPath);
+    return await transcribeLargeAudio(audioPath, language);
   }
   
   const audioFile = fs.createReadStream(audioPath);
   
-  const transcription = await openai.audio.transcriptions.create({
+  const transcriptionParams = {
     file: audioFile,
-    model: 'whisper-1',
-    language: 'ja'
-  });
+    model: 'whisper-1'
+  };
+  
+  // 言語設定を追加
+  if (language !== 'original') {
+    transcriptionParams.language = language;
+  }
+  
+  const transcription = await openai.audio.transcriptions.create(transcriptionParams);
   
   return transcription.text;
 }
 
-async function transcribeLargeAudio(audioPath) {
+async function transcribeLargeAudio(audioPath, language = 'original') {
   const segmentDuration = 600; // 10分ごとに分割
   const segmentPaths = [];
   let segmentIndex = 0;
@@ -352,11 +378,18 @@ async function transcribeLargeAudio(audioPath) {
           
           // セグメントを文字起こし
           const audioFile = fs.createReadStream(segmentPath);
-          const transcription = await openai.audio.transcriptions.create({
+          
+          const transcriptionParams = {
             file: audioFile,
-            model: 'whisper-1',
-            language: 'ja'
-          });
+            model: 'whisper-1'
+          };
+          
+          // 言語設定を追加
+          if (language !== 'original') {
+            transcriptionParams.language = language;
+          }
+          
+          const transcription = await openai.audio.transcriptions.create(transcriptionParams);
           
           transcripts.push(transcription.text);
         }
@@ -383,30 +416,44 @@ async function transcribeLargeAudio(audioPath) {
   });
 }
 
-async function getYouTubeSubtitles(videoId) {
-  try {
-    const transcripts = await YoutubeTranscript.fetchTranscript(videoId, {
-      lang: 'ja'
-    });
-    
-    if (transcripts && transcripts.length > 0) {
-      return transcripts.map(item => item.text).join(' ');
-    }
-  } catch (error) {
-    console.log('No Japanese subtitles found, trying English...');
+async function getYouTubeSubtitles(videoId, preferredLanguage = 'original') {
+  const languageOrder = getLanguageOrder(preferredLanguage);
+  
+  for (const lang of languageOrder) {
     try {
+      console.log(`Trying to get ${lang} subtitles...`);
       const transcripts = await YoutubeTranscript.fetchTranscript(videoId, {
-        lang: 'en'
+        lang: lang
       });
       
       if (transcripts && transcripts.length > 0) {
-        return transcripts.map(item => item.text).join(' ');
+        console.log(`Found ${lang} subtitles`);
+        return {
+          text: transcripts.map(item => item.text).join(' '),
+          detectedLanguage: lang
+        };
       }
     } catch (error) {
-      console.log('No subtitles available');
+      console.log(`No ${lang} subtitles found`);
+      continue;
     }
   }
+  
+  console.log('No subtitles available in any language');
   return null;
+}
+
+function getLanguageOrder(preferredLanguage) {
+  switch (preferredLanguage) {
+    case 'ja':
+      return ['ja', 'en'];
+    case 'en':
+      return ['en', 'ja'];
+    case 'original':
+    default:
+      // originalの場合は利用可能な字幕を優先順位で試行
+      return ['ja', 'en', 'ko', 'zh', 'es', 'fr', 'de', 'it', 'pt', 'ru'];
+  }
 }
 
 function extractVideoId(url) {
@@ -429,7 +476,7 @@ function calculateAudioDuration(audioPath) {
 
 app.post('/upload-youtube', async (req, res) => {
   try {
-    const { url } = req.body;
+    const { url, language = 'original', gptModel = 'gpt-4o-mini' } = req.body;
     
     if (!url) {
       return res.status(400).json({ error: 'YouTube URL is required' });
@@ -444,9 +491,13 @@ app.post('/upload-youtube', async (req, res) => {
       return res.status(400).json({ error: 'Could not extract video ID from URL' });
     }
 
-    // 履歴から既存の文字起こしをチェック
+    // 履歴から既存の文字起こしをチェック（同じ言語・モデル設定のもの）
     const history = loadHistory();
-    const existingEntry = history.find(item => item.id === videoId);
+    const existingEntry = history.find(item => 
+      item.id === videoId && 
+      item.language === language && 
+      item.gptModel === gptModel
+    );
     if (existingEntry) {
       currentTranscript = existingEntry.transcript;
       currentMetadata = existingEntry.metadata;
@@ -458,6 +509,8 @@ app.post('/upload-youtube', async (req, res) => {
         summary: existingEntry.summary?.content,
         metadata: existingEntry.metadata,
         method: existingEntry.method,
+        language: existingEntry.language,
+        gptModel: existingEntry.gptModel,
         message: 'Retrieved from history',
         fromHistory: true,
         costs: sessionCosts
@@ -473,17 +526,19 @@ app.post('/upload-youtube', async (req, res) => {
     currentMetadata = metadata;
 
     // まずYouTubeの字幕を試す
-    console.log('Checking for YouTube subtitles...');
-    const subtitles = await getYouTubeSubtitles(videoId);
+    console.log(`Checking for YouTube subtitles (preferred language: ${language})...`);
+    const subtitlesResult = await getYouTubeSubtitles(videoId, language);
     
     let transcript;
     let method;
     let cost = 0;
+    let detectedLanguage = language;
 
-    if (subtitles) {
-      console.log('Using YouTube subtitles');
-      transcript = subtitles;
+    if (subtitlesResult) {
+      console.log(`Using YouTube subtitles (${subtitlesResult.detectedLanguage})`);
+      transcript = subtitlesResult.text;
       method = 'subtitle';
+      detectedLanguage = subtitlesResult.detectedLanguage;
     } else {
       console.log('No subtitles found, using Whisper transcription...');
       const audioPath = path.join('uploads', `${Date.now()}_audio.mp3`);
@@ -497,7 +552,7 @@ app.post('/upload-youtube', async (req, res) => {
       sessionCosts.whisper += cost;
       sessionCosts.total += cost;
 
-      transcript = await transcribeAudio(audioPath);
+      transcript = await transcribeAudio(audioPath, language);
       method = 'whisper';
 
       fs.unlinkSync(audioPath);
@@ -508,15 +563,15 @@ app.post('/upload-youtube', async (req, res) => {
     currentTranscript = formattedTranscript;
 
     // 要約を生成
-    console.log('Generating summary...');
-    const summary = await generateSummary(formattedTranscript, metadata);
+    console.log(`Generating summary using ${gptModel}...`);
+    const summary = await generateSummary(formattedTranscript, metadata, gptModel);
     currentSummary = summary;
 
     // 履歴に保存
-    addToHistory(videoId, videoTitle, url, formattedTranscript, method, cost, metadata, summary);
+    addToHistory(videoId, videoTitle, url, formattedTranscript, method, cost, metadata, summary, language, gptModel);
 
     // ファイルにも保存
-    const transcriptPath = path.join('transcripts', `${Date.now()}_${videoId}_transcript.txt`);
+    const transcriptPath = path.join('transcripts', `${Date.now()}_${videoId}_${language}_${gptModel}_transcript.txt`);
     fs.writeFileSync(transcriptPath, formattedTranscript);
 
     res.json({
@@ -526,8 +581,11 @@ app.post('/upload-youtube', async (req, res) => {
       summary: summary?.content,
       metadata: metadata,
       method: method,
+      language: language,
+      gptModel: gptModel,
+      detectedLanguage: detectedLanguage,
       cost: cost,
-      message: `Video transcribed successfully using ${method}`,
+      message: `Video transcribed successfully using ${method} (${detectedLanguage})`,
       costs: sessionCosts
     });
 
@@ -539,7 +597,7 @@ app.post('/upload-youtube', async (req, res) => {
 
 app.post('/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, gptModel = 'gpt-4o-mini' } = req.body;
     
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
@@ -571,8 +629,10 @@ app.post('/chat', async (req, res) => {
     
     const inputTokens = Math.ceil((contextInfo.length + message.length) / 4); // 概算
     
+    const maxTokens = gptModel === 'gpt-3.5-turbo' ? 1000 : 1500;
+    
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: gptModel,
       messages: [
         {
           role: 'system',
@@ -583,12 +643,13 @@ app.post('/chat', async (req, res) => {
           content: message
         }
       ],
-      max_tokens: 1500,
+      max_tokens: maxTokens,
       temperature: 0.7
     });
 
     const outputTokens = Math.ceil((response.choices[0].message.content.length) / 4); // 概算
-    const chatCost = (inputTokens * pricing.gpt4oMini.input) + (outputTokens * pricing.gpt4oMini.output);
+    const modelPricing = pricing.models[gptModel];
+    const chatCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
     
     sessionCosts.gpt += chatCost;
     sessionCosts.total += chatCost;
@@ -596,6 +657,7 @@ app.post('/chat', async (req, res) => {
     res.json({
       success: true,
       response: response.choices[0].message.content,
+      model: gptModel,
       cost: chatCost,
       costs: sessionCosts,
       tokens: {

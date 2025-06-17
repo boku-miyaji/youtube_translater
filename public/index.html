@@ -4,56 +4,115 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube 文字起こし & チャット</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            font-size: 16px;
+            line-height: 1.6;
         }
         .container {
-            background: white;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+            min-height: 100vh;
         }
-        h1 {
-            color: #333;
+        .app-header {
             text-align: center;
-            margin-bottom: 30px;
+            padding: 2rem 0;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        .app-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .app-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
         }
         .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         .section h2 {
-            margin-top: 0;
-            color: #555;
+            margin: 0 0 1rem 0;
+            color: #2d3748;
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
-        input, textarea, button {
+        .section-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+        }
+        input, textarea, select {
             width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: #f8fafc;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         button {
-            background: #007cba;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
-            font-weight: bold;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin: 0.5rem 0;
+            font-family: inherit;
         }
         button:hover {
-            background: #005a8b;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        button:active {
+            transform: translateY(0);
         }
         button:disabled {
-            background: #ccc;
+            background: #cbd5e0;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         .transcript {
             background: #f9f9f9;
@@ -65,27 +124,47 @@
             overflow-y: auto;
         }
         .chat-messages {
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 15px;
-            height: 300px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1rem;
+            height: 400px;
             overflow-y: auto;
-            background: #fafafa;
-            margin-bottom: 10px;
+            background: linear-gradient(135deg, #f8fafc, #ffffff);
+            margin-bottom: 1rem;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 transparent;
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
         }
         .message {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 8px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 16px;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
         }
         .user-message {
-            background: #007cba;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
+            margin-left: auto;
             text-align: right;
         }
         .ai-message {
-            background: #e9ecef;
-            color: #333;
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            color: #2d3748;
+            margin-right: auto;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .loading {
             text-align: center;
@@ -107,10 +186,11 @@
             margin: 10px 0;
         }
         .costs-display {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #dee2e6;
+            background: linear-gradient(135deg, #f7fafc, #edf2f7);
+            padding: 1.5rem;
+            border-radius: 16px;
+            border: 2px solid #e2e8f0;
+            backdrop-filter: blur(10px);
         }
         .cost-item {
             display: flex;
@@ -133,16 +213,19 @@
             background: #fafafa;
         }
         .history-item {
-            background: white;
-            border: 1px solid #eee;
-            border-radius: 5px;
-            padding: 12px;
-            margin-bottom: 10px;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
         .history-item:hover {
-            background: #f0f0f0;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            background: linear-gradient(135deg, #ffffff, #f1f5f9);
         }
         .history-title {
             font-weight: bold;
@@ -155,19 +238,46 @@
             display: flex;
             justify-content: space-between;
         }
+        .history-channel {
+            font-size: 0.9em;
+            color: #666;
+            margin: 3px 0;
+        }
+        .history-url {
+            font-size: 0.85em;
+            margin: 3px 0;
+        }
+        .history-url a {
+            color: #007cba;
+            text-decoration: none;
+        }
+        .history-url a:hover {
+            text-decoration: underline;
+        }
         .method-badge {
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 0.8em;
-            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .method-subtitle {
-            background: #28a745;
+            background: linear-gradient(135deg, #48bb78, #38a169);
             color: white;
         }
         .method-whisper {
-            background: #007cba;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
+        }
+        .language-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #a0aec0, #718096);
+            color: white;
+            margin-left: 0.5rem;
         }
         .video-info {
             background: #f8f9fa;
@@ -208,64 +318,236 @@
             margin-right: 10px;
         }
         .summary {
-            background: #f9f9f9;
-            border-left: 4px solid #28a745;
-            padding: 15px;
-            margin: 10px 0;
-            white-space: pre-wrap;
+            background: linear-gradient(135deg, #f0fff4, #ffffff);
+            border-left: 4px solid #48bb78;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1rem 0;
             max-height: 500px;
             overflow-y: auto;
-            font-size: 14px;
+            font-size: 1rem;
             line-height: 1.6;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 transparent;
+        }
+        .summary::-webkit-scrollbar {
+            width: 6px;
+        }
+        .summary::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .summary::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
+        }
+        .summary h2 {
+            color: #28a745;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        .summary h3 {
+            color: #155724;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        .summary ul {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+        .summary li {
+            margin-bottom: 5px;
+        }
+        .summary p {
+            margin: 10px 0;
+        }
+        .summary code {
+            background: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
         }
         .suggested-questions {
-            margin-bottom: 15px;
-            padding: 10px;
-            background: #e3f2fd;
-            border-radius: 5px;
-            border: 1px solid #bbdefb;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+            border-radius: 16px;
+            border: 2px solid #bee3f8;
         }
         .question-item {
             background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 8px 12px;
-            margin: 5px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
         }
         .question-item:hover {
-            background: #f0f8ff;
-            border-color: #007cba;
+            background: linear-gradient(135deg, #f7fafc, #edf2f7);
+            border-color: #667eea;
+            transform: translateX(4px);
         }
         .transcript {
-            background: #f9f9f9;
-            border-left: 4px solid #007cba;
-            padding: 15px;
-            margin: 10px 0;
+            background: linear-gradient(135deg, #f8fafc, #ffffff);
+            border-left: 4px solid #667eea;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1rem 0;
             white-space: pre-wrap;
             word-wrap: break-word;
             max-height: 500px;
             overflow-y: auto;
-            font-size: 15px;
+            font-size: 1rem;
             line-height: 1.8;
             font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 transparent;
+        }
+        .transcript::-webkit-scrollbar {
+            width: 6px;
+        }
+        .transcript::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .transcript::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .controls-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .language-selector,
+        .model-selector {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+        }
+        .language-selector label,
+        .model-selector label {
+            font-weight: 600;
+            color: #2d3748;
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .language-selector select,
+        .model-selector select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .language-selector select:focus,
+        .model-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .chat-input-container {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+        .chat-input-container input {
+            flex: 1;
+            margin: 0;
+        }
+        .chat-input-container button {
+            width: auto;
+            min-width: 80px;
+            margin: 0;
+        }
+        
+        /* Responsive Design */
+        @media (min-width: 768px) {
+            .container {
+                padding: 2rem;
+            }
+            .controls-row {
+                grid-template-columns: 1fr 1fr;
+            }
+            .app-header h1 {
+                font-size: 3rem;
+            }
+            .section {
+                padding: 2rem;
+            }
+        }
+        @media (min-width: 1024px) {
+            .controls-row {
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+            }
+        }
+        
+        /* Mobile-first improvements */
+        @media (max-width: 767px) {
+            .app-header h1 {
+                font-size: 2rem;
+            }
+            .section {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+            .message {
+                max-width: 95%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>YouTube 文字起こし & チャットシステム</h1>
+        <div class="app-header">
+            <h1>🎥 YouTube AI Assistant</h1>
+            <p>動画を文字起こしして、AIと対話しよう</p>
+        </div>
         
         <div class="section">
-            <h2>1. YouTube動画をアップロード</h2>
-            <input type="text" id="youtubeUrl" placeholder="YouTubeのURLを入力してください">
+            <h2><span class="section-icon">📥</span>YouTube動画をアップロード</h2>
+            <div class="input-group">
+                <input type="text" id="youtubeUrl" placeholder="YouTubeのURLを入力してください">
+                <div class="controls-row">
+                    <div class="language-selector">
+                        <label for="languageSelect">文字起こし言語:</label>
+                        <select id="languageSelect">
+                            <option value="original" selected>Original (自動判定)</option>
+                            <option value="ja">日本語</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                    <div class="model-selector">
+                        <label for="gptModelSelect">GPTモデル:</label>
+                        <select id="gptModelSelect">
+                            <option value="gpt-4o-mini" selected>GPT-4o-mini (推奨)</option>
+                            <option value="gpt-4o">GPT-4o (高品質)</option>
+                            <option value="gpt-4-turbo">GPT-4-turbo (最高品質)</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5-turbo (高速・低コスト)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <button onclick="uploadYouTube()" id="uploadBtn">文字起こし開始</button>
             <div id="uploadStatus"></div>
         </div>
 
         <div class="section">
-            <h2>2. 動画情報</h2>
+            <h2><span class="section-icon">📊</span>動画情報</h2>
             <div id="videoInfo" class="video-info" style="display: none;">
                 <div class="info-grid">
                     <div class="info-item">
@@ -292,21 +574,21 @@
         </div>
 
         <div class="section">
-            <h2>3. 要約</h2>
+            <h2><span class="section-icon">📝</span>要約</h2>
             <div id="summary" class="summary" style="display: none;">
                 要約がここに表示されます...
             </div>
         </div>
 
         <div class="section">
-            <h2>4. 文字起こし結果</h2>
+            <h2><span class="section-icon">📋</span>文字起こし結果</h2>
             <div id="transcript" class="transcript">
                 文字起こし結果がここに表示されます...
             </div>
         </div>
 
         <div class="section">
-            <h2>5. 内容について質問</h2>
+            <h2><span class="section-icon">💬</span>内容について質問</h2>
             <div id="suggestedQuestions" class="suggested-questions" style="display: none;">
                 <h4>💡 おすすめ質問</h4>
                 <div id="questionsList"></div>
@@ -316,14 +598,14 @@
                     こんにちは！YouTubeの動画を文字起こしした後、その内容について何でも質問してください。
                 </div>
             </div>
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="chatInput" placeholder="質問を入力してください..." style="flex: 1;">
-                <button onclick="sendMessage()" id="chatBtn" style="width: 100px;">送信</button>
+            <div class="chat-input-container">
+                <input type="text" id="chatInput" placeholder="質問を入力してください...">
+                <button onclick="sendMessage()" id="chatBtn">送信</button>
             </div>
         </div>
 
         <div class="section">
-            <h2>6. 使用料金</h2>
+            <h2><span class="section-icon">💰</span>使用料金</h2>
             <div id="costs" class="costs-display">
                 <div class="cost-item">
                     <span>Whisper (文字起こし): </span>
@@ -341,7 +623,7 @@
         </div>
 
         <div class="section">
-            <h2>7. 履歴</h2>
+            <h2><span class="section-icon">📚</span>履歴</h2>
             <div id="historyList" class="history-list">
                 履歴を読み込み中...
             </div>
@@ -386,14 +668,22 @@
                 const methodClass = item.method === 'subtitle' ? 'method-subtitle' : 'method-whisper';
                 const methodText = item.method === 'subtitle' ? '字幕' : 'Whisper';
                 const cost = item.cost > 0 ? `$${item.cost.toFixed(4)}` : '無料';
+                const languageText = getLanguageDisplayName(item.language || 'original');
+                const channelName = item.metadata?.basic?.channel || 'Unknown';
+                const videoUrl = item.url || '';
                 
                 return `
                     <div class="history-item" onclick="loadFromHistory('${item.id}')">
                         <div class="history-title">${item.title}</div>
+                        <div class="history-channel">📺 ${channelName}</div>
+                        <div class="history-url">
+                            <a href="${videoUrl}" target="_blank" onclick="event.stopPropagation();">🔗 YouTubeで開く</a>
+                        </div>
                         <div class="history-meta">
                             <span>${date}</span>
                             <span>
                                 <span class="method-badge ${methodClass}">${methodText}</span>
+                                <span class="language-badge">${languageText}</span>
                                 <span style="margin-left: 10px;">${cost}</span>
                             </span>
                         </div>
@@ -424,7 +714,7 @@
                     
                     // 動画情報を表示
                     if (result.metadata) {
-                        displayVideoInfo(result.metadata, result.method);
+                        displayVideoInfo(result.metadata, result.method, result.language, result.detectedLanguage);
                     }
                     
                     // 要約を表示
@@ -447,7 +737,7 @@
         }
 
         // 新機能の関数
-        function displayVideoInfo(metadata, method) {
+        function displayVideoInfo(metadata, method, language, detectedLanguage) {
             if (!metadata) return;
             
             const videoInfo = document.getElementById('videoInfo');
@@ -459,8 +749,12 @@
                 `${Math.floor(basic.duration/60)}分${basic.duration%60}秒`;
             document.getElementById('videoViews').textContent = 
                 basic.viewCount ? basic.viewCount.toLocaleString() + '回' : 'N/A';
-            document.getElementById('processingMethod').textContent = 
-                method === 'subtitle' ? 'YouTube字幕' : 'Whisper API';
+            
+            let methodText = method === 'subtitle' ? 'YouTube字幕' : 'Whisper API';
+            if (detectedLanguage && detectedLanguage !== language) {
+                methodText += ` (${detectedLanguage})`;
+            }
+            document.getElementById('processingMethod').textContent = methodText;
             
             // チャプター情報
             if (metadata.chapters && metadata.chapters.length > 0) {
@@ -484,7 +778,12 @@
             if (!summary) return;
             
             const summaryDiv = document.getElementById('summary');
-            summaryDiv.textContent = summary;
+            // Markdownをレンダリングして表示
+            if (typeof marked !== 'undefined') {
+                summaryDiv.innerHTML = marked.parse(summary);
+            } else {
+                summaryDiv.textContent = summary;
+            }
             summaryDiv.style.display = 'block';
         }
 
@@ -519,6 +818,15 @@
             sendMessage();
         }
 
+        function getLanguageDisplayName(language) {
+            switch (language) {
+                case 'ja': return '日本語';
+                case 'en': return 'English';
+                case 'original': 
+                default: return 'Original';
+            }
+        }
+
         // ページ読み込み時に履歴を取得
         window.onload = function() {
             loadHistory();
@@ -526,6 +834,8 @@
 
         async function uploadYouTube() {
             const url = document.getElementById('youtubeUrl').value.trim();
+            const language = document.getElementById('languageSelect').value;
+            const gptModel = document.getElementById('gptModelSelect').value;
             const uploadBtn = document.getElementById('uploadBtn');
             const uploadStatus = document.getElementById('uploadStatus');
             
@@ -544,7 +854,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ url: url })
+                    body: JSON.stringify({ url: url, language: language, gptModel: gptModel })
                 });
 
                 const result = await response.json();
@@ -557,7 +867,7 @@
                     
                     // 動画情報を表示
                     if (result.metadata) {
-                        displayVideoInfo(result.metadata, result.method);
+                        displayVideoInfo(result.metadata, result.method, result.language, result.detectedLanguage);
                     }
                     
                     // 要約を表示
@@ -601,6 +911,7 @@
         async function sendMessage() {
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
+            const gptModel = document.getElementById('gptModelSelect').value;
             const chatBtn = document.getElementById('chatBtn');
             const chatMessages = document.getElementById('chatMessages');
 
@@ -623,7 +934,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message: message })
+                    body: JSON.stringify({ message: message, gptModel: gptModel })
                 });
 
                 const result = await response.json();
