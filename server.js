@@ -35,6 +35,7 @@ if (!fs.existsSync('history')) {
 let currentTranscript = '';
 let currentMetadata = null;
 let currentSummary = null;
+let currentTimestampedSegments = [];
 let sessionCosts = {
   whisper: 0,
   gpt: 0,
@@ -87,7 +88,7 @@ function saveHistory(history) {
   }
 }
 
-function addToHistory(videoId, title, url, transcript, method, cost = 0, metadata = null, summary = null, language = 'original', gptModel = 'gpt-4o-mini') {
+function addToHistory(videoId, title, url, transcript, method, cost = 0, metadata = null, summary = null, language = 'original', gptModel = 'gpt-4o-mini', timestampedSegments = []) {
   const history = loadHistory();
   const entry = {
     id: videoId,
@@ -100,6 +101,7 @@ function addToHistory(videoId, title, url, transcript, method, cost = 0, metadat
     cost,
     metadata,
     summary,
+    timestampedSegments, // タイムスタンプ付きセグメント
     timestamp: new Date().toISOString()
   };
   
@@ -173,6 +175,13 @@ async function getYouTubeMetadata(url) {
   }
 }
 
+// 時間フォーマット関数（秒を mm:ss 形式に変換）
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
 // 文字起こし結果の整形
 function formatTranscript(transcript) {
   if (!transcript) return '';
@@ -225,8 +234,11 @@ function formatTranscript(transcript) {
 }
 
 // 要約生成機能
-async function generateSummary(transcript, metadata, gptModel = 'gpt-4o-mini') {
+async function generateSummary(transcript, metadata, gptModel = 'gpt-4o-mini', timestampedSegments = []) {
   try {
+    // タイムスタンプ情報があれば、時間的な根拠を含めた要約を生成
+    const hasTimestamps = timestampedSegments && timestampedSegments.length > 0;
+    
     const systemMessage = `あなたは動画コンテンツの分析専門家です。以下のYouTube動画の文字起こしを分析し、構造化された要約を生成してください。
 
 動画情報:
@@ -234,30 +246,42 @@ async function generateSummary(transcript, metadata, gptModel = 'gpt-4o-mini') {
 - 長さ: ${metadata?.basic?.duration ? Math.floor(metadata.basic.duration/60) + '分' + (metadata.basic.duration%60) + '秒' : '不明'}
 - チャンネル: ${metadata?.basic?.channel || '不明'}
 
+${hasTimestamps ? `
+⚠️ 重要: タイムスタンプ情報が利用可能です。要約の各セクションで言及する内容には、該当する時間帯を [開始時間-終了時間] の形式で必ず含めてください。
+例: "プロジェクトの概要について説明されています [2:15-4:30]"
+
+タイムスタンプ付き文字起こし:
+${timestampedSegments.map(segment => {
+  const startTime = formatTime(segment.start);
+  const endTime = formatTime(segment.start + segment.duration);
+  return `[${startTime}-${endTime}] ${segment.text}`;
+}).join('\n')}
+` : ''}
+
 要約は以下の形式で出力してください:
 
 ## 📝 全体要約
-[動画全体の概要を2-3文で]
+[動画全体の概要を2-3文で${hasTimestamps ? '、主要な時間帯への言及を含めて' : ''}]
 
 ## 🎯 主要ポイント
-[最も重要な3-5つのポイントを箇条書きで]
+[最も重要な3-5つのポイントを箇条書きで${hasTimestamps ? '、それぞれに該当する時間帯 [開始-終了] を含めて' : ''}]
 
 ## 📊 トピック別詳細
 [内容を3-5つのトピックに分けて、それぞれ詳細に要約]
 
 ### 🔍 トピック1: [タイトル]
-[このトピックの詳細内容 - 深掘り質問ができる程度の詳しさで]
+[このトピックの詳細内容${hasTimestamps ? ' - 該当時間帯 [開始-終了] を含めて詳しく' : ' - 深掘り質問ができる程度の詳しさで'}]
 
 ### 🔍 トピック2: [タイトル]
-[このトピックの詳細内容]
+[このトピックの詳細内容${hasTimestamps ? ' - 該当時間帯 [開始-終了] を含めて' : ''}]
 
 (以下、必要に応じて続ける)
 
 ## 💡 おすすめ深掘り質問
 [視聴者が質問したくなりそうな具体的な質問例を3-5個]
 
-文字起こし内容:
-${transcript}`;
+${hasTimestamps ? '' : `文字起こし内容:
+${transcript}`}`;
 
     const maxTokens = gptModel === 'gpt-3.5-turbo' ? 1500 : 2000;
 
@@ -330,7 +354,9 @@ async function transcribeAudio(audioPath, language = 'original') {
   
   const transcriptionParams = {
     file: audioFile,
-    model: 'whisper-1'
+    model: 'whisper-1',
+    response_format: 'verbose_json',
+    timestamp_granularities: ['segment']
   };
   
   // 言語設定を追加
@@ -340,7 +366,14 @@ async function transcribeAudio(audioPath, language = 'original') {
   
   const transcription = await openai.audio.transcriptions.create(transcriptionParams);
   
-  return transcription.text;
+  return {
+    text: transcription.text,
+    timestampedSegments: transcription.segments ? transcription.segments.map(segment => ({
+      start: segment.start,
+      duration: segment.end - segment.start,
+      text: segment.text
+    })) : []
+  };
 }
 
 async function transcribeLargeAudio(audioPath, language = 'original') {
@@ -381,7 +414,9 @@ async function transcribeLargeAudio(audioPath, language = 'original') {
           
           const transcriptionParams = {
             file: audioFile,
-            model: 'whisper-1'
+            model: 'whisper-1',
+            response_format: 'verbose_json',
+            timestamp_granularities: ['segment']
           };
           
           // 言語設定を追加
@@ -391,7 +426,11 @@ async function transcribeLargeAudio(audioPath, language = 'original') {
           
           const transcription = await openai.audio.transcriptions.create(transcriptionParams);
           
-          transcripts.push(transcription.text);
+          transcripts.push({
+            text: transcription.text,
+            segments: transcription.segments || [],
+            offset: startTime
+          });
         }
         
         // セグメントファイルを削除
@@ -401,7 +440,25 @@ async function transcribeLargeAudio(audioPath, language = 'original') {
           }
         });
         
-        resolve(transcripts.join(' '));
+        // セグメントを統合してタイムスタンプ情報も含める
+        const allSegments = [];
+        let combinedText = '';
+        
+        transcripts.forEach(transcriptResult => {
+          combinedText += (combinedText ? ' ' : '') + transcriptResult.text;
+          transcriptResult.segments.forEach(segment => {
+            allSegments.push({
+              start: segment.start + transcriptResult.offset,
+              duration: segment.end - segment.start,
+              text: segment.text
+            });
+          });
+        });
+        
+        resolve({
+          text: combinedText,
+          timestampedSegments: allSegments
+        });
         
       } catch (error) {
         // セグメントファイルを削除
@@ -430,7 +487,12 @@ async function getYouTubeSubtitles(videoId, preferredLanguage = 'original') {
         console.log(`Found ${lang} subtitles`);
         return {
           text: transcripts.map(item => item.text).join(' '),
-          detectedLanguage: lang
+          detectedLanguage: lang,
+          timestampedSegments: transcripts.map(item => ({
+            start: parseFloat(item.offset),
+            duration: parseFloat(item.duration),
+            text: item.text
+          }))
         };
       }
     } catch (error) {
@@ -502,6 +564,7 @@ app.post('/upload-youtube', async (req, res) => {
       currentTranscript = existingEntry.transcript;
       currentMetadata = existingEntry.metadata;
       currentSummary = existingEntry.summary;
+      currentTimestampedSegments = existingEntry.timestampedSegments || [];
       return res.json({
         success: true,
         title: existingEntry.title,
@@ -511,6 +574,7 @@ app.post('/upload-youtube', async (req, res) => {
         method: existingEntry.method,
         language: existingEntry.language,
         gptModel: existingEntry.gptModel,
+        timestampedSegments: existingEntry.timestampedSegments || [],
         message: 'Retrieved from history',
         fromHistory: true,
         costs: sessionCosts
@@ -533,10 +597,12 @@ app.post('/upload-youtube', async (req, res) => {
     let method;
     let cost = 0;
     let detectedLanguage = language;
+    let timestampedSegments = [];
 
     if (subtitlesResult) {
       console.log(`Using YouTube subtitles (${subtitlesResult.detectedLanguage})`);
       transcript = subtitlesResult.text;
+      timestampedSegments = subtitlesResult.timestampedSegments || [];
       method = 'subtitle';
       detectedLanguage = subtitlesResult.detectedLanguage;
     } else {
@@ -552,7 +618,9 @@ app.post('/upload-youtube', async (req, res) => {
       sessionCosts.whisper += cost;
       sessionCosts.total += cost;
 
-      transcript = await transcribeAudio(audioPath, language);
+      const transcriptionResult = await transcribeAudio(audioPath, language);
+      transcript = transcriptionResult.text;
+      timestampedSegments = transcriptionResult.timestampedSegments || [];
       method = 'whisper';
 
       fs.unlinkSync(audioPath);
@@ -561,14 +629,15 @@ app.post('/upload-youtube', async (req, res) => {
     // 文字起こし結果を整形
     const formattedTranscript = formatTranscript(transcript);
     currentTranscript = formattedTranscript;
+    currentTimestampedSegments = timestampedSegments;
 
     // 要約を生成
     console.log(`Generating summary using ${gptModel}...`);
-    const summary = await generateSummary(formattedTranscript, metadata, gptModel);
+    const summary = await generateSummary(formattedTranscript, metadata, gptModel, timestampedSegments);
     currentSummary = summary;
 
     // 履歴に保存
-    addToHistory(videoId, videoTitle, url, formattedTranscript, method, cost, metadata, summary, language, gptModel);
+    addToHistory(videoId, videoTitle, url, formattedTranscript, method, cost, metadata, summary, language, gptModel, timestampedSegments);
 
     // ファイルにも保存
     const transcriptPath = path.join('transcripts', `${Date.now()}_${videoId}_${language}_${gptModel}_transcript.txt`);
@@ -584,6 +653,7 @@ app.post('/upload-youtube', async (req, res) => {
       language: language,
       gptModel: gptModel,
       detectedLanguage: detectedLanguage,
+      timestampedSegments: timestampedSegments,
       cost: cost,
       message: `Video transcribed successfully using ${method} (${detectedLanguage})`,
       costs: sessionCosts
@@ -711,6 +781,7 @@ app.post('/load-from-history', (req, res) => {
     currentTranscript = entry.transcript;
     currentMetadata = entry.metadata;
     currentSummary = entry.summary;
+    currentTimestampedSegments = entry.timestampedSegments || [];
     
     res.json({
       success: true,
@@ -721,6 +792,7 @@ app.post('/load-from-history', (req, res) => {
       method: entry.method,
       cost: entry.cost,
       timestamp: entry.timestamp,
+      timestampedSegments: entry.timestampedSegments || [],
       message: 'Loaded from history'
     });
 
