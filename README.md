@@ -1,20 +1,41 @@
-# YouTube動画文字起こし・AI質問応答システム
+# 🎥 YouTube AI Assistant
 
-YouTube動画のURLを入力するだけで、音声を自動的に文字起こしし、その内容に対してAIを活用した質問応答ができるWebアプリケーションです。
+YouTube動画のURLを入力するだけで、音声を自動的に文字起こしし、その内容に対してAIを活用した質問応答ができるモダンなWebアプリケーションです。
+
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Node](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen)
+![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-orange)
+
+## ✨ 新機能（v2.0.0）
+
+### 🎨 モダンUIデザイン
+- **ガラスモーフィズム効果** - 美しいグラデーション背景とガラス風デザイン
+- **レスポンシブデザイン** - スマホ・タブレット・デスクトップ完全対応
+- **アニメーション効果** - スムーズなホバー・フェードイン効果
+- **カスタムスクロールバー** - モダンで使いやすいスクロール体験
+
+### 🔧 機能拡張
+- **Markdownレンダリング** - 要約が美しくフォーマットされて表示
+- **GPTモデル選択** - 用途に応じて4種類のモデルから選択可能
+- **言語選択改善** - より柔軟な言語設定とフォールバック機能
+- **履歴機能強化** - チャンネル名・URL表示で管理しやすく
 
 ## 🌟 主な機能
 
 ### 📝 文字起こし機能
-- **YouTube字幕の自動取得** - 利用可能な場合は字幕を自動取得（日本語・英語対応）
+- **多言語字幕対応** - YouTube字幕を自動取得（日本語・英語・その他10言語対応）
+- **言語選択機能** - Original（自動判定）・日本語・英語から選択可能
 - **Whisper API音声認識** - 字幕がない場合は高精度な音声認識で文字起こし
 - **大容量動画対応** - 25MB超過時は自動分割処理
 - **テキスト整形** - 読みやすい段落・改行の自動挿入
 
 ### 🤖 AI要約・質問応答
-- **構造化要約** - 全体要約・主要ポイント・トピック別詳細要約
+- **構造化要約** - Markdownレンダリングで美しく表示される全体要約・主要ポイント・トピック別詳細要約
+- **GPTモデル選択** - GPT-4o-mini（推奨）、GPT-4o（高品質）、GPT-4-turbo（最高品質）、GPT-3.5-turbo（高速・低コスト）から選択
 - **推奨質問生成** - AIが内容に基づいて質問候補を自動生成
 - **深掘り対話** - 動画内容について詳細な質問応答が可能
-- **GPT-4o-mini活用** - 高品質で低コストなAI回答
+- **リアルタイム料金表示** - モデル別の使用料金をリアルタイム計算
 
 ### 📊 メタデータ分析
 - **動画情報表示** - タイトル・チャンネル・再生回数・長さ
@@ -22,9 +43,10 @@ YouTube動画のURLを入力するだけで、音声を自動的に文字起こ�
 - **統計情報** - いいね数・カテゴリ・字幕対応言語
 
 ### 💰 料金管理・履歴機能
-- **リアルタイム料金計算** - Whisper・GPT使用料金の詳細表示
-- **履歴管理** - 最大100件の処理履歴を自動保存
-- **重複処理回避** - 同一動画の再処理時は履歴から瞬時に取得
+- **モデル別料金計算** - Whisper・各GPTモデルの使用料金を詳細表示
+- **履歴管理** - 最大100件の処理履歴を自動保存（チャンネル名・YouTube URL付き）
+- **重複処理回避** - 同一動画・言語・モデル設定での再処理時は履歴から瞬時に取得
+- **YouTube連携** - 履歴から直接YouTube動画にアクセス可能
 
 ## 🚀 クイックスタート
 
@@ -37,8 +59,8 @@ YouTube動画のURLを入力するだけで、音声を自動的に文字起こ�
 
 1. **リポジトリのクローン**
 ```bash
-git clone https://github.com/yourusername/youtube_translater.git
-cd youtube_translater
+git clone https://github.com/miyajiyuta/youtube_translator.git
+cd youtube_translator
 ```
 
 2. **依存関係のインストール**
@@ -75,12 +97,15 @@ http://localhost:3000
 
 1. **YouTube動画の処理**
    - YouTubeのURLを入力欄に貼り付け
+   - 文字起こし言語を選択（Original・日本語・英語）
+   - GPTモデルを選択（用途に応じて4種類から選択）
    - 「文字起こし開始」ボタンをクリック
    - 自動的に字幕取得 → 音声認識 → 要約生成を実行
 
 2. **要約の確認**
-   - 全体要約・主要ポイント・トピック別詳細を確認
-   - 動画情報（再生回数・チャンネル等）もあわせて表示
+   - Markdownで美しくレンダリングされた要約を確認
+   - 全体要約・主要ポイント・トピック別詳細を構造化表示
+   - 動画情報（タイトル・チャンネル・再生回数・チャプター等）を表示
 
 3. **AI質問応答**
    - 推奨質問をクリックして即座に質問
@@ -89,16 +114,19 @@ http://localhost:3000
 
 4. **履歴管理**
    - 過去の処理結果を履歴から再読み込み
+   - チャンネル名・YouTube URLから動画を特定
+   - 言語・モデル設定別に管理
    - 料金情報を確認して使用量を管理
 
 ## 🏗️ システム構成
 
 ### 技術スタック
 - **バックエンド**: Node.js, Express.js
-- **フロントエンド**: HTML5, CSS3, Vanilla JavaScript
-- **AI API**: OpenAI API (Whisper, GPT-4o-mini)
+- **フロントエンド**: HTML5, CSS3, Vanilla JavaScript, Marked.js
+- **AI API**: OpenAI API (Whisper, GPT-4o-mini, GPT-4o, GPT-4-turbo, GPT-3.5-turbo)
 - **YouTube処理**: @distube/ytdl-core, youtube-transcript-api
 - **音声処理**: fluent-ffmpeg
+- **デザイン**: Glassmorphism, Responsive Design, CSS Grid/Flexbox
 
 ### ディレクトリ構造
 ```
@@ -117,9 +145,10 @@ youtube_translater/
 ```
 
 ### API エンドポイント
-- `POST /upload-youtube` - YouTube動画処理
-- `POST /chat` - AI質問応答
+- `POST /upload-youtube` - YouTube動画処理（言語・モデル選択対応）
+- `POST /chat` - AI質問応答（モデル選択対応）
 - `GET /history` - 履歴取得
+- `POST /load-from-history` - 履歴からの読み込み
 - `GET /suggested-questions` - 推奨質問取得
 - `GET /costs` - 料金情報取得
 - `GET /metadata` - メタデータ取得
@@ -130,14 +159,17 @@ youtube_translater/
 1. **URL検証** → **YouTube字幕取得** → **音声抽出・圧縮** → **Whisper API文字起こし** → **テキスト整形**
 
 ### 要約生成
+- 選択したGPTモデルに応じて最適化された要約生成
+- Markdownフォーマットで構造化された見やすい要約
 - 動画の長さ・内容に応じて適切な要約レベルを自動調整
 - トピック別詳細要約で深掘り質問に対応
 - 推奨質問の自動生成で効率的な学習をサポート
 
 ### 料金最適化
 - YouTube字幕優先利用でWhisper API料金を節約
-- 履歴機能で重複処理を回避
+- 履歴機能で重複処理を回避（言語・モデル設定まで考慮）
 - 音声圧縮により処理コストを削減
+- モデル別料金の透明な表示で予算管理をサポート
 
 ## 🔧 開発・カスタマイズ
 
@@ -153,10 +185,17 @@ npm run dev:ts  # TypeScript版の実行
 
 ## 📊 料金目安
 
+### モデル別料金（2024年6月時点）
 - **Whisper API**: $0.006/分
-- **GPT-4o-mini**: 入力$0.15/100万トークン、出力$0.60/100万トークン
+- **GPT-4o-mini**: 入力$0.15/100万トークン、出力$0.60/100万トークン（推奨）
+- **GPT-4o**: 入力$5.00/100万トークン、出力$15.00/100万トークン（高品質）
+- **GPT-4-turbo**: 入力$10.00/100万トークン、出力$30.00/100万トークン（最高品質）
+- **GPT-3.5-turbo**: 入力$0.50/100万トークン、出力$1.50/100万トークン（高速・低コスト）
+
+### 実際のコスト例
 - **字幕利用時**: 完全無料
-- **10分動画**: 約$0.06（Whisper使用時）
+- **10分動画（Whisper + GPT-4o-mini）**: 約$0.08
+- **10分動画（Whisper + GPT-4o）**: 約$0.15
 
 ## 🤝 コントリビューション
 
@@ -172,9 +211,11 @@ npm run dev:ts  # TypeScript版の実行
 
 ## 🙏 謝辞
 
-- OpenAI - Whisper・GPT-4o-mini API
+- OpenAI - Whisper・GPT API群
 - @distube/ytdl-core - YouTube動画処理
 - youtube-transcript-api - YouTube字幕取得
+- Marked.js - Markdownレンダリング
+- CSS Glassmorphism Community - デザインインスピレーション
 
 ---
 
