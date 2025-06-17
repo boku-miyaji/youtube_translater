@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube 文字起こし & チャット</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #555;
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #005a8b;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .transcript {
+            background: #f9f9f9;
+            border-left: 4px solid #007cba;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .chat-messages {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            background: #fafafa;
+            margin-bottom: 10px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .user-message {
+            background: #007cba;
+            color: white;
+            text-align: right;
+        }
+        .ai-message {
+            background: #e9ecef;
+            color: #333;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #155724;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .costs-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-family: monospace;
+        }
+        .total-cost {
+            border-top: 2px solid #007cba;
+            padding-top: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background: #fafafa;
+        }
+        .history-item {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .history-item:hover {
+            background: #f0f0f0;
+        }
+        .history-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .history-meta {
+            font-size: 0.9em;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+        .method-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .method-subtitle {
+            background: #28a745;
+            color: white;
+        }
+        .method-whisper {
+            background: #007cba;
+            color: white;
+        }
+        .video-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .chapters-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .chapter-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+        .chapter-item:hover {
+            background: #f8f9fa;
+        }
+        .chapter-timestamp {
+            font-weight: bold;
+            color: #007cba;
+            margin-right: 10px;
+        }
+        .summary {
+            background: #f9f9f9;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .suggested-questions {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 5px;
+            border: 1px solid #bbdefb;
+        }
+        .question-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin: 5px 0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .question-item:hover {
+            background: #f0f8ff;
+            border-color: #007cba;
+        }
+        .transcript {
+            background: #f9f9f9;
+            border-left: 4px solid #007cba;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 15px;
+            line-height: 1.8;
+            font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>YouTube 文字起こし & チャットシステム</h1>
+        
+        <div class="section">
+            <h2>1. YouTube動画をアップロード</h2>
+            <input type="text" id="youtubeUrl" placeholder="YouTubeのURLを入力してください">
+            <button onclick="uploadYouTube()" id="uploadBtn">文字起こし開始</button>
+            <div id="uploadStatus"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. 動画情報</h2>
+            <div id="videoInfo" class="video-info" style="display: none;">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>タイトル:</strong> <span id="videoTitle">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>チャンネル:</strong> <span id="videoChannel">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>再生時間:</strong> <span id="videoDuration">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>再生回数:</strong> <span id="videoViews">-</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>処理方法:</strong> <span id="processingMethod">-</span>
+                    </div>
+                </div>
+                <div id="chaptersInfo" class="chapters-info" style="display: none;">
+                    <h4>📋 チャプター情報</h4>
+                    <div id="chaptersList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3. 要約</h2>
+            <div id="summary" class="summary" style="display: none;">
+                要約がここに表示されます...
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. 文字起こし結果</h2>
+            <div id="transcript" class="transcript">
+                文字起こし結果がここに表示されます...
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5. 内容について質問</h2>
+            <div id="suggestedQuestions" class="suggested-questions" style="display: none;">
+                <h4>💡 おすすめ質問</h4>
+                <div id="questionsList"></div>
+            </div>
+            <div id="chatMessages" class="chat-messages">
+                <div class="message ai-message">
+                    こんにちは！YouTubeの動画を文字起こしした後、その内容について何でも質問してください。
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="chatInput" placeholder="質問を入力してください..." style="flex: 1;">
+                <button onclick="sendMessage()" id="chatBtn" style="width: 100px;">送信</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>6. 使用料金</h2>
+            <div id="costs" class="costs-display">
+                <div class="cost-item">
+                    <span>Whisper (文字起こし): </span>
+                    <span id="whisperCost">$0.00</span>
+                </div>
+                <div class="cost-item">
+                    <span>GPT-4o-mini (チャット): </span>
+                    <span id="gptCost">$0.00</span>
+                </div>
+                <div class="cost-item total-cost">
+                    <span>合計: </span>
+                    <span id="totalCost">$0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>7. 履歴</h2>
+            <div id="historyList" class="history-list">
+                履歴を読み込み中...
+            </div>
+            <button onclick="loadHistory()" id="refreshHistoryBtn">履歴を更新</button>
+        </div>
+    </div>
+
+    <script>
+        let isTranscriptReady = false;
+
+        function updateCosts(costs) {
+            if (costs) {
+                document.getElementById('whisperCost').textContent = `$${costs.whisper.toFixed(4)}`;
+                document.getElementById('gptCost').textContent = `$${costs.gpt.toFixed(4)}`;
+                document.getElementById('totalCost').textContent = `$${costs.total.toFixed(4)}`;
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayHistory(result.history);
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        function displayHistory(history) {
+            const historyList = document.getElementById('historyList');
+            
+            if (!history || history.length === 0) {
+                historyList.innerHTML = '<p>履歴がありません</p>';
+                return;
+            }
+
+            const historyHTML = history.map(item => {
+                const date = new Date(item.timestamp).toLocaleString('ja-JP');
+                const methodClass = item.method === 'subtitle' ? 'method-subtitle' : 'method-whisper';
+                const methodText = item.method === 'subtitle' ? '字幕' : 'Whisper';
+                const cost = item.cost > 0 ? `$${item.cost.toFixed(4)}` : '無料';
+                
+                return `
+                    <div class="history-item" onclick="loadFromHistory('${item.id}')">
+                        <div class="history-title">${item.title}</div>
+                        <div class="history-meta">
+                            <span>${date}</span>
+                            <span>
+                                <span class="method-badge ${methodClass}">${methodText}</span>
+                                <span style="margin-left: 10px;">${cost}</span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            historyList.innerHTML = historyHTML;
+        }
+
+        async function loadFromHistory(videoId) {
+            try {
+                const response = await fetch('/load-from-history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ videoId: videoId })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 改行を確実に表示するために innerHTML を使用
+                    const transcriptDiv = document.getElementById('transcript');
+                    transcriptDiv.innerHTML = result.transcript.replace(/\n/g, '<br>');
+                    transcriptDiv.style.whiteSpace = 'pre-wrap';
+                    
+                    // 動画情報を表示
+                    if (result.metadata) {
+                        displayVideoInfo(result.metadata, result.method);
+                    }
+                    
+                    // 要約を表示
+                    if (result.summary) {
+                        displaySummary(result.summary);
+                    }
+                    
+                    // 推奨質問を読み込み
+                    loadSuggestedQuestions();
+                    
+                    showStatus(`履歴から読み込みました: ${result.title}`, 'success');
+                    isTranscriptReady = true;
+                } else {
+                    showStatus(`エラー: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('履歴の読み込みでエラーが発生しました。', 'error');
+            }
+        }
+
+        // 新機能の関数
+        function displayVideoInfo(metadata, method) {
+            if (!metadata) return;
+            
+            const videoInfo = document.getElementById('videoInfo');
+            const basic = metadata.basic;
+            
+            document.getElementById('videoTitle').textContent = basic.title;
+            document.getElementById('videoChannel').textContent = basic.channel;
+            document.getElementById('videoDuration').textContent = 
+                `${Math.floor(basic.duration/60)}分${basic.duration%60}秒`;
+            document.getElementById('videoViews').textContent = 
+                basic.viewCount ? basic.viewCount.toLocaleString() + '回' : 'N/A';
+            document.getElementById('processingMethod').textContent = 
+                method === 'subtitle' ? 'YouTube字幕' : 'Whisper API';
+            
+            // チャプター情報
+            if (metadata.chapters && metadata.chapters.length > 0) {
+                const chaptersInfo = document.getElementById('chaptersInfo');
+                const chaptersList = document.getElementById('chaptersList');
+                
+                chaptersList.innerHTML = metadata.chapters.map(chapter => 
+                    `<div class="chapter-item">
+                        <span class="chapter-timestamp">${chapter.timestamp}</span>
+                        ${chapter.title}
+                    </div>`
+                ).join('');
+                
+                chaptersInfo.style.display = 'block';
+            }
+            
+            videoInfo.style.display = 'block';
+        }
+
+        function displaySummary(summary) {
+            if (!summary) return;
+            
+            const summaryDiv = document.getElementById('summary');
+            summaryDiv.textContent = summary;
+            summaryDiv.style.display = 'block';
+        }
+
+        async function loadSuggestedQuestions() {
+            try {
+                const response = await fetch('/suggested-questions');
+                const result = await response.json();
+                
+                if (result.success && result.questions.length > 0) {
+                    displaySuggestedQuestions(result.questions);
+                }
+            } catch (error) {
+                console.error('Error loading suggested questions:', error);
+            }
+        }
+
+        function displaySuggestedQuestions(questions) {
+            const suggestedDiv = document.getElementById('suggestedQuestions');
+            const questionsList = document.getElementById('questionsList');
+            
+            questionsList.innerHTML = questions.map(question => 
+                `<div class="question-item" onclick="askSuggestedQuestion('${question.replace(/'/g, "\\'")}')">
+                    ${question}
+                </div>`
+            ).join('');
+            
+            suggestedDiv.style.display = 'block';
+        }
+
+        function askSuggestedQuestion(question) {
+            document.getElementById('chatInput').value = question;
+            sendMessage();
+        }
+
+        // ページ読み込み時に履歴を取得
+        window.onload = function() {
+            loadHistory();
+        };
+
+        async function uploadYouTube() {
+            const url = document.getElementById('youtubeUrl').value.trim();
+            const uploadBtn = document.getElementById('uploadBtn');
+            const uploadStatus = document.getElementById('uploadStatus');
+            
+            if (!url) {
+                showStatus('YouTubeのURLを入力してください', 'error');
+                return;
+            }
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '処理中...';
+            showStatus('YouTube動画を処理中です。しばらくお待ちください...', 'loading');
+
+            try {
+                const response = await fetch('/upload-youtube', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 改行を確実に表示するために innerHTML を使用
+                    const transcriptDiv = document.getElementById('transcript');
+                    transcriptDiv.innerHTML = result.transcript.replace(/\n/g, '<br>');
+                    transcriptDiv.style.whiteSpace = 'pre-wrap';
+                    
+                    // 動画情報を表示
+                    if (result.metadata) {
+                        displayVideoInfo(result.metadata, result.method);
+                    }
+                    
+                    // 要約を表示
+                    if (result.summary) {
+                        displaySummary(result.summary);
+                    }
+                    
+                    let message = `文字起こしが完了しました！動画: ${result.title}`;
+                    if (result.fromHistory) {
+                        message += ' (履歴から取得)';
+                    } else {
+                        const methodText = result.method === 'subtitle' ? 'YouTube字幕' : 'Whisper API';
+                        message += ` (${methodText}使用)`;
+                    }
+                    
+                    showStatus(message, 'success');
+                    isTranscriptReady = true;
+                    
+                    // コストを更新
+                    if (result.costs) {
+                        updateCosts(result.costs);
+                    }
+                    
+                    // 推奨質問を読み込み
+                    loadSuggestedQuestions();
+                    
+                    // 履歴を更新
+                    loadHistory();
+                } else {
+                    showStatus(`エラー: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('エラーが発生しました。もう一度お試しください。', 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '文字起こし開始';
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            const chatBtn = document.getElementById('chatBtn');
+            const chatMessages = document.getElementById('chatMessages');
+
+            if (!message) return;
+
+            if (!isTranscriptReady) {
+                alert('まず最初にYouTube動画を文字起こししてください。');
+                return;
+            }
+
+            input.value = '';
+            chatBtn.disabled = true;
+            chatBtn.textContent = '送信中...';
+
+            addMessage(message, 'user');
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addMessage(result.response, 'ai');
+                    
+                    // コストを更新
+                    if (result.costs) {
+                        updateCosts(result.costs);
+                    }
+                } else {
+                    addMessage(`エラー: ${result.error}`, 'ai');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('エラーが発生しました。もう一度お試しください。', 'ai');
+            } finally {
+                chatBtn.disabled = false;
+                chatBtn.textContent = '送信';
+            }
+        }
+
+        function addMessage(text, type) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.textContent = text;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showStatus(message, type) {
+            const uploadStatus = document.getElementById('uploadStatus');
+            uploadStatus.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

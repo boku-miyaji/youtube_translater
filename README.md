@@ -1,0 +1,181 @@
+# YouTube動画文字起こし・AI質問応答システム
+
+YouTube動画のURLを入力するだけで、音声を自動的に文字起こしし、その内容に対してAIを活用した質問応答ができるWebアプリケーションです。
+
+## 🌟 主な機能
+
+### 📝 文字起こし機能
+- **YouTube字幕の自動取得** - 利用可能な場合は字幕を自動取得（日本語・英語対応）
+- **Whisper API音声認識** - 字幕がない場合は高精度な音声認識で文字起こし
+- **大容量動画対応** - 25MB超過時は自動分割処理
+- **テキスト整形** - 読みやすい段落・改行の自動挿入
+
+### 🤖 AI要約・質問応答
+- **構造化要約** - 全体要約・主要ポイント・トピック別詳細要約
+- **推奨質問生成** - AIが内容に基づいて質問候補を自動生成
+- **深掘り対話** - 動画内容について詳細な質問応答が可能
+- **GPT-4o-mini活用** - 高品質で低コストなAI回答
+
+### 📊 メタデータ分析
+- **動画情報表示** - タイトル・チャンネル・再生回数・長さ
+- **チャプター分析** - タイムスタンプ付きセクション情報
+- **統計情報** - いいね数・カテゴリ・字幕対応言語
+
+### 💰 料金管理・履歴機能
+- **リアルタイム料金計算** - Whisper・GPT使用料金の詳細表示
+- **履歴管理** - 最大100件の処理履歴を自動保存
+- **重複処理回避** - 同一動画の再処理時は履歴から瞬時に取得
+
+## 🚀 クイックスタート
+
+### 必要な環境
+- Node.js (v14以上)
+- FFmpeg (音声処理用)
+- OpenAI APIキー
+
+### インストール
+
+1. **リポジトリのクローン**
+```bash
+git clone https://github.com/yourusername/youtube_translater.git
+cd youtube_translater
+```
+
+2. **依存関係のインストール**
+```bash
+npm install
+```
+
+3. **環境変数の設定**
+```bash
+cp .env.example .env
+```
+`.env`ファイルを編集してOpenAI APIキーを設定：
+```
+OPENAI_API_KEY=your_openai_api_key_here
+PORT=3000
+```
+
+4. **サーバーの起動**
+```bash
+# 開発モード
+npm run dev
+
+# 本番モード
+npm run build
+npm start
+```
+
+5. **ブラウザでアクセス**
+```
+http://localhost:3000
+```
+
+## 📖 使用方法
+
+1. **YouTube動画の処理**
+   - YouTubeのURLを入力欄に貼り付け
+   - 「文字起こし開始」ボタンをクリック
+   - 自動的に字幕取得 → 音声認識 → 要約生成を実行
+
+2. **要約の確認**
+   - 全体要約・主要ポイント・トピック別詳細を確認
+   - 動画情報（再生回数・チャンネル等）もあわせて表示
+
+3. **AI質問応答**
+   - 推奨質問をクリックして即座に質問
+   - または自由に質問を入力して送信
+   - 動画内容に基づいた詳細な回答を取得
+
+4. **履歴管理**
+   - 過去の処理結果を履歴から再読み込み
+   - 料金情報を確認して使用量を管理
+
+## 🏗️ システム構成
+
+### 技術スタック
+- **バックエンド**: Node.js, Express.js
+- **フロントエンド**: HTML5, CSS3, Vanilla JavaScript
+- **AI API**: OpenAI API (Whisper, GPT-4o-mini)
+- **YouTube処理**: @distube/ytdl-core, youtube-transcript-api
+- **音声処理**: fluent-ffmpeg
+
+### ディレクトリ構造
+```
+youtube_translater/
+├── server.js              # メインサーバーファイル
+├── src/server.ts          # TypeScript版サーバー
+├── package.json           # 依存関係定義
+├── tsconfig.json          # TypeScript設定
+├── 要件定義書.md          # 詳細な要件定義
+├── public/
+│   └── index.html         # フロントエンドUI
+├── uploads/               # 一時音声ファイル
+├── transcripts/           # 文字起こしファイル
+└── history/               # 履歴データ
+    └── transcripts.json   # 履歴JSON
+```
+
+### API エンドポイント
+- `POST /upload-youtube` - YouTube動画処理
+- `POST /chat` - AI質問応答
+- `GET /history` - 履歴取得
+- `GET /suggested-questions` - 推奨質問取得
+- `GET /costs` - 料金情報取得
+- `GET /metadata` - メタデータ取得
+
+## 💡 機能詳細
+
+### 文字起こし処理フロー
+1. **URL検証** → **YouTube字幕取得** → **音声抽出・圧縮** → **Whisper API文字起こし** → **テキスト整形**
+
+### 要約生成
+- 動画の長さ・内容に応じて適切な要約レベルを自動調整
+- トピック別詳細要約で深掘り質問に対応
+- 推奨質問の自動生成で効率的な学習をサポート
+
+### 料金最適化
+- YouTube字幕優先利用でWhisper API料金を節約
+- 履歴機能で重複処理を回避
+- 音声圧縮により処理コストを削減
+
+## 🔧 開発・カスタマイズ
+
+### TypeScript対応
+```bash
+npm run dev:ts  # TypeScript版の実行
+```
+
+### 設定のカスタマイズ
+- `server.js`内の`pricing`オブジェクトで料金設定を変更
+- `formatTranscript`関数で文字起こし整形ルールを調整
+- `generateSummary`関数で要約形式をカスタマイズ
+
+## 📊 料金目安
+
+- **Whisper API**: $0.006/分
+- **GPT-4o-mini**: 入力$0.15/100万トークン、出力$0.60/100万トークン
+- **字幕利用時**: 完全無料
+- **10分動画**: 約$0.06（Whisper使用時）
+
+## 🤝 コントリビューション
+
+1. このリポジトリをフォーク
+2. 機能ブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
+
+## 📄 ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。
+
+## 🙏 謝辞
+
+- OpenAI - Whisper・GPT-4o-mini API
+- @distube/ytdl-core - YouTube動画処理
+- youtube-transcript-api - YouTube字幕取得
+
+---
+
+**🤖 Generated with [Claude Code](https://claude.ai/code)**

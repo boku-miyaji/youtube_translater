@@ -1,0 +1,32 @@
+{
+  "name": "youtube-translater",
+  "version": "1.0.0",
+  "description": "YouTube video transcription and LLM chat system",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build": "tsc",
+    "dev:ts": "ts-node src/server.ts"
+  },
+  "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.20.1",
+    "youtube-transcript-api": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/fluent-ffmpeg": "^2.1.27",
+    "@types/multer": "^1.4.13",
+    "@types/node": "^24.0.3",
+    "nodemon": "^3.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
