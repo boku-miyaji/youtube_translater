@@ -24,18 +24,19 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 1rem;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
         .app-header {
             text-align: center;
-            padding: 2rem 0;
+            padding: 1rem 0;
             color: white;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
         }
         .app-header h1 {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .app-header p {
@@ -125,13 +126,9 @@
             overflow-y: auto;
         }
         .chat-messages {
-            border: 2px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 1rem;
-            height: 400px;
+            height: 100%;
             overflow-y: auto;
-            background: linear-gradient(135deg, #f8fafc, #ffffff);
-            margin-bottom: 1rem;
+            background: transparent;
             scrollbar-width: thin;
             scrollbar-color: #cbd5e0 transparent;
         }
@@ -146,11 +143,13 @@
             border-radius: 3px;
         }
         .message {
-            margin-bottom: 1rem;
-            padding: 1rem;
-            border-radius: 16px;
-            max-width: 85%;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 12px;
+            max-width: 90%;
             animation: fadeIn 0.3s ease;
+            font-size: 0.9rem;
+            line-height: 1.4;
         }
         .user-message {
             background: linear-gradient(135deg, #667eea, #764ba2);
@@ -162,6 +161,59 @@
             background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
             color: #2d3748;
             margin-right: auto;
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+        
+        /* AIメッセージ内のMarkdown要素のスタイル */
+        .ai-message h1, .ai-message h2, .ai-message h3, .ai-message h4, .ai-message h5, .ai-message h6 {
+            margin: 0.5rem 0;
+            color: #1a202c;
+        }
+        .ai-message p {
+            margin: 0.5rem 0;
+        }
+        .ai-message ul, .ai-message ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        .ai-message li {
+            margin: 0.25rem 0;
+        }
+        .ai-message code {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        .ai-message pre {
+            background: #f8fafc;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+        .ai-message pre code {
+            background: none;
+            padding: 0;
+        }
+        .ai-message blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            margin: 0.5rem 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+        .ai-message strong {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .ai-message em {
+            font-style: italic;
+            color: #4a5568;
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -194,13 +246,24 @@
             backdrop-filter: blur(10px);
         }
         .video-player-container {
-            margin-bottom: 1.5rem;
-            border-radius: 16px;
+            margin-bottom: 1rem;
+            border-radius: 12px;
             overflow: hidden;
             background: #000;
             position: relative;
-            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            padding-bottom: 56.25%; /* 16:9の標準比率 */
             height: 0;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .video-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            overflow: visible; /* はみ出しを許可 */
+            position: relative;
         }
         .video-player-container iframe {
             position: absolute;
@@ -223,6 +286,93 @@
             background: rgba(102, 126, 234, 0.1);
             transform: scale(1.05);
         }
+        .timestamp-segment {
+            margin: 0 !important;
+            padding: 0 !important;
+            transition: all 0.3s ease;
+            display: block;
+            line-height: 1;
+        }
+        .timestamp-row {
+            display: flex;
+            align-items: center;
+            padding: 2px 4px !important;
+            border-radius: 3px;
+            transition: all 0.3s ease;
+            height: 18px !important;
+            min-height: 18px !important;
+            max-height: 18px !important;
+            overflow: hidden;
+            margin: 0;
+        }
+        .timestamp-row:hover {
+            background: rgba(102, 126, 234, 0.08);
+        }
+        .timestamp-segment.current-segment .timestamp-row {
+            background: rgba(102, 126, 234, 0.2);
+            border-left: 2px solid #667eea;
+            padding-left: 6px !important;
+        }
+        .timestamp-time {
+            min-width: 45px;
+            width: 45px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.7rem;
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 6px;
+            text-align: right;
+            padding: 0;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .timestamp-time:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.05);
+        }
+        .timestamp-text {
+            flex: 1;
+            line-height: 1 !important;
+            color: #2d3748;
+            font-size: 0.8rem;
+            margin: 0;
+            padding: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .timestamp-transcript {
+            font-family: inherit;
+            line-height: 1 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .ai-message {
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            color: #2d3748;
+            margin-right: auto;
+        }
+        .ai-message .timestamp-link {
+            background: rgba(102, 126, 234, 0.15);
+            color: #667eea;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 0 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            text-decoration: none;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+        .ai-message .timestamp-link:hover {
+            background: rgba(102, 126, 234, 0.25);
+            color: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+        }
         .cost-item {
             display: flex;
             justify-content: space-between;
@@ -234,6 +384,65 @@
             padding-top: 8px;
             font-weight: bold;
             font-size: 1.1em;
+        }
+        .costs-tabs {
+            display: flex;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 2px;
+            margin-bottom: 1rem;
+        }
+        .costs-tab-button {
+            flex: 1;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .costs-tab-button.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        .costs-tab-button:not(.active) {
+            color: #718096;
+            opacity: 0.7;
+        }
+        .costs-tab-button:not(.active):hover {
+            background: #e2e8f0;
+            opacity: 1;
+        }
+        .costs-tab-content {
+            display: none;
+        }
+        .costs-tab-content.active {
+            display: block;
+        }
+        .costs-filter {
+            margin-bottom: 1rem;
+        }
+        .costs-filter select {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .costs-analysis-summary {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .costs-chart {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1rem;
         }
         .history-list {
             max-height: 400px;
@@ -285,6 +494,233 @@
         .history-url a:hover {
             text-decoration: underline;
         }
+        
+        /* 履歴タブとフィルター */
+        .history-controls {
+            margin-bottom: 1rem;
+        }
+        
+        .history-tabs {
+            display: flex;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 2px;
+            margin-bottom: 1rem;
+        }
+        
+        .history-tab-button {
+            flex: 1;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .history-tab-button.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .history-tab-button:not(.active) {
+            color: #718096;
+            opacity: 0.7;
+        }
+        
+        .history-tab-button:not(.active):hover {
+            background: #e2e8f0;
+            opacity: 1;
+        }
+        
+        /* タグ表示 */
+        .video-tags {
+            margin: 0.5rem 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        
+        .tag-item {
+            background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+            color: #2d3748;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            border: 1px solid #bee3f8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tag-item:hover {
+            background: linear-gradient(135deg, #bee3f8, #81e6d9);
+            transform: translateY(-1px);
+        }
+        
+        .suggestion-tag {
+            background: #f7fafc;
+            color: #4a5568;
+            padding: 0.25rem 0.5rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            margin: 0.125rem;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .suggestion-tag:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* フォルダサジェスチョン */
+        .folder-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+        
+        .folder-suggestion-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .folder-suggestion-item:last-child {
+            border-bottom: none;
+        }
+        
+        .folder-suggestion-item:hover {
+            background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+            color: #2d3748;
+        }
+        
+        .folder-suggestion-item .folder-icon {
+            color: #667eea;
+            font-size: 1rem;
+        }
+        
+        .folder-suggestion-item .folder-name {
+            font-weight: 600;
+            flex: 1;
+        }
+        
+        .folder-suggestion-item .folder-count {
+            font-size: 0.8rem;
+            color: #666;
+            background: #f1f5f9;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+        }
+        
+        /* グループ化された履歴 */
+        .history-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .history-group-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 12px 12px 0 0;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .history-group-items {
+            background: #f8fafc;
+            border-radius: 0 0 12px 12px;
+            padding: 0.5rem;
+        }
+        
+        .history-group-items .history-item {
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        /* 選択されたメインタグ */
+        .selected-tag {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .selected-tag:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .selected-tag .remove-tag {
+            cursor: pointer;
+            font-weight: bold;
+            padding: 0.125rem 0.25rem;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .selected-tag .remove-tag:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* アコーディオン機能 */
+        .history-group-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .history-group-header:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .history-group-header .toggle-icon {
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .history-group.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+        
+        .history-group-items {
+            background: #f8fafc;
+            border-radius: 0 0 12px 12px;
+            padding: 0.5rem;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .history-group.collapsed .history-group-items {
+            display: none;
+        }
         .method-badge {
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
@@ -309,12 +745,6 @@
             background: linear-gradient(135deg, #a0aec0, #718096);
             color: white;
             margin-left: 0.5rem;
-        }
-        .video-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #dee2e6;
         }
         .info-grid {
             display: grid;
@@ -400,21 +830,25 @@
             font-family: monospace;
         }
         .suggested-questions {
-            margin-bottom: 1rem;
-            padding: 1rem;
+            margin-bottom: 0.3rem;
+            padding: 0.3rem;
             background: linear-gradient(135deg, #ebf8ff, #e6fffa);
-            border-radius: 16px;
-            border: 2px solid #bee3f8;
+            border-radius: 8px;
+            border: 1px solid #bee3f8;
+            max-height: 80px;
+            overflow-y: auto;
+            flex-shrink: 0;
         }
         .question-item {
             background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 0.75rem 1rem;
-            margin: 0.5rem 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.2rem 0.4rem;
+            margin: 0.1rem 0;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-size: 0.9rem;
+            font-size: 0.75rem;
+            line-height: 1.2;
         }
         .question-item:hover {
             background: linear-gradient(135deg, #f7fafc, #edf2f7);
@@ -527,7 +961,230 @@
             }
         }
         
+        /* 新しいレイアウト用CSS */
+        .main-content {
+            display: flex;
+            gap: 0;
+            max-width: 100vw;
+            margin: 0 auto;
+            padding: 1rem;
+            height: calc(100vh - 200px);
+        }
+        
+        .left-panel {
+            height: 100%;
+            overflow-y: auto;
+            width: 350px;
+            transition: width 0.3s ease;
+            flex-shrink: 0;
+        }
+        
+        .left-panel .section {
+            overflow-y: auto;
+            position: relative;
+            transition: all 0.3s ease;
+            max-height: calc(100vh - 280px);
+        }
+        
+        /* レサイザー */
+        .resize-handle {
+            position: relative;
+            width: 16px;
+            height: 100%;
+            cursor: col-resize;
+            background: #667eea;
+            border-radius: 4px;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 4px;
+            flex-shrink: 0;
+        }
+        
+        .resize-handle:hover {
+            background: #764ba2;
+            opacity: 1;
+        }
+        
+        .resize-handle::before {
+            content: '⋮⋮';
+            color: white;
+            font-size: 14px;
+            line-height: 1;
+            transform: rotate(90deg);
+        }
+        
+        .right-panel {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            min-width: 400px;
+        }
+        
+        .content-tabs {
+            display: flex;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 1rem;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-align: center;
+            line-height: 1.2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            min-height: 60px;
+            color: #4a5568;
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+        
+        .tab-button:not(.active):hover {
+            background: #e2e8f0;
+            border-color: #cbd5e0;
+            transform: translateY(-1px);
+        }
+        
+        .tab-content {
+            display: none;
+            height: 500px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 12px;
+            padding: 0.5rem;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            margin-top: 1rem;
+            min-height: 500px;
+            max-height: 600px;
+            height: auto;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, #f8fafc, #ffffff);
+            border-radius: 10px 10px 0 0;
+            flex-shrink: 0;
+        }
+        
+        .chat-messages-panel {
+            flex: 1;
+            padding: 1rem;
+            padding-bottom: 100px;
+            overflow-y: auto;
+            min-height: 300px;
+            max-height: 420px;
+        }
+        
+        .chat-input-panel {
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 0 0 10px 10px;
+            flex-shrink: 0 !important;
+            min-height: 80px !important;
+            height: auto !important;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 100 !important;
+            display: flex !important;
+            visibility: visible !important;
+        }
+        
+        .chat-input-container {
+            display: flex !important;
+            gap: 0.75rem;
+            align-items: center;
+            width: 100% !important;
+        }
+        
+        .chat-input-container input {
+            flex: 1;
+            margin: 0;
+            display: block !important;
+            visibility: visible !important;
+            width: auto !important;
+            min-width: 200px;
+        }
+        
+        .chat-input-container button {
+            width: auto;
+            min-width: 80px;
+            margin: 0;
+            display: block !important;
+            visibility: visible !important;
+        }
+        
         /* Mobile-first improvements */
+        @media (max-width: 1200px) {
+            .main-content {
+                flex-direction: column;
+                gap: 1rem;
+                height: auto;
+            }
+            
+            .left-panel {
+                width: 100%;
+                height: auto;
+                max-height: 400px;
+            }
+            
+            .right-panel {
+                position: static;
+                height: auto;
+                min-height: 600px;
+            }
+            
+            .chat-panel {
+                min-height: 400px;
+                max-height: 550px;
+            }
+            
+            .chat-messages-panel {
+                min-height: 200px;
+                max-height: 320px;
+            }
+        }
+        
         @media (max-width: 767px) {
             .app-header h1 {
                 font-size: 2rem;
@@ -539,129 +1196,491 @@
             .message {
                 max-width: 95%;
             }
+            .main-content {
+                padding: 0.5rem;
+            }
+            
+            .chat-input-container {
+                gap: 0.5rem;
+            }
+            
+            .chat-input-container input {
+                font-size: 16px; /* iOSでズームインを防ぐ */
+            }
+        }
+        
+        /* 記事マークダウン用スタイル */
+        .article-markdown {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+        }
+        
+        .article-markdown h1 {
+            color: #1a202c;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin: 0 0 1rem 0;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        
+        .article-markdown h2 {
+            color: #2d3748;
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 1.5rem 0 1rem 0;
+        }
+        
+        .article-markdown h3 {
+            color: #4a5568;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 1.25rem 0 0.75rem 0;
+        }
+        
+        .article-markdown p {
+            margin: 0 0 1rem 0;
+            color: #2d3748;
+        }
+        
+        .article-markdown code {
+            background: #f7fafc;
+            color: #e53e3e;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        
+        .article-markdown pre {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        
+        .article-markdown pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+        
+        .article-markdown ul, .article-markdown ol {
+            margin: 0 0 1rem 0;
+            padding-left: 1.5rem;
+        }
+        
+        .article-markdown li {
+            margin: 0.25rem 0;
+        }
+        
+        .article-markdown blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+        
+        .article-markdown strong {
+            font-weight: 600;
+            color: #1a202c;
+        }
+        
+        /* アコーディオンスタイル */
+        .costs-accordion {
+            margin: 1rem 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .accordion-header {
+            background: #f8fafc;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #4a5568;
+            transition: background-color 0.3s ease;
+        }
+        
+        .accordion-header:hover {
+            background: #e2e8f0;
+        }
+        
+        .accordion-arrow {
+            font-size: 0.8rem;
+        }
+        
+        /* 汎用メッセージ表示 */
+        .message-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        }
+        
+        .message-item {
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: slideInRight 0.3s ease;
+        }
+        
+        .message-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .message-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            transition: transform 0.3s ease;
+        }
+        
+        .accordion-arrow.expanded {
+            transform: rotate(180deg);
+        }
+        
+        .accordion-content {
+            padding: 1rem;
+            background: white;
+            border-top: 1px solid #e2e8f0;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="app-header">
-            <h1>🎥 YouTube AI Assistant</h1>
-            <p>動画を文字起こしして、AIと対話しよう</p>
+    <!-- 汎用メッセージ表示コンテナ -->
+    <div id="messageContainer" class="message-container"></div>
+    
+    <div class="app-header">
+        <h1>🎥 YouTube AI Assistant</h1>
+        <p>動画を文字起こしして、AIと対話しよう</p>
+    </div>
+    
+    <div class="section">
+        <h2><span class="section-icon">📥</span>YouTube動画をアップロード</h2>
+        <div class="input-group">
+            <div class="main-tags-container">
+                <label for="mainTags" style="font-weight: 600; color: #2d3748; display: block; margin-bottom: 0.5rem;">🏷️ メインタグ (カンマ区切り):</label>
+                <input type="text" id="mainTags" placeholder="例: 商談, プロジェクト, 学習資料" 
+                       style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 2px solid #e2e8f0; margin-bottom: 0.5rem;"
+                       oninput="showMainTagSuggestions(this.value)" onfocus="showMainTagSuggestions(this.value)">
+                <div class="main-tag-suggestions" id="mainTagSuggestions" style="display: none; position: relative; z-index: 100;">
+                    <div class="suggestion-list" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
+                </div>
+                <div class="selected-main-tags" id="selectedMainTags" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;"></div>
+            </div>
+            <input type="text" id="youtubeUrl" placeholder="YouTubeのURLを入力してください" oninput="checkForExistingContent()">
+            <div class="controls-row">
+                <div class="language-selector">
+                    <label for="languageSelect">文字起こし言語:</label>
+                    <select id="languageSelect" onchange="checkForExistingContent()">
+                        <option value="original" selected>Original (自動判定)</option>
+                        <option value="ja">日本語</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+                <div class="model-selector">
+                    <label for="gptModelSelect">GPTモデル:</label>
+                    <select id="gptModelSelect" onchange="checkForExistingContent()">
+                        <option value="gpt-4o-mini">GPT-4o-mini - $0.60/$2.40 per 1M tokens</option>
+                        <option value="gpt-4o">GPT-4o (高品質) - $5.00/$15.00 per 1M tokens</option>
+                        <option value="gpt-4-turbo">GPT-4-turbo (最高品質) - $10.00/$30.00 per 1M tokens</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5-turbo (高速・低コスト) - $0.50/$1.50 per 1M tokens</option>
+                        <option value="gpt-4.1-nano">GPT-4.1-nano (超高速) - $0.10/$0.40 per 1M tokens</option>
+                        <option value="gpt-4.1-mini" selected>GPT-4.1-mini (推奨) - $0.40/$1.60 per 1M tokens</option>
+                        <option value="gpt-4.1">GPT-4.1 (最新) - $2.00/$8.00 per 1M tokens</option>
+                        <option value="gpt-o3">GPT-o3 (推論強化) - $2.00/$8.00 per 1M tokens</option>
+                        <option value="gpt-4o-mini-new">GPT-4o-mini (新) - $1.10/$4.40 per 1M tokens</option>
+                    </select>
+                </div>
+            </div>
         </div>
+        <button onclick="uploadYouTube(false)" id="uploadBtn">解析開始</button>
+        <div id="uploadStatus"></div>
         
-        <div class="section">
-            <h2><span class="section-icon">📥</span>YouTube動画をアップロード</h2>
-            <div class="input-group">
-                <input type="text" id="youtubeUrl" placeholder="YouTubeのURLを入力してください">
-                <div class="controls-row">
-                    <div class="language-selector">
-                        <label for="languageSelect">文字起こし言語:</label>
-                        <select id="languageSelect">
-                            <option value="original" selected>Original (自動判定)</option>
-                            <option value="ja">日本語</option>
-                            <option value="en">English</option>
+    </div>
+
+    <div class="main-content">
+        <div class="left-panel">
+            <div class="section">
+                <h2><span class="section-icon">📊</span>動画情報</h2>
+                <div id="videoInfo" class="video-info" style="display: none;">
+                    <div class="video-player-container" id="videoPlayerContainer" style="display: none;">
+                        <div id="youtubePlayer"></div>
+                    </div>
+                    <div class="info-grid" style="grid-template-columns: 1fr; gap: 5px; font-size: 0.85rem;">
+                        <div class="info-item" style="padding: 5px 8px;">
+                            <strong>タイトル:</strong> <span id="videoTitle">-</span>
+                        </div>
+                        <div class="info-item" style="padding: 5px 8px;">
+                            <strong>チャンネル:</strong> <span id="videoChannel">-</span>
+                        </div>
+                        <div class="info-item" style="padding: 5px 8px;">
+                            <strong>時間:</strong> <span id="videoDuration">-</span> | <strong>再生回数:</strong> <span id="videoViews">-</span>
+                        </div>
+                        <div class="info-item" style="padding: 5px 8px;">
+                            <strong>処理方法:</strong> <span id="processingMethod">-</span>
+                        </div>
+                    </div>
+                    <div id="chaptersInfo" class="chapters-info" style="display: none;">
+                        <h4>📋 チャプター情報</h4>
+                        <div id="chaptersList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2><span class="section-icon">💰</span>使用料金</h2>
+                
+                <div class="costs-tabs">
+                    <button class="costs-tab-button active" onclick="switchCostsTab('analysis')">分析</button>
+                    <button class="costs-tab-button" onclick="switchCostsTab('graph')">グラフ</button>
+                </div>
+                
+                <div id="analysisCosts" class="costs-tab-content active">
+                    <div class="costs-filter">
+                        <select id="periodSelect" onchange="loadCostsAnalysis()">
+                            <option value="today" selected>本日</option>
+                            <option value="week">週間</option>
+                            <option value="month">月間</option>
+                            <option value="total">トータル</option>
                         </select>
                     </div>
-                    <div class="model-selector">
-                        <label for="gptModelSelect">GPTモデル:</label>
-                        <select id="gptModelSelect">
-                            <option value="gpt-4o-mini" selected>GPT-4o-mini (推奨)</option>
-                            <option value="gpt-4o">GPT-4o (高品質)</option>
-                            <option value="gpt-4-turbo">GPT-4-turbo (最高品質)</option>
-                            <option value="gpt-3.5-turbo">GPT-3.5-turbo (高速・低コスト)</option>
+                    <div id="costsAnalysisResult">
+                        分析データを読み込み中...
+                    </div>
+                </div>
+                
+                <div id="graphCosts" class="costs-tab-content">
+                    <div class="costs-filter">
+                        <select id="graphPeriodSelect" onchange="loadCostsGraph()">
+                            <option value="today" selected>本日</option>
+                            <option value="week">週間</option>
+                            <option value="month">月間</option>
+                            <option value="total">トータル</option>
                         </select>
                     </div>
-                </div>
-            </div>
-            <button onclick="uploadYouTube()" id="uploadBtn">文字起こし開始</button>
-            <div id="uploadStatus"></div>
-        </div>
-
-        <div class="section">
-            <h2><span class="section-icon">📊</span>動画情報</h2>
-            <div id="videoInfo" class="video-info" style="display: none;">
-                <div class="video-player-container" id="videoPlayerContainer" style="display: none;">
-                    <div id="youtubePlayer"></div>
-                </div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <strong>タイトル:</strong> <span id="videoTitle">-</span>
-                    </div>
-                    <div class="info-item">
-                        <strong>チャンネル:</strong> <span id="videoChannel">-</span>
-                    </div>
-                    <div class="info-item">
-                        <strong>再生時間:</strong> <span id="videoDuration">-</span>
-                    </div>
-                    <div class="info-item">
-                        <strong>再生回数:</strong> <span id="videoViews">-</span>
-                    </div>
-                    <div class="info-item">
-                        <strong>処理方法:</strong> <span id="processingMethod">-</span>
+                    <div id="costsGraphResult">
+                        <canvas id="costsChart" width="300" height="200"></canvas>
                     </div>
                 </div>
-                <div id="chaptersInfo" class="chapters-info" style="display: none;">
-                    <h4>📋 チャプター情報</h4>
-                    <div id="chaptersList"></div>
+            </div>
+
+<div class="section">
+                <h2><span class="section-icon">📚</span>履歴</h2>
+                
+                <div class="history-controls">
+                    <div class="history-tabs">
+                        <button class="history-tab-button active" onclick="switchHistoryTab('timeline')">時間軸</button>
+                        <button class="history-tab-button" onclick="switchHistoryTab('channel')">チャンネル別</button>
+                        <button class="history-tab-button" onclick="switchHistoryTab('tag')">タグ別</button>
+                    </div>
+                    
+                    <div class="history-filters">
+                        <select id="historyFilter" onchange="filterHistory()" style="width: 100%; padding: 0.5rem; margin: 0.5rem 0; border-radius: 6px; border: 1px solid #e2e8f0;">
+                            <option value="all">すべて</option>
+                            <option value="today">本日</option>
+                            <option value="week">過去7日</option>
+                            <option value="month">過去30日</option>
+                        </select>
+                        
+                        <input type="text" id="historySearch" placeholder="検索..." 
+                               style="width: 100%; padding: 0.5rem; margin: 0.5rem 0; border-radius: 6px; border: 1px solid #e2e8f0;"
+                               oninput="searchHistory()">
+                    </div>
                 </div>
+                
+                <div id="historyList" class="history-list">
+                    履歴を読み込み中...
+                </div>
+                <button onclick="loadHistory()" id="refreshHistoryBtn">履歴を更新</button>
             </div>
         </div>
-
-        <div class="section">
-            <h2><span class="section-icon">📝</span>要約</h2>
-            <div id="summary" class="summary" style="display: none;">
-                要約がここに表示されます...
+        <div class="resize-handle" id="resizeHandle"></div>
+        <div class="right-panel">
+            <div class="content-tabs">
+                <button class="tab-button active" onclick="switchTab('summary')">
+                    <span style="font-size: 1.5rem;">📝</span>
+                    <span>要約</span>
+                </button>
+                <button class="tab-button" onclick="switchTab('transcript')">
+                    <span style="font-size: 1.5rem;">📋</span>
+                    <span>文字起こし</span>
+                </button>
+                <button class="tab-button" onclick="switchTab('article')">
+                    <span style="font-size: 1.5rem;">✍️</span>
+                    <span>解説記事</span>
+                </button>
             </div>
-        </div>
-
-        <div class="section">
-            <h2><span class="section-icon">📋</span>文字起こし結果</h2>
-            <div id="transcript" class="transcript">
-                文字起こし結果がここに表示されます...
-            </div>
-        </div>
-
-        <div class="section">
-            <h2><span class="section-icon">💬</span>内容について質問</h2>
-            <div id="suggestedQuestions" class="suggested-questions" style="display: none;">
-                <h4>💡 おすすめ質問</h4>
-                <div id="questionsList"></div>
-            </div>
-            <div id="chatMessages" class="chat-messages">
-                <div class="message ai-message">
-                    こんにちは！YouTubeの動画を文字起こしした後、その内容について何でも質問してください。
+            
+            <div id="summaryTab" class="tab-content active">
+                <!-- プロンプト設定セクション -->
+                <div class="prompt-settings" style="margin-bottom: 1rem;">
+                    <div class="prompt-toggle" onclick="togglePromptSettings('summary')" style="cursor: pointer; padding: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; color: #4a5568;">⚙️ 要約プロンプト設定</span>
+                        <span id="summaryPromptArrow" class="prompt-arrow">▼</span>
+                    </div>
+                    <div id="summaryPromptSettings" class="prompt-content" style="display: none; margin-top: 0.5rem; padding: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-weight: 600; color: #4a5568; display: block; margin-bottom: 0.5rem;">カスタムプロンプト:</label>
+                            <textarea id="summaryPromptText" rows="10" placeholder="デフォルトプロンプトが表示されています。編集して保存できます。"
+                                      style="width: 100%; font-family: monospace; font-size: 0.85rem; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; resize: vertical;"></textarea>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <button onclick="savePrompt('summary')" style="margin-right: 0.5rem; padding: 0.5rem 1rem; background: #48bb78; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">💾 保存</button>
+                            <button onclick="resetPrompt('summary')" style="padding: 0.5rem 1rem; background: #f56565; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">🔄 デフォルトに戻す</button>
+                        </div>
+                        <div id="summaryPromptMessage" style="display: none; padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 0.5rem;"></div>
+                    </div>
+                </div>
+                
+                <!-- 要約再生成ボタン -->
+                <div id="summaryRegenerateSection" style="display: none; margin-bottom: 0.5rem; padding: 0.4rem 0.6rem; background: #fef5e7; border: 1px solid #f6ad55; border-radius: 6px;">
+                    <button onclick="regenerateContent('summary')" id="regenerateSummaryOnlyBtn" 
+                            style="background: #38a169; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 0.8rem; transition: all 0.3s ease;" 
+                            onmouseover="this.style.background='#2f855a'" 
+                            onmouseout="this.style.background='#38a169'">
+                        📋 要約を再解析
+                    </button>
+                </div>
+                
+                <div id="summary" class="summary">
+                    要約がここに表示されます...
                 </div>
             </div>
-            <div class="chat-input-container">
-                <input type="text" id="chatInput" placeholder="質問を入力してください...">
-                <button onclick="sendMessage()" id="chatBtn">送信</button>
+            
+            <div id="articleTab" class="tab-content">
+                <!-- プロンプト設定セクション -->
+                <div class="prompt-settings" style="margin-bottom: 1rem;">
+                    <div class="prompt-toggle" onclick="togglePromptSettings('article')" style="cursor: pointer; padding: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; color: #4a5568;">⚙️ 解説記事プロンプト設定</span>
+                        <span id="articlePromptArrow" class="prompt-arrow">▼</span>
+                    </div>
+                    <div id="articlePromptSettings" class="prompt-content" style="display: none; margin-top: 0.5rem; padding: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-weight: 600; color: #4a5568; display: block; margin-bottom: 0.5rem;">カスタムプロンプト:</label>
+                            <textarea id="articlePromptText" rows="10" placeholder="デフォルトプロンプトが表示されています。編集して保存できます。"
+                                      style="width: 100%; font-family: monospace; font-size: 0.85rem; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; resize: vertical;"></textarea>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <button onclick="savePrompt('article')" style="margin-right: 0.5rem; padding: 0.5rem 1rem; background: #48bb78; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">💾 保存</button>
+                            <button onclick="resetPrompt('article')" style="margin-right: 0.5rem; padding: 0.5rem 1rem; background: #f56565; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">🔄 リセット</button>
+                        </div>
+                        <div id="articlePromptMessage" style="display: none; padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 0.5rem;"></div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <label for="articleModelSelect" style="font-weight: 600; color: #4a5568;">記事生成モデル:</label>
+                        <select id="articleModelSelect" style="padding: 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.9rem;">
+                            <option value="gpt-4o-mini">GPT-4o-mini - $0.60/$2.40</option>
+                            <option value="gpt-4o">GPT-4o (高品質) - $5.00/$15.00</option>
+                            <option value="gpt-4-turbo">GPT-4-turbo (最高品質) - $10.00/$30.00</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5-turbo (高速・低コスト) - $0.50/$1.50</option>
+                            <option value="gpt-4.1-nano">GPT-4.1-nano (超高速) - $0.10/$0.40</option>
+                            <option value="gpt-4.1-mini" selected>GPT-4.1-mini (推奨) - $0.40/$1.60</option>
+                            <option value="gpt-4.1">GPT-4.1 (最新) - $2.00/$8.00</option>
+                            <option value="gpt-o3">GPT-o3 (推論強化) - $2.00/$8.00</option>
+                            <option value="gpt-4o-mini-new">GPT-4o-mini (新) - $1.10/$4.40</option>
+                        </select>
+                    </div>
+                    <div id="templateStatus" style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem;">
+                        <div style="font-weight: 600; color: #0f172a; margin-bottom: 0.25rem;">📚 テンプレート情報</div>
+                        <div id="templateInfo" style="color: #475569;">テンプレート情報を読み込み中...</div>
+                    </div>
+                    <button id="generateArticleBtn" onclick="generateArticle()" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease;">
+                        📝 解説記事を作成
+                    </button>
+                    <span id="articleStatus" style="margin-left: 1rem; color: #666;"></span>
+                </div>
+                <div id="articleContent" style="line-height: 1.8;">
+                    <p style="color: #888; text-align: center; padding: 2rem;">「解説記事を作成」ボタンを押すと、Zenn/Qiita用の記事が生成されます</p>
+                </div>
             </div>
-        </div>
+            
+            <div id="transcriptTab" class="tab-content">
+                <!-- 文字起こし再生成ボタン -->
+                <div id="transcriptRegenerateSection" style="display: none; margin-bottom: 0.5rem; padding: 0.4rem 0.6rem; background: #fef5e7; border: 1px solid #f6ad55; border-radius: 6px;">
+                    <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                        <button onclick="regenerateContent('transcript')" id="regenerateTranscriptOnlyBtn" 
+                                style="background: #3182ce; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 0.8rem; transition: all 0.3s ease;" 
+                                onmouseover="this.style.background='#2c5282'" 
+                                onmouseout="this.style.background='#3182ce'">
+                            📝 文字起こしのみ再解析
+                        </button>
+                        <button onclick="regenerateContent('both')" id="regenerateBothFromTranscriptBtn" 
+                                style="background: #f56565; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 0.8rem; transition: all 0.3s ease;" 
+                                onmouseover="this.style.background='#e53e3e'" 
+                                onmouseout="this.style.background='#f56565'">
+                            🔄 全て再解析
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="transcript" class="transcript timestamp-transcript">
+                    文字起こし結果がここに表示されます...
+                </div>
+            </div>
 
-        <div class="section">
-            <h2><span class="section-icon">💰</span>使用料金</h2>
-            <div id="costs" class="costs-display">
-                <div class="cost-item">
-                    <span>Whisper (文字起こし): </span>
-                    <span id="whisperCost">$0.00</span>
+            <div class="chat-panel">
+                <div class="chat-header">
+                    <h3><span class="section-icon">🤖</span>AIアシスタント</h3>
+                    <p style="font-size: 0.85rem; color: #666; margin: 0.5rem 0 0 0;">動画内容への質問、解説記事の修正、その他なんでもお聞きください</p>
+                    <div id="suggestedQuestions" class="suggested-questions" style="display: none;">
+                        <h4 style="margin: 0 0 0.3rem 0; font-size: 0.8rem; color: #4a5568; font-weight: 600;">💡 おすすめ質問</h4>
+                        <div id="questionsList"></div>
+                    </div>
                 </div>
-                <div class="cost-item">
-                    <span>GPT-4o-mini (チャット): </span>
-                    <span id="gptCost">$0.00</span>
+                <div class="chat-messages-panel">
+                    <div id="chatMessages" class="chat-messages">
+                        <div class="message ai-message">
+                            こんにちは！私はAIアシスタントです。🎥<br>
+                            動画の内容についての質問、解説記事の修正指示、要約の深掘りなど、何でもお聞きください。<br>
+                            まずはYouTube動画を文字起こししてからご利用ください。
+                        </div>
+                    </div>
                 </div>
-                <div class="cost-item total-cost">
-                    <span>合計: </span>
-                    <span id="totalCost">$0.00</span>
+                <div class="chat-input-panel">
+                    <div class="chat-input-container">
+                        <input type="text" id="chatInput" placeholder="質問を入力してください...">
+                        <button onclick="sendMessage()" id="chatBtn">送信</button>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <div class="section">
-            <h2><span class="section-icon">📚</span>履歴</h2>
-            <div id="historyList" class="history-list">
-                履歴を読み込み中...
-            </div>
-            <button onclick="loadHistory()" id="refreshHistoryBtn">履歴を更新</button>
         </div>
     </div>
 
@@ -669,7 +1688,11 @@
         let isTranscriptReady = false;
         let youtubePlayer = null;
         let currentVideoId = null;
+        let userInitiatedPlay = false;
         let currentTimestampedSegments = [];
+        let currentTimestampedTranscript = '';
+        let currentTranscript = '';
+        let videoSyncInterval = null;
 
         // YouTube Player API ready callback
         function onYouTubeIframeAPIReady() {
@@ -680,7 +1703,9 @@
             currentVideoId = videoId;
             
             if (youtubePlayer) {
-                youtubePlayer.loadVideoById(videoId);
+                // 既存プレイヤーの場合、キューに追加して一時停止状態で読み込み
+                youtubePlayer.unMute(); // 音声をオンにする
+                youtubePlayer.cueVideoById(videoId);
             } else {
                 youtubePlayer = new YT.Player('youtubePlayer', {
                     height: '100%',
@@ -689,11 +1714,40 @@
                     playerVars: {
                         'playsinline': 1,
                         'modestbranding': 1,
-                        'rel': 0
+                        'rel': 0,
+                        'autoplay': 0,
+                        'controls': 1,
+                        'enablejsapi': 1,
+                        'mute': 0,
+                        'start': 0
                     },
                     events: {
                         'onReady': function(event) {
                             console.log('YouTube player ready');
+                            // 音声をオンにする
+                            event.target.unMute();
+                            // 動画をキューに追加（再生しない）
+                            event.target.cueVideoById(videoId);
+                        },
+                        'onStateChange': function(event) {
+                            console.log('Player state changed:', event.data, 'userInitiatedPlay:', userInitiatedPlay);
+                            
+                            // 意図しない再生を防ぐ（ユーザー開始でない場合のみ）
+                            if (event.data === YT.PlayerState.PLAYING && !userInitiatedPlay) {
+                                console.log('Preventing autoplay - pausing video');
+                                event.target.pauseVideo();
+                            }
+                            
+                            // ユーザーが開始した再生の場合、フラグを維持
+                            if (event.data === YT.PlayerState.PLAYING && userInitiatedPlay) {
+                                console.log('User initiated play - allowing playback');
+                            }
+                            
+                            // 動画が停止/一時停止した場合、フラグをリセット
+                            if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                                userInitiatedPlay = false;
+                                console.log('Video paused/ended - reset userInitiatedPlay flag');
+                            }
                         }
                     }
                 });
@@ -704,8 +1758,396 @@
 
         function seekToTime(seconds) {
             if (youtubePlayer && youtubePlayer.seekTo) {
+                console.log('Seeking to time:', seconds, 'seconds');
+                userInitiatedPlay = true;
+                // 音声をオンにしてから再生
+                youtubePlayer.unMute();
                 youtubePlayer.seekTo(seconds, true);
                 youtubePlayer.playVideo();
+                console.log('Video play initiated by user');
+                // フラグは onStateChange でリセットされるので、ここではリセットしない
+            }
+        }
+
+        let userScrolling = false;
+        let lastScrollTime = 0;
+        let scrollEventAdded = false;
+
+        // 動画とトランスクリプトの同期機能
+        function startVideoSync() {
+            if (videoSyncInterval) {
+                clearInterval(videoSyncInterval);
+            }
+            
+            // ユーザーのスクロール検出（重複追加を防ぐ）
+            if (!scrollEventAdded) {
+                const transcriptDiv = document.getElementById('transcript');
+                
+                // スクロールイベント
+                transcriptDiv.addEventListener('scroll', handleUserScroll);
+                
+                // マウスやタッチの操作検出
+                transcriptDiv.addEventListener('mousedown', handleUserInteraction);
+                transcriptDiv.addEventListener('touchstart', handleUserInteraction);
+                transcriptDiv.addEventListener('wheel', handleUserInteraction);
+                
+                // テキスト選択検出
+                document.addEventListener('selectionchange', handleUserInteraction);
+                
+                scrollEventAdded = true;
+            }
+            
+            videoSyncInterval = setInterval(() => {
+                if (youtubePlayer && youtubePlayer.getCurrentTime && currentTimestampedSegments.length > 0) {
+                    const currentTime = youtubePlayer.getCurrentTime();
+                    highlightCurrentSegment(currentTime);
+                }
+            }, 1000);
+        }
+
+        function handleUserScroll() {
+            userScrolling = true;
+            lastScrollTime = Date.now();
+            // 5秒後に自動スクロールを再開（時間を延長）
+            setTimeout(() => {
+                if (Date.now() - lastScrollTime >= 5000) {
+                    userScrolling = false;
+                }
+            }, 5000);
+        }
+
+        function handleUserInteraction() {
+            userScrolling = true;
+            lastScrollTime = Date.now();
+            // ユーザーが操作した場合は10秒間自動スクロールを停止
+            setTimeout(() => {
+                if (Date.now() - lastScrollTime >= 10000) {
+                    userScrolling = false;
+                }
+            }, 10000);
+        }
+
+        function stopVideoSync() {
+            if (videoSyncInterval) {
+                clearInterval(videoSyncInterval);
+                videoSyncInterval = null;
+            }
+            userScrolling = false;
+            
+            // イベントリスナーをクリーンアップ
+            if (scrollEventAdded) {
+                const transcriptDiv = document.getElementById('transcript');
+                transcriptDiv.removeEventListener('scroll', handleUserScroll);
+                transcriptDiv.removeEventListener('mousedown', handleUserInteraction);
+                transcriptDiv.removeEventListener('touchstart', handleUserInteraction);
+                transcriptDiv.removeEventListener('wheel', handleUserInteraction);
+                document.removeEventListener('selectionchange', handleUserInteraction);
+                scrollEventAdded = false;
+            }
+        }
+
+        function highlightCurrentSegment(currentTime) {
+            // 現在の時間に最も近いセグメントを見つける
+            let currentSegmentIndex = -1;
+            for (let i = 0; i < currentTimestampedSegments.length; i++) {
+                const segment = currentTimestampedSegments[i];
+                if (currentTime >= segment.start && currentTime < segment.start + segment.duration) {
+                    currentSegmentIndex = i;
+                    break;
+                }
+            }
+            
+            // 全てのセグメントからハイライトを削除
+            document.querySelectorAll('.timestamp-segment').forEach(el => {
+                el.classList.remove('current-segment');
+            });
+            
+            // 現在のセグメントをハイライト
+            if (currentSegmentIndex >= 0) {
+                const segments = document.querySelectorAll('.timestamp-segment');
+                if (segments[currentSegmentIndex]) {
+                    segments[currentSegmentIndex].classList.add('current-segment');
+                    
+                    // 自動スクロールの条件をより厳しく
+                    const transcriptDiv = document.getElementById('transcript');
+                    const isTranscriptVisible = transcriptDiv.offsetParent !== null;
+                    const hasSelection = window.getSelection().toString().length > 0;
+                    
+                    // ユーザーがスクロールしておらず、テキスト選択もしておらず、要素が見える場合のみ自動スクロール
+                    if (!userScrolling && !hasSelection && isTranscriptVisible) {
+                        segments[currentSegmentIndex].scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+                }
+            }
+        }
+
+        // 解説記事生成機能
+        async function generateArticle() {
+            try {
+                const generateBtn = document.getElementById('generateArticleBtn');
+                const articleStatus = document.getElementById('articleStatus');
+                const articleContent = document.getElementById('articleContent');
+                
+                if (!currentTranscript) {
+                    articleStatus.textContent = '先に動画を文字起こししてください';
+                    articleStatus.style.color = '#e53e3e';
+                    return;
+                }
+                
+                generateBtn.disabled = true;
+                generateBtn.textContent = '📝 作成中...';
+                articleStatus.textContent = '解説記事を生成中です...';
+                articleStatus.style.color = '#667eea';
+                
+                const response = await fetch('/generate-article', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        gptModel: document.getElementById('articleModelSelect').value || 'gpt-4.1-mini'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // マークダウンレンダリング
+                    const renderedContent = marked.parse(data.article);
+                    
+                    articleContent.innerHTML = `
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600; color: #4a5568;">💰 生成コスト: $${data.cost.toFixed(6)} (${data.model})</span>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button onclick="copyArticleToClipboard()" style="background: #38a169; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        📋 Markdownコピー
+                                    </button>
+                                    <button onclick="copyArticleAsHTML()" style="background: #3182ce; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        🌐 HTMLコピー
+                                    </button>
+                                    <button onclick="saveArticleTemplate()" style="background: #805ad5; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        💾 テンプレート保存
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #666;">
+                                📊 入力: ${data.tokens.input}トークン, 出力: ${data.tokens.output}トークン
+                            </div>
+                            <div style="font-size: 0.85rem; color: #2d3748; margin-top: 0.5rem;">
+                                💡 記事の修正が必要な場合は、下のAIアシスタントで「記事の○○の部分を修正して」などと指示してください
+                            </div>
+                        </div>
+                        <div class="article-markdown">${renderedContent}</div>
+                    `;
+                    
+                    // 生成されたマークダウンとHTMLを保存（コピー用）
+                    window.generatedArticleMarkdown = data.article;
+                    window.generatedArticleHTML = renderedContent;
+                    
+                    articleStatus.textContent = '記事が生成されました！';
+                    articleStatus.style.color = '#38a169';
+                    
+                    // セッションコストを更新
+                    if (data.costs) {
+                        updateCosts(data.costs);
+                    }
+                } else {
+                    const errorData = await response.json();
+                    articleContent.innerHTML = `<div style="color: #e53e3e; text-align: center; padding: 2rem;">エラー: ${errorData.error}</div>`;
+                    articleStatus.textContent = 'エラーが発生しました';
+                    articleStatus.style.color = '#e53e3e';
+                }
+            } catch (error) {
+                console.error('Article generation error:', error);
+                document.getElementById('articleContent').innerHTML = '<div style="color: #e53e3e; text-align: center; padding: 2rem;">エラーが発生しました</div>';
+                document.getElementById('articleStatus').textContent = 'エラーが発生しました';
+                document.getElementById('articleStatus').style.color = '#e53e3e';
+            } finally {
+                document.getElementById('generateArticleBtn').disabled = false;
+                document.getElementById('generateArticleBtn').textContent = '📝 解説記事を作成';
+            }
+        }
+
+        // 記事をMarkdownでクリップボードにコピー
+        function copyArticleToClipboard() {
+            if (window.generatedArticleMarkdown) {
+                navigator.clipboard.writeText(window.generatedArticleMarkdown).then(() => {
+                    // 一時的な成功メッセージ
+                    const btn = document.querySelector('button[onclick="copyArticleToClipboard()"]');
+                    const originalText = btn.textContent;
+                    btn.textContent = '✅ Markdown済み';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                    }, 2000);
+                    showMessage('Markdownをクリップボードにコピーしました', 'success');
+                }).catch(err => {
+                    console.error('コピーに失敗しました:', err);
+                    showMessage('Markdownコピーに失敗しました', 'error');
+                });
+            }
+        }
+
+        // 記事をHTMLでクリップボードにコピー
+        function copyArticleAsHTML() {
+            if (window.generatedArticleHTML) {
+                navigator.clipboard.writeText(window.generatedArticleHTML).then(() => {
+                    // 一時的な成功メッセージ
+                    const btn = document.querySelector('button[onclick="copyArticleAsHTML()"]');
+                    const originalText = btn.textContent;
+                    btn.textContent = '✅ HTML済み';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                    }, 2000);
+                    showMessage('HTMLをクリップボードにコピーしました', 'success');
+                }).catch(err => {
+                    console.error('コピーに失敗しました:', err);
+                    showMessage('HTMLコピーに失敗しました', 'error');
+                });
+            }
+        }
+
+        // 記事をテンプレートとして保存
+        async function saveArticleTemplate() {
+            if (!window.generatedArticleMarkdown) {
+                showMessage('保存する記事がありません', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/save-article-template', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        article: window.generatedArticleMarkdown
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // 一時的な成功メッセージ
+                    const btn = document.querySelector('button[onclick="saveArticleTemplate()"]');
+                    const originalText = btn.textContent;
+                    btn.textContent = '✅ 保存済み';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                    }, 2000);
+                    
+                    // テンプレート情報を更新
+                    loadTemplateInfo();
+                    
+                    console.log('テンプレート保存成功:', data.message);
+                    showMessage('記事テンプレートを保存しました！', 'success');
+                } else {
+                    const errorData = await response.json();
+                    showMessage(`保存に失敗しました: ${errorData.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('テンプレート保存エラー:', error);
+                showMessage('テンプレート保存に失敗しました', 'error');
+            }
+        }
+
+        // テンプレート情報を読み込み
+        async function loadTemplateInfo() {
+            try {
+                const response = await fetch('/templates-info');
+                if (response.ok) {
+                    const data = await response.json();
+                    const templateInfo = document.getElementById('templateInfo');
+                    
+                    if (data.templates && data.templates.length > 0) {
+                        const latest = data.templates[0];
+                        const createdDate = new Date(latest.createdAt).toLocaleDateString('ja-JP');
+                        templateInfo.innerHTML = `
+                            <div>保存済みテンプレート: <strong>${data.templates.length}件</strong></div>
+                            <div>最新テンプレート: ${createdDate} 保存</div>
+                            <div>構造: ${latest.structure.hasTitle ? 'タイトル' : ''}${latest.structure.hasIntroduction ? '+導入' : ''}${latest.structure.hasCodeBlocks ? '+コード例' : ''}${latest.structure.hasConclusion ? '+まとめ' : ''}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">次回の記事生成時に自動で参考にします</div>
+                        `;
+                    } else {
+                        templateInfo.textContent = 'まだテンプレートが保存されていません。良い記事ができたら「テンプレート保存」してください。';
+                    }
+                } else {
+                    document.getElementById('templateInfo').textContent = 'テンプレート情報の読み込みに失敗しました';
+                }
+            } catch (error) {
+                console.error('テンプレート情報読み込みエラー:', error);
+                document.getElementById('templateInfo').textContent = 'テンプレート情報の読み込みに失敗しました';
+            }
+        }
+
+        // アコーディオンのトグル機能
+        function toggleAccordion(contentId) {
+            const content = document.getElementById(contentId);
+            const arrow = document.getElementById(contentId + 'Arrow');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                arrow.classList.add('expanded');
+            } else {
+                content.style.display = 'none';
+                arrow.classList.remove('expanded');
+            }
+        }
+
+        // タブ切り替え機能
+        function switchTab(tabName) {
+            // 全てのタブボタンから active クラスを削除
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 全てのタブコンテンツを非表示
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 選択されたタブをアクティブに
+            // イベントが存在する場合（通常のクリック）
+            if (typeof event !== 'undefined' && event && event.target) {
+                const clickedButton = event.target.closest('.tab-button');
+                if (clickedButton) {
+                    clickedButton.classList.add('active');
+                }
+            } else {
+                // プログラム的に呼び出された場合、対応するボタンを見つけてアクティブにする
+                const tabButton = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+                if (tabButton) {
+                    tabButton.classList.add('active');
+                }
+            }
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // 解説記事タブが選択された場合、テンプレート情報を読み込み
+            if (tabName === 'article') {
+                loadTemplateInfo();
+            }
+            
+            // 文字起こしタブが選択された場合、同期を開始
+            if (tabName === 'transcript' && currentTimestampedTranscript) {
+                setTimeout(() => {
+                    startVideoSync();
+                }, 100);
+            } else if (tabName === 'summary') {
+                stopVideoSync();
+            }
+        }
+
+        // タイムスタンプ付き文字起こしを表示
+        function displayTimestampedTranscript() {
+            const transcriptDiv = document.getElementById('transcript');
+            if (currentTimestampedTranscript) {
+                transcriptDiv.innerHTML = currentTimestampedTranscript;
+                // 現在文字起こしタブがアクティブな場合のみ同期開始
+                if (document.getElementById('transcriptTab').classList.contains('active')) {
+                    startVideoSync();
+                }
             }
         }
 
@@ -716,10 +2158,9 @@
         }
 
         function updateCosts(costs) {
+            // セッション料金も分析に統合するため、分析データを再読み込み
             if (costs) {
-                document.getElementById('whisperCost').textContent = `$${costs.whisper.toFixed(4)}`;
-                document.getElementById('gptCost').textContent = `$${costs.gpt.toFixed(4)}`;
-                document.getElementById('totalCost').textContent = `$${costs.total.toFixed(4)}`;
+                loadCostsAnalysis();
             }
         }
 
@@ -736,15 +2177,55 @@
             }
         }
 
+        // 履歴表示の状態管理
+        let currentHistoryView = 'timeline';
+        let allHistoryData = [];
+        let filteredHistoryData = [];
+
         function displayHistory(history) {
-            const historyList = document.getElementById('historyList');
+            allHistoryData = history;
+            filteredHistoryData = history;
             
             if (!history || history.length === 0) {
-                historyList.innerHTML = '<p>履歴がありません</p>';
+                document.getElementById('historyList').innerHTML = '<p>履歴がありません</p>';
                 return;
             }
 
-            const historyHTML = history.map(item => {
+            // タグサジェスチョンを更新
+            updateTagSuggestions(history);
+            
+            // メインタグサジェスチョンを更新
+            updateMainTagSuggestions(history);
+            
+            // 現在のビューに応じて表示
+            displayHistoryByView(currentHistoryView);
+        }
+
+        function displayHistoryByView(viewType) {
+            const historyList = document.getElementById('historyList');
+            
+            switch(viewType) {
+                case 'timeline':
+                    displayTimelineHistory();
+                    break;
+                case 'channel':
+                    displayChannelHistory();
+                    break;
+                case 'tag':
+                    displayTagHistory();
+                    break;
+            }
+        }
+
+        function displayTimelineHistory() {
+            const historyList = document.getElementById('historyList');
+            
+            if (filteredHistoryData.length === 0) {
+                historyList.innerHTML = '<p>該当する履歴がありません</p>';
+                return;
+            }
+
+            const historyHTML = filteredHistoryData.map(item => {
                 const date = new Date(item.timestamp).toLocaleString('ja-JP');
                 const methodClass = item.method === 'subtitle' ? 'method-subtitle' : 'method-whisper';
                 const methodText = item.method === 'subtitle' ? '字幕' : 'Whisper';
@@ -752,11 +2233,27 @@
                 const languageText = getLanguageDisplayName(item.language || 'original');
                 const channelName = item.metadata?.basic?.channel || 'Unknown';
                 const videoUrl = item.url || '';
+                const tags = item.tags || [];
+                const mainTags = item.mainTags || [];
+                
+                const tagsHTML = tags.length > 0 ? `
+                    <div class="video-tags">
+                        ${tags.map(tag => `<span class="tag-item" onclick="filterByTag('${tag}'); event.stopPropagation();">${tag}</span>`).join('')}
+                    </div>
+                ` : '';
+                
+                const mainTagsHTML = mainTags.length > 0 ? `
+                    <div class="video-tags" style="margin: 0.25rem 0;">
+                        ${mainTags.map(tag => `<span style="background: #667eea; color: white; padding: 0.25rem 0.5rem; border-radius: 8px; font-size: 0.75rem; font-weight: 600; margin-right: 0.25rem; cursor: pointer;" onclick="filterByTag('${tag}'); event.stopPropagation();">🏷️ ${tag}</span>`).join('')}
+                    </div>
+                ` : '';
                 
                 return `
                     <div class="history-item" onclick="loadFromHistory('${item.id}')">
                         <div class="history-title">${item.title}</div>
                         <div class="history-channel">📺 ${channelName}</div>
+                        ${mainTagsHTML}
+                        ${tagsHTML}
                         <div class="history-url">
                             <a href="${videoUrl}" target="_blank" onclick="event.stopPropagation();">🔗 YouTubeで開く</a>
                         </div>
@@ -773,6 +2270,127 @@
             }).join('');
             
             historyList.innerHTML = historyHTML;
+        }
+
+        function displayChannelHistory() {
+            const historyList = document.getElementById('historyList');
+            
+            // チャンネル別にグループ化
+            const channelGroups = {};
+            filteredHistoryData.forEach(item => {
+                const channel = item.metadata?.basic?.channel || 'Unknown';
+                if (!channelGroups[channel]) {
+                    channelGroups[channel] = [];
+                }
+                channelGroups[channel].push(item);
+            });
+
+            if (Object.keys(channelGroups).length === 0) {
+                historyList.innerHTML = '<p>該当する履歴がありません</p>';
+                return;
+            }
+
+            let historyHTML = '';
+            Object.entries(channelGroups).forEach(([channel, items]) => {
+                historyHTML += `
+                    <div class="history-group collapsed">
+                        <div class="history-group-header" onclick="toggleHistoryGroup(this)">
+                            <span>📺 ${channel} (${items.length}件)</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="history-group-items">
+                            ${items.map(item => createHistoryItemHTML(item)).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            historyList.innerHTML = historyHTML;
+        }
+
+        function displayTagHistory() {
+            const historyList = document.getElementById('historyList');
+            
+            // タグ別にグループ化
+            const tagGroups = {};
+            filteredHistoryData.forEach(item => {
+                const tags = item.tags || ['未分類'];
+                tags.forEach(tag => {
+                    if (!tagGroups[tag]) {
+                        tagGroups[tag] = [];
+                    }
+                    tagGroups[tag].push(item);
+                });
+            });
+
+            if (Object.keys(tagGroups).length === 0) {
+                historyList.innerHTML = '<p>該当する履歴がありません</p>';
+                return;
+            }
+
+            let historyHTML = '';
+            Object.entries(tagGroups).forEach(([tag, items]) => {
+                // 重複を除去
+                const uniqueItems = items.filter((item, index, self) => 
+                    index === self.findIndex(t => t.id === item.id)
+                );
+                
+                historyHTML += `
+                    <div class="history-group collapsed">
+                        <div class="history-group-header" onclick="toggleHistoryGroup(this)">
+                            <span>🏷️ ${tag} (${uniqueItems.length}件)</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="history-group-items">
+                            ${uniqueItems.map(item => createHistoryItemHTML(item)).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            historyList.innerHTML = historyHTML;
+        }
+
+        function createHistoryItemHTML(item) {
+            const date = new Date(item.timestamp).toLocaleString('ja-JP');
+            const methodClass = item.method === 'subtitle' ? 'method-subtitle' : 'method-whisper';
+            const methodText = item.method === 'subtitle' ? '字幕' : 'Whisper';
+            const cost = item.cost > 0 ? `$${item.cost.toFixed(4)}` : '無料';
+            const languageText = getLanguageDisplayName(item.language || 'original');
+            const videoUrl = item.url || '';
+            const tags = item.tags || [];
+            const mainTags = item.mainTags || [];
+            
+            const tagsHTML = tags.length > 0 ? `
+                <div class="video-tags">
+                    ${tags.map(tag => `<span class="tag-item">${tag}</span>`).join('')}
+                </div>
+            ` : '';
+            
+            const mainTagsHTML = mainTags.length > 0 ? `
+                <div class="video-tags" style="margin: 0.25rem 0;">
+                    ${mainTags.map(tag => `<span style="background: #667eea; color: white; padding: 0.25rem 0.5rem; border-radius: 8px; font-size: 0.75rem; font-weight: 600; margin-right: 0.25rem;">🏷️ ${tag}</span>`).join('')}
+                </div>
+            ` : '';
+            
+            return `
+                <div class="history-item" onclick="loadFromHistory('${item.id}')">
+                    <div class="history-title">${item.title}</div>
+                    ${mainTagsHTML}
+                    ${tagsHTML}
+                    <div class="history-url">
+                        <a href="${videoUrl}" target="_blank" onclick="event.stopPropagation();">🔗 YouTubeで開く</a>
+                    </div>
+                    <div class="history-meta">
+                        <span>${date}</span>
+                        <span>
+                            <span class="method-badge ${methodClass}">${methodText}</span>
+                            <span class="language-badge">${languageText}</span>
+                            <span style="margin-left: 10px;">${cost}</span>
+                        </span>
+                    </div>
+                </div>
+            `;
         }
 
         async function loadFromHistory(videoId) {
@@ -796,10 +2414,20 @@
                         initializeYouTubePlayer(result.metadata.basic.videoId);
                     }
                     
-                    // 改行を確実に表示するために innerHTML を使用
-                    const transcriptDiv = document.getElementById('transcript');
-                    transcriptDiv.innerHTML = result.transcript.replace(/\n/g, '<br>');
-                    transcriptDiv.style.whiteSpace = 'pre-wrap';
+                    // タイムスタンプ付き文字起こしを取得して表示
+                    fetch('/transcript')
+                        .then(response => response.json())
+                        .then(transcriptData => {
+                            if (transcriptData.timestampedTranscript) {
+                                currentTimestampedTranscript = transcriptData.timestampedTranscript;
+                                displayTimestampedTranscript();
+                            } else {
+                                // タイムスタンプがない場合は通常の文字起こしを表示
+                                const transcriptDiv = document.getElementById('transcript');
+                                transcriptDiv.innerHTML = result.transcript.replace(/\n/g, '<br>');
+                                transcriptDiv.style.whiteSpace = 'pre-wrap';
+                            }
+                        });
                     
                     // 動画情報を表示
                     if (result.metadata) {
@@ -816,6 +2444,7 @@
                     
                     showStatus(`履歴から読み込みました: ${result.title}`, 'success');
                     isTranscriptReady = true;
+                    ensureChatInputVisible();
                 } else {
                     showStatus(`エラー: ${result.error}`, 'error');
                 }
@@ -885,8 +2514,15 @@
         }
         
         function timeToSeconds(timeStr) {
-            const parts = timeStr.split(':');
-            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+            const parts = timeStr.split(':').map(p => parseInt(p));
+            if (parts.length === 2) {
+                // mm:ss形式
+                return parts[0] * 60 + parts[1];
+            } else if (parts.length === 3) {
+                // hh:mm:ss形式
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            }
+            return 0;
         }
 
         async function loadSuggestedQuestions() {
@@ -894,8 +2530,20 @@
                 const response = await fetch('/suggested-questions');
                 const result = await response.json();
                 
+                console.log('Debug: API response:', result);
+                
                 if (result.success && result.questions.length > 0) {
                     displaySuggestedQuestions(result.questions);
+                } else {
+                    // テスト用の質問を表示
+                    console.log('Debug: No questions from API, showing test questions');
+                    const testQuestions = [
+                        '動画の内容を詳しく説明してください',
+                        '重要なポイントを教えてください',
+                        'この動画から学べることは何ですか？',
+                        '実践的に活用できる内容はありますか？'
+                    ];
+                    displaySuggestedQuestions(testQuestions);
                 }
             } catch (error) {
                 console.error('Error loading suggested questions:', error);
@@ -913,11 +2561,116 @@
             ).join('');
             
             suggestedDiv.style.display = 'block';
+            
+            // Ensure chat input remains visible after questions are displayed
+            setTimeout(() => {
+                ensureChatInputVisible();
+            }, 100);
         }
 
         function askSuggestedQuestion(question) {
             document.getElementById('chatInput').value = question;
             sendMessage();
+        }
+
+        function ensureChatInputVisible() {
+            // Force chat input panel to be visible
+            const chatInputPanel = document.querySelector('.chat-input-panel');
+            const chatInputContainer = document.querySelector('.chat-input-container');
+            const chatInput = document.getElementById('chatInput');
+            const chatBtn = document.getElementById('chatBtn');
+            
+            if (chatInputPanel) {
+                chatInputPanel.style.display = 'flex';
+                chatInputPanel.style.visibility = 'visible';
+                chatInputPanel.style.position = 'absolute';
+                chatInputPanel.style.bottom = '0';
+                chatInputPanel.style.left = '0';
+                chatInputPanel.style.right = '0';
+                chatInputPanel.style.zIndex = '100';
+            }
+            
+            if (chatInputContainer) {
+                chatInputContainer.style.display = 'flex';
+                chatInputContainer.style.visibility = 'visible';
+            }
+            
+            if (chatInput) {
+                chatInput.style.display = 'block';
+                chatInput.style.visibility = 'visible';
+            }
+            
+            if (chatBtn) {
+                chatBtn.style.display = 'block';
+                chatBtn.style.visibility = 'visible';
+            }
+            
+            console.log('Chat input visibility ensured');
+        }
+
+        function extractAndDisplayQuestionsFromSummary(summaryContent) {
+            try {
+                console.log('Extracting questions from summary:', summaryContent ? summaryContent.substring(0, 200) + '...' : 'null');
+                
+                if (!summaryContent) {
+                    console.log('No summary content provided');
+                    return;
+                }
+                
+                // サーバー側と同じロジックで深掘り質問を抽出
+                const questionPatterns = [
+                    /6\.\s*\*\*💡\s*おすすめ深掘り質問\*\*\s*([\s\S]*?)(?=\n\n|$)/i,
+                    /\*\*💡\s*おすすめ深掘り質問\*\*\s*([\s\S]*?)(?=\n\n|$)/i,
+                    /💡\s*おすすめ深掘り質問[:\s]*([\s\S]*?)(?=\n\n|$)/i,
+                    /おすすめ深掘り質問[:\s]*([\s\S]*?)(?=\n\n|$)/i
+                ];
+                
+                let extractedQuestions = [];
+                for (const pattern of questionPatterns) {
+                    const questionsMatch = summaryContent.match(pattern);
+                    if (questionsMatch) {
+                        console.log('Found questions match with pattern:', pattern.toString());
+                        const questionsText = questionsMatch[1];
+                        console.log('Questions text:', questionsText);
+                        
+                        extractedQuestions = questionsText
+                            .split(/\n/)
+                            .map(line => line.trim())
+                            .filter(line => {
+                                // より柔軟な質問の開始パターンを検出
+                                return line.startsWith('-') || 
+                                       line.startsWith('•') || 
+                                       line.match(/^\d+[\.\)]/) ||
+                                       (line.includes('？') && line.length > 5);
+                            })
+                            .map(line => {
+                                // 先頭の記号や番号を削除
+                                return line.replace(/^[-•\d\.\)\s]+/, '').trim();
+                            })
+                            .filter(q => q.length > 5 && q.includes('？'))
+                            .slice(0, 5); // 最大5個まで
+                        
+                        console.log('Extracted questions:', extractedQuestions);
+                        
+                        if (extractedQuestions.length > 0) {
+                            displaySuggestedQuestions(extractedQuestions);
+                            return;
+                        }
+                    }
+                }
+                
+                // 深掘り質問が見つからない場合は汎用的な質問を表示
+                console.log('No specific questions found, using fallback');
+                const fallbackQuestions = [
+                    '動画の内容を詳しく説明してください',
+                    '重要なポイントを教えてください',
+                    'この動画から学べることは何ですか？'
+                ];
+                displaySuggestedQuestions(fallbackQuestions);
+                
+            } catch (error) {
+                console.error('Error extracting questions from summary:', error);
+            }
         }
 
         function getLanguageDisplayName(language) {
@@ -929,15 +2682,845 @@
             }
         }
 
+        // 料金タブ切り替え
+        function switchCostsTab(tabName) {
+            document.querySelectorAll('.costs-tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('.costs-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Costs').classList.add('active');
+            
+            if (tabName === 'analysis') {
+                loadCostsAnalysis();
+            } else if (tabName === 'graph') {
+                loadCostsGraph();
+            }
+        }
+
+        // 料金分析データの読み込み
+        async function loadCostsAnalysis() {
+            try {
+                const period = document.getElementById('periodSelect').value;
+                const response = await fetch(`/costs-analysis?period=${period}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayCostsAnalysis(result);
+                }
+            } catch (error) {
+                console.error('Error loading costs analysis:', error);
+                document.getElementById('costsAnalysisResult').innerHTML = 
+                    '<p style="color: red;">分析データの読み込みに失敗しました</p>';
+            }
+        }
+
+        // 料金分析結果の表示
+        function displayCostsAnalysis(data) {
+            const { summary, period, sessionCosts } = data;
+            let html = `
+                <div class="costs-analysis-summary">
+                    <h4>📊 ${getPeriodDisplayName(period)} 集計</h4>
+                    <div class="cost-item">
+                        <span>動画処理数:</span>
+                        <span>${summary.videoCount} 件</span>
+                    </div>
+                    <div class="cost-item">
+                        <span>Whisper合計:</span>
+                        <span>$${summary.totalWhisper.toFixed(4)}</span>
+                    </div>
+                    <div class="cost-item">
+                        <span>GPT合計:</span>
+                        <span>$${summary.totalGpt.toFixed(4)}</span>
+                    </div>`;
+            
+            // セッション料金を追加（今日のデータの場合のみ）
+            if (period === 'today' && sessionCosts) {
+                html += `
+                    <div class="cost-item">
+                        <span>セッション (Whisper):</span>
+                        <span>$${sessionCosts.whisper.toFixed(4)}</span>
+                    </div>
+                    <div class="cost-item">
+                        <span>セッション (GPT):</span>
+                        <span>$${sessionCosts.gpt.toFixed(4)}</span>
+                    </div>`;
+            }
+            
+            html += `
+                    <div class="cost-item total-cost">
+                        <span>総合計:</span>
+                        <span>$${summary.totalCost.toFixed(4)}</span>
+                    </div>
+                </div>
+                
+                <div class="costs-accordion">
+                    <div class="accordion-header" onclick="toggleAccordion('methodCosts')">
+                        <span>📈 処理方法別</span>
+                        <span class="accordion-arrow" id="methodCostsArrow">▼</span>
+                    </div>
+                    <div class="accordion-content" id="methodCosts" style="display: none;">
+                        ${Object.entries(summary.byMethod).map(([method, data]) => `
+                            <div class="cost-item">
+                                <span>${method === 'subtitle' ? 'YouTube字幕' : 'Whisper API'} (${data.count}件):</span>
+                                <span>$${data.cost.toFixed(4)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="costs-accordion">
+                    <div class="accordion-header" onclick="toggleAccordion('modelCosts')">
+                        <span>🤖 GPTモデル別</span>
+                        <span class="accordion-arrow" id="modelCostsArrow">▼</span>
+                    </div>
+                    <div class="accordion-content" id="modelCosts" style="display: none;">
+                        ${Object.entries(summary.byModel).map(([model, data]) => `
+                            <div class="cost-item">
+                                <span>${model} (${data.count}件):</span>
+                                <span>$${data.cost.toFixed(4)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('costsAnalysisResult').innerHTML = html;
+        }
+
+        function getPeriodDisplayName(period) {
+            switch (period) {
+                case 'today': return '本日';
+                case 'week': return '過去7日間';
+                case 'month': return '過去30日間';
+                case 'total': return '全期間';
+                default: return period;
+            }
+        }
+
+        // グラフ描画機能
+        async function loadCostsGraph() {
+            try {
+                const period = document.getElementById('graphPeriodSelect').value;
+                const response = await fetch(`/costs-analysis?period=${period}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    drawCostsChart(result);
+                }
+            } catch (error) {
+                console.error('Error loading costs graph:', error);
+            }
+        }
+        
+        function drawCostsChart(data) {
+            const canvas = document.getElementById('costsChart');
+            const ctx = canvas.getContext('2d');
+            const { summary } = data;
+            
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 日別データを取得
+            const byDate = summary.byDate || {};
+            const dates = Object.keys(byDate).sort();
+            
+            if (dates.length === 0) {
+                ctx.fillStyle = '#666';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('データがありません', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // グラフの設定
+            const padding = 40;
+            const graphWidth = canvas.width - padding * 2;
+            const graphHeight = canvas.height - padding * 2;
+            const startX = padding;
+            const startY = padding;
+            
+            // データの最大値を取得
+            const maxCost = Math.max(...dates.map(date => byDate[date].cost), 0.001);
+            
+            // 軸を描画
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            // Y軸
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(startX, startY + graphHeight);
+            // X軸
+            ctx.moveTo(startX, startY + graphHeight);
+            ctx.lineTo(startX + graphWidth, startY + graphHeight);
+            ctx.stroke();
+            
+            // Y軸のラベル（料金）
+            ctx.fillStyle = '#666';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 5; i++) {
+                const value = (maxCost / 5) * i;
+                const y = startY + graphHeight - (graphHeight / 5) * i;
+                ctx.fillText(`$${value.toFixed(3)}`, startX - 5, y + 3);
+                
+                // グリッド線
+                if (i > 0) {
+                    ctx.strokeStyle = '#f0f0f0';
+                    ctx.beginPath();
+                    ctx.moveTo(startX, y);
+                    ctx.lineTo(startX + graphWidth, y);
+                    ctx.stroke();
+                }
+            }
+            
+            // 折れ線グラフを描画
+            if (dates.length > 1) {
+                ctx.strokeStyle = '#667eea';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                dates.forEach((date, index) => {
+                    const x = startX + (graphWidth / (dates.length - 1)) * index;
+                    const cost = byDate[date].cost;
+                    const y = startY + graphHeight - (cost / maxCost) * graphHeight;
+                    
+                    if (index === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+                
+                // データポイントを描画
+                ctx.fillStyle = '#667eea';
+                dates.forEach((date, index) => {
+                    const x = startX + (graphWidth / (dates.length - 1)) * index;
+                    const cost = byDate[date].cost;
+                    const y = startY + graphHeight - (cost / maxCost) * graphHeight;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            }
+            
+            // X軸のラベル（日付）
+            ctx.fillStyle = '#666';
+            ctx.font = '8px Arial';
+            ctx.textAlign = 'center';
+            const maxLabels = 7; // 最大7個のラベルを表示
+            const step = Math.ceil(dates.length / maxLabels);
+            
+            dates.forEach((date, index) => {
+                if (index % step === 0 || index === dates.length - 1) {
+                    const x = startX + (graphWidth / (dates.length - 1)) * index;
+                    const shortDate = date.slice(5); // MM-DD形式
+                    ctx.save();
+                    ctx.translate(x, startY + graphHeight + 15);
+                    ctx.rotate(-Math.PI / 4); // 45度回転
+                    ctx.fillText(shortDate, 0, 0);
+                    ctx.restore();
+                }
+            });
+            
+            // タイトル
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('日別使用料金', canvas.width / 2, 20);
+        }
+
+        
+        // パネルリサイズ機能
+        let isResizing = false;
+        
+        function initializeResize() {
+            const resizeHandle = document.getElementById('resizeHandle');
+            const leftPanel = document.querySelector('.left-panel');
+            const mainContent = document.querySelector('.main-content');
+            
+            if (!resizeHandle) {
+                console.error('Resize handle not found');
+                return;
+            }
+            
+            resizeHandle.addEventListener('mousedown', function(e) {
+                console.log('Mouse down on resize handle');
+                isResizing = true;
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+                
+                const containerRect = mainContent.getBoundingClientRect();
+                const newWidth = Math.max(250, Math.min(800, e.clientX - containerRect.left - 16)); // 16pxはパディング
+                
+                leftPanel.style.width = `${newWidth}px`;
+                
+                console.log('Resizing to:', newWidth);
+            }
+            
+            function handleMouseUp() {
+                console.log('Mouse up - stop resizing');
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            }
+            
+            // ダブルクリックでリセット
+            resizeHandle.addEventListener('dblclick', function() {
+                leftPanel.style.width = '350px';
+            });
+        }
+
+        // 履歴タブ切り替え
+        function switchHistoryTab(tabName) {
+            currentHistoryView = tabName;
+            
+            // タブボタンの状態更新
+            document.querySelectorAll('.history-tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 表示更新
+            displayHistoryByView(tabName);
+        }
+
+        // 履歴フィルタリング
+        function filterHistory() {
+            const filter = document.getElementById('historyFilter').value;
+            const now = new Date();
+            
+            filteredHistoryData = allHistoryData.filter(item => {
+                const itemDate = new Date(item.timestamp);
+                
+                switch(filter) {
+                    case 'today':
+                        return itemDate.toDateString() === now.toDateString();
+                    case 'week':
+                        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        return itemDate >= weekAgo;
+                    case 'month':
+                        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                        return itemDate >= monthAgo;
+                    default:
+                        return true;
+                }
+            });
+            
+            displayHistoryByView(currentHistoryView);
+        }
+
+        // 履歴検索
+        function searchHistory() {
+            const searchTerm = document.getElementById('historySearch').value.toLowerCase();
+            
+            if (!searchTerm) {
+                filterHistory(); // フィルターのみ適用
+                return;
+            }
+            
+            const baseFilter = document.getElementById('historyFilter').value;
+            let baseData = allHistoryData;
+            
+            // まず日付フィルターを適用
+            if (baseFilter !== 'all') {
+                const now = new Date();
+                baseData = allHistoryData.filter(item => {
+                    const itemDate = new Date(item.timestamp);
+                    
+                    switch(baseFilter) {
+                        case 'today':
+                            return itemDate.toDateString() === now.toDateString();
+                        case 'week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            return itemDate >= weekAgo;
+                        case 'month':
+                            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                            return itemDate >= monthAgo;
+                        default:
+                            return true;
+                    }
+                });
+            }
+            
+            // テキスト検索を適用
+            filteredHistoryData = baseData.filter(item => {
+                return item.title.toLowerCase().includes(searchTerm) ||
+                       (item.metadata?.basic?.channel || '').toLowerCase().includes(searchTerm) ||
+                       (item.tags || []).some(tag => tag.toLowerCase().includes(searchTerm));
+            });
+            
+            displayHistoryByView(currentHistoryView);
+        }
+
+        // タグによるフィルタリング
+        function filterByTag(tag) {
+            document.getElementById('historySearch').value = tag;
+            searchHistory();
+            
+            // タグタブに切り替え
+            currentHistoryView = 'tag';
+            document.querySelectorAll('.history-tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.history-tab-button:nth-child(3)').classList.add('active');
+            displayHistoryByView('tag');
+        }
+
+        // タグサジェスチョン更新
+        function updateTagSuggestions(history) {
+            const allTags = new Set();
+            history.forEach(item => {
+                if (item.tags) {
+                    item.tags.forEach(tag => allTags.add(tag));
+                }
+            });
+            
+            const tagArray = Array.from(allTags).slice(0, 10); // 最大10個
+            
+            if (tagArray.length > 0) {
+                const suggestionsDiv = document.getElementById('tagSuggestions');
+                const suggestionTagsDiv = suggestionsDiv.querySelector('.suggestion-tags');
+                
+                suggestionTagsDiv.innerHTML = tagArray.map(tag => 
+                    `<span class="suggestion-tag" onclick="addTagToInput('${tag}')">${tag}</span>`
+                ).join('');
+                
+                suggestionsDiv.style.display = 'block';
+            }
+        }
+
+        // タグ入力にタグを追加
+        function addTagToInput(tag) {
+            // メインタグシステムに統合されたため、この機能は不要
+        }
+
+        // メインタグ機能
+        let selectedMainTagsArray = [];
+        let allMainTags = new Set();
+        
+        function showMainTagSuggestions(input) {
+            const suggestionsDiv = document.getElementById('mainTagSuggestions');
+            const suggestionListDiv = suggestionsDiv.querySelector('.suggestion-list');
+            
+            if (!input.trim()) {
+                // 入力が空の場合は全タグを表示
+                displayAllMainTags(suggestionListDiv);
+                suggestionsDiv.style.display = 'block';
+                return;
+            }
+            
+            // 入力に基づいてフィルタリング
+            const filteredTags = Array.from(allMainTags).filter(tag => 
+                tag.name.toLowerCase().includes(input.toLowerCase()) &&
+                !selectedMainTagsArray.includes(tag.name)
+            );
+            
+            if (filteredTags.length > 0) {
+                suggestionListDiv.innerHTML = filteredTags.map(tag => `
+                    <div class="folder-suggestion-item" onclick="addMainTag('${tag.name}')">
+                        <span class="folder-icon">🏷️</span>
+                        <span class="folder-name">${tag.name}</span>
+                        <span class="folder-count">${tag.count}件</span>
+                    </div>
+                `).join('');
+                suggestionsDiv.style.display = 'block';
+            } else {
+                suggestionsDiv.style.display = 'none';
+            }
+        }
+        
+        function displayAllMainTags(container) {
+            const availableTags = Array.from(allMainTags).filter(tag => 
+                !selectedMainTagsArray.includes(tag.name)
+            );
+            
+            if (availableTags.length === 0) {
+                container.innerHTML = '<div class="folder-suggestion-item" style="color: #666; cursor: default;">タグがありません</div>';
+                return;
+            }
+            
+            container.innerHTML = availableTags.map(tag => `
+                <div class="folder-suggestion-item" onclick="addMainTag('${tag.name}')">
+                    <span class="folder-icon">🏷️</span>
+                    <span class="folder-name">${tag.name}</span>
+                    <span class="folder-count">${tag.count}件</span>
+                </div>
+            `).join('');
+        }
+        
+        function addMainTag(tagName) {
+            if (!selectedMainTagsArray.includes(tagName)) {
+                selectedMainTagsArray.push(tagName);
+                updateSelectedTagsDisplay();
+                document.getElementById('mainTags').value = '';
+                document.getElementById('mainTagSuggestions').style.display = 'none';
+            }
+        }
+        
+        function removeMainTag(tagName) {
+            selectedMainTagsArray = selectedMainTagsArray.filter(tag => tag !== tagName);
+            updateSelectedTagsDisplay();
+        }
+        
+        function updateSelectedTagsDisplay() {
+            const container = document.getElementById('selectedMainTags');
+            container.innerHTML = selectedMainTagsArray.map(tag => `
+                <div class="selected-tag">
+                    <span>🏷️ ${tag}</span>
+                    <span class="remove-tag" onclick="removeMainTag('${tag}')">×</span>
+                </div>
+            `).join('');
+        }
+        
+        function getSelectedMainTags() {
+            return selectedMainTagsArray;
+        }
+        
+        function updateMainTagSuggestions(history) {
+            allMainTags.clear();
+            const tagCounts = {};
+            
+            history.forEach(item => {
+                const mainTags = item.mainTags || [];
+                mainTags.forEach(tag => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
+            });
+            
+            Object.entries(tagCounts).forEach(([name, count]) => {
+                allMainTags.add({ name, count });
+            });
+        }
+        
+        // 外部クリックでサジェスチョンを閉じる
+        document.addEventListener('click', function(event) {
+            const mainTagContainer = document.querySelector('.main-tags-container');
+            const suggestionsDiv = document.getElementById('mainTagSuggestions');
+            
+            if (!mainTagContainer.contains(event.target)) {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+
+        // アコーディオン機能
+        function toggleHistoryGroup(headerElement) {
+            const group = headerElement.parentElement;
+            const toggleIcon = headerElement.querySelector('.toggle-icon');
+            
+            if (group.classList.contains('collapsed')) {
+                group.classList.remove('collapsed');
+                toggleIcon.textContent = '▼';
+            } else {
+                group.classList.add('collapsed');
+                toggleIcon.textContent = '▶';
+            }
+        }
+
         // ページ読み込み時に履歴を取得
         window.onload = function() {
             loadHistory();
+            loadCostsAnalysis(); // デフォルトで分析を読み込み
+            initializeResize(); // リサイズ機能を初期化
         };
 
-        async function uploadYouTube() {
+        async function checkForExistingContent() {
             const url = document.getElementById('youtubeUrl').value.trim();
             const language = document.getElementById('languageSelect').value;
             const gptModel = document.getElementById('gptModelSelect').value;
+            // Hide all regenerate sections initially
+            const summaryRegenerateSection = document.getElementById('summaryRegenerateSection');
+            const transcriptRegenerateSection = document.getElementById('transcriptRegenerateSection');
+            
+            if (!url) {
+                if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'none';
+                if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'none';
+                clearResults();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/history');
+                const historyData = await response.json();
+                
+                const videoId = extractVideoId(url);
+                if (!videoId) {
+                    regenerateSection.style.display = 'none';
+                    clearResults();
+                    return;
+                }
+                
+                // historyが配列かどうかチェック
+                const history = Array.isArray(historyData) ? historyData : [];
+                const existingEntry = history.find(item => 
+                    item.id === videoId && 
+                    item.language === language && 
+                    item.gptModel === gptModel
+                );
+                
+                if (existingEntry) {
+                    // 既存の結果を表示
+                    await displayExistingResult(existingEntry);
+                    if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'block';
+                    if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'block';
+                } else {
+                    if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'none';
+                    if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'none';
+                    clearResults();
+                }
+            } catch (error) {
+                console.error('Error checking existing content:', error);
+                if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'none';
+                if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'none';
+                clearResults();
+            }
+        }
+        
+        function clearResults() {
+            // 結果をクリア（要素の存在チェック付き）
+            const transcript = document.getElementById('transcript');
+            const summary = document.getElementById('summary');
+            const articleContent = document.getElementById('articleContent');
+            const videoInfo = document.getElementById('videoInfo');
+            const videoPlayer = document.getElementById('videoPlayer');
+            
+            if (transcript) transcript.innerHTML = '';
+            if (summary) summary.innerHTML = '';
+            if (articleContent) articleContent.innerHTML = '';
+            if (videoInfo) videoInfo.style.display = 'none';
+            if (videoPlayer) videoPlayer.style.display = 'none';
+            isTranscriptReady = false;
+        }
+        
+        async function displayExistingResult(entry) {
+            try {
+                // 文字起こし結果を復元
+                currentTranscript = entry.transcript || '';
+                currentTimestampedSegments = entry.timestampedSegments || [];
+                isTranscriptReady = true;
+                
+                // 履歴から取得した場合は文字起こし開始ボタンを隠し、再生成セクションを表示
+                const uploadBtn = document.getElementById('uploadBtn');
+                const uploadStatus = document.getElementById('uploadStatus');
+                const summaryRegenerateSection = document.getElementById('summaryRegenerateSection');
+                const transcriptRegenerateSection = document.getElementById('transcriptRegenerateSection');
+                
+                if (uploadBtn) uploadBtn.style.display = 'none';
+                if (uploadStatus) uploadStatus.innerHTML = '<div style="color: #2d5016; background: #f0f9e8; padding: 0.5rem; border-radius: 6px; font-size: 0.9rem; margin: 0.5rem 0;">📋 履歴から取得済み - 各タブで再解析可能です</div>';
+                if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'block';
+                if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'block';
+                
+                // YouTubeプレイヤーを初期化
+                if (entry.id) {
+                    initializeYouTubePlayer(entry.id);
+                }
+                
+                // タイムスタンプ付き文字起こしを表示
+                if (entry.timestampedTranscript) {
+                    currentTimestampedTranscript = entry.timestampedTranscript;
+                    displayTimestampedTranscript();
+                } else {
+                    // 通常の文字起こしを表示
+                    const transcriptDiv = document.getElementById('transcript');
+                    transcriptDiv.innerHTML = entry.transcript ? entry.transcript.replace(/\n/g, '<br>') : '';
+                    transcriptDiv.style.whiteSpace = 'pre-wrap';
+                }
+                
+                // 動画情報を表示
+                if (entry.metadata) {
+                    displayVideoInfo(entry.metadata, entry.method, entry.language, entry.detectedLanguage);
+                }
+                
+                // 要約を表示
+                if (entry.summary) {
+                    displaySummary(entry.summary);
+                    // 履歴から復元した場合、要約から直接深掘り質問を抽出
+                    extractAndDisplayQuestionsFromSummary(entry.summary);
+                }
+                
+                // 解説記事を表示
+                if (entry.articleContent) {
+                    const articleDiv = document.getElementById('articleContent');
+                    if (typeof marked !== 'undefined') {
+                        articleDiv.innerHTML = marked.parse(entry.articleContent);
+                    } else {
+                        articleDiv.innerHTML = entry.articleContent.replace(/\n/g, '<br>');
+                    }
+                }
+                
+                // コストを表示
+                if (entry.costs) {
+                    updateCosts(entry.costs);
+                }
+                
+                // 推奨質問を読み込み
+                loadSuggestedQuestions();
+                
+                showStatus(`過去の結果を表示しました: ${entry.title || 'YouTube動画'} (履歴から取得)`, 'success');
+                
+            } catch (error) {
+                console.error('Error displaying existing result:', error);
+                showStatus('過去の結果の表示中にエラーが発生しました', 'error');
+            }
+        }
+
+        async function regenerateContent(type) {
+            const url = document.getElementById('youtubeUrl').value.trim();
+            const language = document.getElementById('languageSelect').value;
+            const gptModel = document.getElementById('gptModelSelect').value;
+            const mainTags = getSelectedMainTags();
+            
+            if (!url) {
+                showMessage('YouTubeのURLを入力してください', 'error');
+                return;
+            }
+
+            // ボタンの状態を更新 (新しいボタンID)
+            const transcriptBtn = document.getElementById('regenerateTranscriptOnlyBtn');
+            const summaryBtn = document.getElementById('regenerateSummaryOnlyBtn');
+            const bothBtn = document.getElementById('regenerateBothFromTranscriptBtn');
+            
+            // すべてのボタンを無効化
+            [transcriptBtn, summaryBtn, bothBtn].forEach(btn => {
+                if (btn) btn.disabled = true;
+            });
+            
+            try {
+                let endpoint, bodyData, statusMessage;
+                
+                switch (type) {
+                    case 'transcript':
+                        endpoint = '/upload-youtube';
+                        bodyData = { url, language, gptModel, mainTags, tags: '', forceRegenerate: true, regenerateType: 'transcript' };
+                        statusMessage = '📝 文字起こしを再解析中...';
+                        if (transcriptBtn) transcriptBtn.textContent = '再解析中...';
+                        break;
+                    case 'summary':
+                        endpoint = '/regenerate-summary';
+                        bodyData = { url, language, gptModel };
+                        statusMessage = '📋 要約を再解析中...';
+                        if (summaryBtn) summaryBtn.textContent = '再解析中...';
+                        break;
+                    case 'both':
+                        endpoint = '/upload-youtube';
+                        bodyData = { url, language, gptModel, mainTags, tags: '', forceRegenerate: true, regenerateType: 'both' };
+                        statusMessage = '🔄 全て再解析中...';
+                        if (bothBtn) bothBtn.textContent = '再解析中...';
+                        break;
+                    default:
+                        throw new Error('Invalid regenerate type');
+                }
+                
+                showStatus(statusMessage, 'loading');
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 結果を表示
+                    if (type === 'transcript' || type === 'both') {
+                        // タイムスタンプ情報を保存
+                        currentTimestampedSegments = result.timestampedSegments || [];
+                        
+                        // YouTubeプレイヤーを初期化
+                        if (result.metadata?.basic?.videoId) {
+                            initializeYouTubePlayer(result.metadata.basic.videoId);
+                        }
+                        
+                        // 文字起こしを表示
+                        fetch('/transcript')
+                            .then(response => response.json())
+                            .then(transcriptData => {
+                                if (transcriptData.timestampedTranscript) {
+                                    currentTimestampedTranscript = transcriptData.timestampedTranscript;
+                                    displayTimestampedTranscript();
+                                } else {
+                                    const transcriptDiv = document.getElementById('transcript');
+                                    transcriptDiv.innerHTML = result.transcript.replace(/\n/g, '<br>');
+                                    transcriptDiv.style.whiteSpace = 'pre-wrap';
+                                }
+                            });
+                        
+                        // 動画情報を表示
+                        if (result.metadata) {
+                            displayVideoInfo(result.metadata, result.method, result.language, result.detectedLanguage);
+                        }
+                    }
+                    
+                    if (type === 'summary' || type === 'both') {
+                        // 要約を表示
+                        if (result.summary) {
+                            displaySummary(result.summary);
+                            // 新しく生成された要約から直接深掘り質問を抽出
+                            extractAndDisplayQuestionsFromSummary(result.summary);
+                        } else {
+                            // 要約がない場合はサーバーAPIから取得を試行
+                            loadSuggestedQuestions();
+                        }
+                    }
+                    
+                    isTranscriptReady = true;
+                    ensureChatInputVisible();
+                    
+                    // コストを更新
+                    if (result.costs) {
+                        updateCosts(result.costs);
+                    }
+                    
+                    // 履歴を更新
+                    loadHistory();
+                    
+                    const successMessage = type === 'transcript' ? '文字起こしの再解析が完了しました！' :
+                                          type === 'summary' ? '要約の再解析が完了しました！' :
+                                          '全ての再解析が完了しました！';
+                    showStatus(successMessage, 'success');
+                    
+                } else {
+                    showStatus(`エラー: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error regenerating content:', error);
+                showStatus('再解析中にエラーが発生しました。もう一度お試しください。', 'error');
+            } finally {
+                // ボタンの状態を元に戻す
+                [transcriptBtn, summaryBtn, bothBtn].forEach(btn => {
+                    if (btn) btn.disabled = false;
+                });
+                
+                if (transcriptBtn) transcriptBtn.textContent = '📝 文字起こしのみ再解析';
+                if (summaryBtn) summaryBtn.textContent = '📋 要約を再解析';
+                if (bothBtn) bothBtn.textContent = '🔄 全て再解析';
+            }
+        }
+
+        async function uploadYouTube(forceRegenerate = false) {
+            const url = document.getElementById('youtubeUrl').value.trim();
+            const language = document.getElementById('languageSelect').value;
+            const gptModel = document.getElementById('gptModelSelect').value;
+            const mainTags = getSelectedMainTags();
+            const tags = '';
             const uploadBtn = document.getElementById('uploadBtn');
             const uploadStatus = document.getElementById('uploadStatus');
             
@@ -947,8 +3530,13 @@
             }
 
             uploadBtn.disabled = true;
-            uploadBtn.textContent = '処理中...';
-            showStatus('YouTube動画を処理中です。しばらくお待ちください...', 'loading');
+            
+            if (forceRegenerate) {
+                showStatus('🔄 再生成処理を開始しました。文字起こしと要約を新しく生成中...', 'loading');
+            } else {
+                uploadBtn.textContent = '処理中...';
+                showStatus('YouTube動画を処理中です。しばらくお待ちください...', 'loading');
+            }
 
             try {
                 const response = await fetch('/upload-youtube', {
@@ -956,12 +3544,14 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ url: url, language: language, gptModel: gptModel })
+                    body: JSON.stringify({ url: url, language: language, gptModel: gptModel, mainTags: mainTags, tags: tags, forceRegenerate: forceRegenerate })
                 });
 
                 const result = await response.json();
 
                 if (result.success) {
+                    // 文字起こし結果を保存
+                    currentTranscript = result.transcript || '';
                     // タイムスタンプ情報を保存
                     currentTimestampedSegments = result.timestampedSegments || [];
                     
@@ -971,10 +3561,20 @@
                         initializeYouTubePlayer(videoId);
                     }
                     
-                    // 改行を確実に表示するために innerHTML を使用
-                    const transcriptDiv = document.getElementById('transcript');
-                    transcriptDiv.innerHTML = result.transcript.replace(/\n/g, '<br>');
-                    transcriptDiv.style.whiteSpace = 'pre-wrap';
+                    // タイムスタンプ付き文字起こしを取得して表示
+                    fetch('/transcript')
+                        .then(response => response.json())
+                        .then(transcriptData => {
+                            if (transcriptData.timestampedTranscript) {
+                                currentTimestampedTranscript = transcriptData.timestampedTranscript;
+                                displayTimestampedTranscript();
+                            } else {
+                                // タイムスタンプがない場合は通常の文字起こしを表示
+                                const transcriptDiv = document.getElementById('transcript');
+                                transcriptDiv.innerHTML = result.transcript.replace(/\n/g, '<br>');
+                                transcriptDiv.style.whiteSpace = 'pre-wrap';
+                            }
+                        });
                     
                     // 動画情報を表示
                     if (result.metadata) {
@@ -986,27 +3586,42 @@
                         displaySummary(result.summary);
                     }
                     
-                    let message = `文字起こしが完了しました！動画: ${result.title}`;
+                    let message = forceRegenerate ? `再生成が完了しました！動画: ${result.title}` : `文字起こしが完了しました！動画: ${result.title}`;
                     if (result.fromHistory) {
                         message += ' (履歴から取得)';
                     } else {
                         const methodText = result.method === 'subtitle' ? 'YouTube字幕' : 'Whisper API';
                         message += ` (${methodText}使用)`;
+                        if (forceRegenerate) {
+                            message += ' - 新しく生成';
+                        }
                     }
                     
                     showStatus(message, 'success');
                     isTranscriptReady = true;
+                    ensureChatInputVisible();
                     
                     // コストを更新
                     if (result.costs) {
                         updateCosts(result.costs);
                     }
                     
-                    // 推奨質問を読み込み
-                    loadSuggestedQuestions();
+                    // 要約から直接深掘り質問を抽出
+                    if (result.summary) {
+                        extractAndDisplayQuestionsFromSummary(result.summary);
+                    } else {
+                        // 要約がない場合はサーバーAPIから取得を試行
+                        loadSuggestedQuestions();
+                    }
                     
                     // 履歴を更新
                     loadHistory();
+                    
+                    // 再生成セクションを表示（処理完了後は常に再生成可能）
+                    const summaryRegenerateSection = document.getElementById('summaryRegenerateSection');
+                    const transcriptRegenerateSection = document.getElementById('transcriptRegenerateSection');
+                    if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'block';
+                    if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'block';
                 } else {
                     showStatus(`エラー: ${result.error}`, 'error');
                 }
@@ -1015,7 +3630,10 @@
                 showStatus('エラーが発生しました。もう一度お試しください。', 'error');
             } finally {
                 uploadBtn.disabled = false;
-                uploadBtn.textContent = '文字起こし開始';
+                uploadBtn.textContent = '解析開始';
+                uploadBtn.style.display = 'block';
+                
+                // 再生成セクションは各タブに個別に配置されているので特に処理不要
             }
         }
 
@@ -1029,7 +3647,7 @@
             if (!message) return;
 
             if (!isTranscriptReady) {
-                alert('まず最初にYouTube動画を文字起こししてください。');
+                showMessage('まず最初にYouTube動画を文字起こししてください。', 'info');
                 return;
             }
 
@@ -1073,9 +3691,449 @@
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}-message`;
-            messageDiv.textContent = text;
+            
+            if (type === 'ai') {
+                // AIメッセージの場合、Markdownをレンダリングしてタイムスタンプリンクを処理
+                let processedText = text;
+                
+                // Markdownをレンダリング
+                if (typeof marked !== 'undefined') {
+                    processedText = marked.parse(text);
+                } else {
+                    // markedが利用できない場合は基本的な変換
+                    processedText = text
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **太字**
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>')               // *斜体*
+                        .replace(/`(.*?)`/g, '<code>$1</code>')             // `コード`
+                        .replace(/\n/g, '<br>');                            // 改行
+                }
+                
+                // タイムスタンプリンクを処理（様々な形式に対応）
+                processedText = processedText
+                    .replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g, function(match, timeStr) {
+                        const seconds = timeToSeconds(timeStr);
+                        return `<span class="timestamp-link" onclick="seekToTime(${seconds})">${match}</span>`;
+                    })
+                    .replace(/(\d{1,2}:\d{2}(?::\d{2})?)/g, function(match, timeStr) {
+                        // []で囲まれていない時間も検出してリンクにする
+                        if (!match.includes('span')) { // 既にリンクになっていない場合のみ
+                            const seconds = timeToSeconds(timeStr);
+                            return `<span class="timestamp-link" onclick="seekToTime(${seconds})">${match}</span>`;
+                        }
+                        return match;
+                    });
+                
+                messageDiv.innerHTML = processedText;
+                
+                // 解説記事の修正内容が含まれているかチェック
+                if (checkIfArticleModification(text)) {
+                    const applyButton = document.createElement('button');
+                    applyButton.textContent = '📝 記事に反映';
+                    applyButton.className = 'apply-to-article-btn';
+                    applyButton.style.cssText = `
+                        margin-top: 0.5rem;
+                        padding: 0.5rem 1rem;
+                        background: linear-gradient(135deg, #667eea, #764ba2);
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 0.8rem;
+                        font-weight: 600;
+                        transition: all 0.3s ease;
+                    `;
+                    applyButton.onmouseover = () => applyButton.style.background = 'linear-gradient(135deg, #5a67d8, #6b46c1)';
+                    applyButton.onmouseout = () => applyButton.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+                    applyButton.onclick = () => applyModificationToArticle(text);
+                    
+                    messageDiv.appendChild(applyButton);
+                }
+            } else {
+                messageDiv.textContent = text;
+            }
+            
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function checkIfArticleModification(text) {
+            // 解説記事の修正を示すキーワードをチェック
+            const modificationKeywords = [
+                '修正した?記事',
+                '改善した?記事', 
+                '更新した?記事',
+                '書き直した?記事',
+                '以下の?記事',
+                '修正版?の?記事',
+                '改善版?の?記事',
+                'markdown?で?記事',
+                'markdownで?記事',
+                '# ',  // Markdownの見出し
+                '## ', // Markdownの見出し
+                '### ', // Markdownの見出し
+                '```', // コードブロック
+                '記事.*修正',
+                '記事.*改善',
+                '記事.*変更',
+                '記事.*作成',
+                '記事.*書き直',
+                '記事.*リライト',
+                '新しい記事',
+                '記事として',
+                '記事の?内容',
+                '記事の?形式',
+                'より詳細.*記事',
+                '詳しく.*記事'
+            ];
+            
+            const hasKeyword = modificationKeywords.some(keyword => {
+                const regex = new RegExp(keyword, 'i');
+                return regex.test(text);
+            });
+            
+            console.log('Checking if article modification:', hasKeyword);
+            return hasKeyword;
+        }
+
+        async function applyModificationToArticle(aiResponse) {
+            try {
+                console.log('🔄 Starting merge process...');
+                console.log('🔄 FORCE MERGE DEBUG - This will show why merge fails or succeeds');
+                
+                // 既存の記事内容を取得
+                const articleDiv = document.getElementById('articleContent');
+                if (!articleDiv) {
+                    console.log('❌ Article div not found');
+                    showMessage('解説記事エリアが見つかりません。', 'error');
+                    return;
+                }
+                
+                const existingArticle = getMarkdownFromArticleDiv(articleDiv);
+                console.log('=== FRONTEND MERGE DEBUG ===');
+                console.log('📄 Article div exists:', !!articleDiv);
+                console.log('📄 Article div innerHTML length:', articleDiv.innerHTML.length);
+                console.log('📄 Article div innerHTML preview:', articleDiv.innerHTML.substring(0, 300) + '...');
+                console.log('📄 Existing article length:', existingArticle.length);
+                console.log('📄 Existing article preview:', existingArticle.substring(0, 200) + '...');
+                console.log('📄 Existing article full content:', `"${existingArticle}"`);
+                
+                // 最後のユーザーメッセージを取得（ユーザーの指示として使用）
+                const userInstruction = getLastUserMessage();
+                console.log('💬 User instruction:', `"${userInstruction}"`);
+                console.log('💬 User instruction length:', userInstruction.length);
+                console.log('🤖 AI response length:', aiResponse.length);
+                console.log('🤖 AI response preview:', aiResponse.substring(0, 200) + '...');
+                
+                // 条件チェック1: 既存記事の存在確認（より緩い条件）
+                if (!existingArticle || existingArticle.length < 10) {
+                    console.log('❌ CONDITION 1 FAILED: No existing article or too short');
+                    console.log('   - existingArticle exists:', !!existingArticle);
+                    console.log('   - existingArticle length:', existingArticle ? existingArticle.length : 0);
+                    console.log('   - Minimum required length: 10 (lowered from 50)');
+                    console.log('🔄 → Switching to article generation mode');
+                    
+                    // 既存記事がない場合は、まず記事を生成
+                    showMessage('既存記事がありません。記事を生成してからマージします...', 'info');
+                    
+                    try {
+                        const generateResponse = await fetch('/generate-article', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ gptModel: document.getElementById('chatGptModel').value || 'gpt-4o-mini' })
+                        });
+                        
+                        const generateResult = await generateResponse.json();
+                        
+                        if (generateResult.success) {
+                            // 生成された記事を表示
+                            switchTab('article');
+                            if (typeof marked !== 'undefined') {
+                                articleDiv.innerHTML = marked.parse(generateResult.article);
+                            } else {
+                                articleDiv.innerHTML = generateResult.article.replace(/\n/g, '<br>');
+                            }
+                            
+                            // 記事が生成されたので成功メッセージを表示
+                            showMessage('✅ 記事を生成しました。個別の改善は既存記事がある場合に利用できます。', 'success');
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Failed to generate article:', error);
+                    }
+                    
+                    // 記事生成に失敗した場合は直接適用
+                    await applyDirectArticleModification(aiResponse);
+                    return;
+                }
+                
+                // 条件チェック2: ユーザー指示の確認（より緩い条件）
+                if (!userInstruction || userInstruction.length < 3) {
+                    console.log('❌ CONDITION 2 FAILED: No user instruction or too short');
+                    console.log('   - userInstruction exists:', !!userInstruction);
+                    console.log('   - userInstruction length:', userInstruction ? userInstruction.length : 0);
+                    console.log('   - userInstruction content:', `"${userInstruction}"`);
+                    console.log('   - Minimum required length: 3 (lowered from 5)');
+                    console.log('⚠️ → Using direct application (fallback)');
+                    await applyDirectArticleModification(aiResponse);
+                    return;
+                }
+                
+                // 全条件クリア - マージ実行
+                console.log('✅ ALL CONDITIONS PASSED - Proceeding with merge');
+                console.log('✅ Existing article: OK (' + existingArticle.length + ' chars)');
+                console.log('✅ User instruction: OK ("' + userInstruction + '")');
+                
+                // 処理中メッセージを表示
+                showMessage('🔍 該当箇所を特定して記事に反映中...', 'info');
+                
+                // 解説記事タブに移動（処理中を表示するため）
+                switchTab('article');
+                
+                // 処理中インジケーターを表示
+                articleDiv.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #667eea;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔍</div>
+                        <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">記事に反映中</div>
+                        <div style="color: #718096;">
+                            ユーザー質問から該当箇所を特定し、その部分のみを改善しています...<br>
+                            <small>（既存記事の構造は保持されます）</small>
+                        </div>
+                    </div>
+                `;
+                
+                // バックエンドでスマートマージを実行
+                console.log('🚀 Calling merge API with:');
+                console.log('- Existing article length:', existingArticle.length);
+                console.log('- User instruction:', userInstruction);
+                console.log('- AI response length:', aiResponse.length);
+                
+                const mergeResponse = await fetch('/merge-article', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        existingArticle: existingArticle,
+                        userInstruction: userInstruction,
+                        aiResponse: aiResponse,
+                        gptModel: document.getElementById('chatGptModel').value || 'gpt-4o-mini'
+                    })
+                });
+                
+                console.log('📡 Merge API response status:', mergeResponse.status);
+                
+                const mergeResult = await mergeResponse.json();
+                
+                if (mergeResult.success) {
+                    console.log('✅ Merge successful!');
+                    console.log('📄 Merged article length:', mergeResult.mergedArticle.length);
+                    console.log('📄 Merged article preview:', mergeResult.mergedArticle.substring(0, 200) + '...');
+                    console.log('🎯 Target section:', mergeResult.analysis.targetSection);
+                    
+                    // 解説記事タブに移動
+                    switchTab('article');
+                    
+                    // マージされた記事を適用
+                    if (typeof marked !== 'undefined') {
+                        console.log('📝 Using marked to parse merged article');
+                        articleDiv.innerHTML = marked.parse(mergeResult.mergedArticle);
+                    } else {
+                        console.log('📝 Using basic HTML conversion for merged article');
+                        articleDiv.innerHTML = mergeResult.mergedArticle.replace(/\n/g, '<br>');
+                    }
+                    
+                    console.log('✅ Merged article applied to DOM');
+                    
+                    // タイムスタンプリンクを処理
+                    processTimestampLinks(articleDiv);
+                    
+                    // 成功メッセージを表示
+                    const targetSection = mergeResult.analysis ? mergeResult.analysis.targetSection : '該当箇所';
+                    showMessage(`✅ 記事反映完了！「${targetSection}」セクションを改善しました（費用: $${mergeResult.cost.toFixed(4)}）`, 'success');
+                    
+                } else {
+                    console.error('Merge failed:', mergeResult.error);
+                    showMessage('記事反映に失敗しました。通常適用を試します...', 'warning');
+                    await applyDirectArticleModification(aiResponse);
+                }
+                
+            } catch (error) {
+                console.error('Error in merge:', error);
+                showMessage('記事反映でエラーが発生しました。通常適用を試します...', 'warning');
+                await applyDirectArticleModification(aiResponse);
+            }
+        }
+
+        // 直接適用のフォールバック関数
+        async function applyDirectArticleModification(aiResponse) {
+            try {
+                console.log('⚠️ Using direct application (fallback)');
+                console.log('AI response for direct application:', aiResponse.substring(0, 200) + '...');
+                
+                const articleContent = extractArticleFromResponse(aiResponse);
+                
+                if (articleContent) {
+                    switchTab('article');
+                    
+                    const articleDiv = document.getElementById('articleContent');
+                    if (articleDiv) {
+                        if (typeof marked !== 'undefined') {
+                            articleDiv.innerHTML = marked.parse(articleContent);
+                        } else {
+                            articleDiv.innerHTML = articleContent.replace(/\n/g, '<br>');
+                        }
+                        
+                        processTimestampLinks(articleDiv);
+                        showMessage('解説記事が更新されました！', 'success');
+                    }
+                } else {
+                    showMessage('記事内容を抽出できませんでした。', 'error');
+                }
+            } catch (error) {
+                console.error('Error in direct application:', error);
+                showMessage('記事の適用に失敗しました: ' + error.message, 'error');
+            }
+        }
+
+        // 記事DivからMarkdown形式のテキストを取得
+        function getMarkdownFromArticleDiv(articleDiv) {
+            // 既存の記事内容をMarkdown形式で取得
+            // HTMLからMarkdownへの変換（簡易版）
+            const htmlContent = articleDiv.innerHTML;
+            
+            console.log('=== HTML TO MARKDOWN DEBUG ===');
+            console.log('HTML content length:', htmlContent.length);
+            console.log('HTML content preview:', htmlContent.substring(0, 300) + '...');
+            
+            if (!htmlContent || htmlContent.trim() === '') {
+                console.log('No HTML content found');
+                return '';
+            }
+            
+            // Skip processing indicators and loading states
+            if (htmlContent.includes('記事に反映中') || htmlContent.includes('記事を生成中') || htmlContent.includes('loading')) {
+                console.log('Article is in processing state, skipping conversion');
+                return '';
+            }
+            
+            // 簡易的なHTML→Markdown変換
+            let markdown = htmlContent
+                .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+                .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+                .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+                .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
+                .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n')
+                .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n')
+                .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+                .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+                .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+                .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+                .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+                .replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gi, '```\n$1\n```')
+                .replace(/<ul[^>]*>(.*?)<\/ul>/gi, '$1\n')
+                .replace(/<ol[^>]*>(.*?)<\/ol>/gi, '$1\n')
+                .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+                .replace(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+                .replace(/<[^>]+>/g, '') // 残りのHTMLタグを除去
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&amp;/g, '&')
+                .replace(/\n{3,}/g, '\n\n') // 3個以上の連続改行を2個に
+                .trim();
+            
+            console.log('Converted markdown length:', markdown.length);
+            console.log('Converted markdown preview:', markdown.substring(0, 300) + '...');
+            console.log('=== END HTML TO MARKDOWN DEBUG ===');
+            
+            return markdown;
+        }
+
+        // 最後のユーザーメッセージを取得
+        function getLastUserMessage() {
+            console.log('🔍 Getting last user message...');
+            const chatMessages = document.getElementById('chatMessages');
+            
+            if (!chatMessages) {
+                console.log('❌ Chat messages container not found');
+                return '';
+            }
+            
+            const userMessages = chatMessages.querySelectorAll('.user-message');
+            console.log('📝 Found user messages count:', userMessages.length);
+            
+            if (userMessages.length > 0) {
+                const lastUserMessage = userMessages[userMessages.length - 1];
+                const messageText = lastUserMessage.textContent.trim();
+                console.log('📝 Last user message:', `"${messageText}"`);
+                return messageText;
+            }
+            
+            console.log('❌ No user messages found');
+            return '';
+        }
+
+        // タイムスタンプリンクの処理を分離
+        function processTimestampLinks(articleDiv) {
+            const timestampLinks = articleDiv.querySelectorAll('span');
+            timestampLinks.forEach(span => {
+                const text = span.textContent;
+                if (text.match(/\d{1,2}:\d{2}(?::\d{2})?/)) {
+                    span.className = 'timestamp-link';
+                    const timeStr = text.match(/\d{1,2}:\d{2}(?::\d{2})?/)[0];
+                    const seconds = timeToSeconds(timeStr);
+                    span.onclick = () => seekToTime(seconds);
+                }
+            });
+        }
+
+        function extractArticleFromResponse(text) {
+            console.log('Extracting article content from response...');
+            
+            // コードブロック内のMarkdownを抽出
+            console.log('Trying code block pattern...');
+            const codeBlockMatch = text.match(/```(?:markdown)?\n([\s\S]*?)\n```/i);
+            if (codeBlockMatch) {
+                console.log('Found code block match');
+                return codeBlockMatch[1].trim();
+            }
+            
+            // 見出しから始まるMarkdown形式のテキストを抽出
+            console.log('Trying markdown heading pattern...');
+            const markdownMatch = text.match(/(^|\n)(# .+[\s\S]*)/);
+            if (markdownMatch) {
+                console.log('Found markdown heading match');
+                return markdownMatch[2].trim();
+            }
+            
+            // より柔軟な見出しパターン（行の途中から始まる場合）
+            console.log('Trying flexible heading pattern...');
+            const flexibleHeadingMatch = text.match(/# .+[\s\S]*/);
+            if (flexibleHeadingMatch) {
+                console.log('Found flexible heading match');
+                return flexibleHeadingMatch[0].trim();
+            }
+            
+            // 「記事」という単語の後に続くコンテンツを抽出
+            console.log('Trying article keyword pattern...');
+            const articleMatch = text.match(/(?:修正した?|改善した?|更新した?)?記事.*?:?\n\n([\s\S]*)/i);
+            if (articleMatch) {
+                console.log('Found article keyword match');
+                return articleMatch[1].trim();
+            }
+            
+            // より広範囲の抽出（最後の手段）
+            console.log('Trying fallback pattern...');
+            const fallbackMatch = text.match(/^(# .+[\s\S]*)/m);
+            if (fallbackMatch) {
+                console.log('Found fallback match');
+                return fallbackMatch[1].trim();
+            }
+            
+            console.log('No extraction pattern matched');
+            return null;
         }
 
         function showStatus(message, type) {
@@ -1087,6 +4145,219 @@
             if (e.key === 'Enter') {
                 sendMessage();
             }
+        });
+
+        // プロンプト管理機能
+        function togglePromptSettings(type) {
+            const settings = document.getElementById(type + 'PromptSettings');
+            const arrow = document.getElementById(type + 'PromptArrow');
+            
+            if (settings.style.display === 'none') {
+                settings.style.display = 'block';
+                arrow.textContent = '▲';
+            } else {
+                settings.style.display = 'none';
+                arrow.textContent = '▼';
+            }
+        }
+        
+        
+        function getDefaultPromptTemplate(type) {
+            if (type === 'summary') {
+                return `あなたは動画コンテンツの分析専門家です。以下のYouTube動画の文字起こしを分析し、構造化された要約を生成してください。
+
+動画情報:
+-- タイトル: {{title}}
+-- 長さ: {{duration}}
+-- チャンネル: {{channel}}
+
+{{timestampNote}}
+
+要約の形式:
+1. **📋 動画概要** (2-3文で動画の目的と内容を要約)
+2. **🎯 主要ポイント** (重要な内容を3-5個の箇条書きで。{{timestampInstruction}})
+3. **💡 詳細解説** (各ポイントの詳しい説明。{{timestampInstruction}})
+4. **🔑 キーワード・用語** (重要な専門用語や概念を説明)
+5. **📈 実践的価値** (視聴者が実際に活用できる内容)
+6. **💡 おすすめ深掘り質問** (動画内容に基づく具体的な質問を3-5個。必ず「？」で終わる質問形式にしてください)
+
+深掘り質問の例：
+- この手法を実際のプロジェクトに適用する際の注意点は？
+- 動画で紹介された○○の詳細な実装方法は？
+- ××の部分で言及された△△について詳しく教えてください？
+
+注意事項:
+- 情報は正確で簡潔に
+- 専門用語は分かりやすく説明
+- 実用性を重視
+- タイムスタンプがある場合は必ず含める
+
+{{transcriptContent}}`;
+            } else if (type === 'article') {
+                return `あなたは技術記事の専門ライターです。YouTube動画の内容をもとに、Zenn/Qiita向けの高品質な技術解説記事を作成してください。
+
+{{templateNote}}
+
+記事の構成要件:
+1. **タイトル**: 読者の興味を引く、SEOを意識したタイトル
+2. **導入部**: 記事の概要と読者が得られる価値を明確に
+3. **本文**: 論理的で分かりやすい構成
+4. **コード例**: 必要に応じて実装例やサンプルコードを含める
+5. **まとめ**: 要点の再整理と次のアクションの提案
+
+記事の品質要件:
+-- 初心者にも理解しやすい説明
+-- 実践的で再現可能な内容
+-- 適切な見出し構造（H1→H2→H3）
+-- コードブロックの適切な使用
+-- 図表や画像の説明（必要に応じて）
+-- SEOを意識したキーワード配置
+
+出力形式:
+Markdown形式で記事を作成し、以下の要素を含めてください：
+- タイトル（H1）
+- 導入部
+- 目次（必要に応じて）
+- 本文（適切な見出し構造）
+- まとめ
+- 参考リンク（元動画のURL含む）`;
+            }
+            return '';
+        }
+
+        async function loadPrompts() {
+            try {
+                const response = await fetch('/prompts');
+                const data = await response.json();
+                
+                // 要約プロンプトを設定
+                const summaryTextarea = document.getElementById('summaryPromptText');
+                if (data.success && data.prompts && data.prompts.summary && data.prompts.summary.template) {
+                    summaryTextarea.value = data.prompts.summary.template;
+                } else {
+                    // カスタムプロンプトがない場合はデフォルトプロンプトを表示
+                    summaryTextarea.value = getDefaultPromptTemplate('summary');
+                    summaryTextarea.placeholder = 'デフォルトプロンプトが表示されています。編集して保存できます。';
+                }
+                
+                // 解説記事プロンプトを設定
+                const articleTextarea = document.getElementById('articlePromptText');
+                if (data.success && data.prompts && data.prompts.article && data.prompts.article.template) {
+                    articleTextarea.value = data.prompts.article.template;
+                } else {
+                    // カスタムプロンプトがない場合はデフォルトプロンプトを表示
+                    articleTextarea.value = getDefaultPromptTemplate('article');
+                    articleTextarea.placeholder = 'デフォルトプロンプトが表示されています。編集して保存できます。';
+                }
+            } catch (error) {
+                console.error('Error loading prompts:', error);
+                // エラーの場合もデフォルトプロンプトを表示
+                const summaryTextarea = document.getElementById('summaryPromptText');
+                const articleTextarea = document.getElementById('articlePromptText');
+                summaryTextarea.value = getDefaultPromptTemplate('summary');
+                articleTextarea.value = getDefaultPromptTemplate('article');
+            }
+        }
+
+        async function savePrompt(type) {
+            const textareaId = type + 'PromptText';
+            const textarea = document.getElementById(textareaId);
+            const template = textarea.value.trim();
+            
+            if (!template) {
+                showPromptMessage(type, 'プロンプトが空です。内容を入力してください。', false);
+                return;
+            }
+            
+            try {
+                const response = await fetch('/prompts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ type, template })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error:', response.status, errorText);
+                    showPromptMessage(type, `保存に失敗しました。サーバーエラー: ${response.status}`, false);
+                    return;
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const responseText = await response.text();
+                    console.error('Invalid response format:', responseText);
+                    showPromptMessage(type, 'サーバーからの応答が正しくありません。', false);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showPromptMessage(type, `${type === 'summary' ? '要約' : '解説記事'}プロンプトを保存しました！`, true);
+                } else {
+                    showPromptMessage(type, '保存に失敗しました: ' + data.error, false);
+                }
+            } catch (error) {
+                console.error('Error saving prompt:', error);
+                showPromptMessage(type, '保存中にエラーが発生しました: ' + error.message, false);
+            }
+        }
+
+        function showMessage(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('messageContainer');
+            const messageElement = document.createElement('div');
+            messageElement.className = `message-item message-${type}`;
+            messageElement.textContent = message;
+            
+            container.appendChild(messageElement);
+            
+            // 指定時間後に自動的に削除
+            setTimeout(() => {
+                if (messageElement.parentNode) {
+                    messageElement.parentNode.removeChild(messageElement);
+                }
+            }, duration);
+        }
+        
+        function showPromptMessage(type, message, isSuccess = true) {
+            const messageElement = document.getElementById(type + 'PromptMessage');
+            messageElement.textContent = message;
+            messageElement.style.display = 'block';
+            
+            if (isSuccess) {
+                messageElement.style.background = '#d4edda';
+                messageElement.style.color = '#155724';
+                messageElement.style.border = '1px solid #c3e6cb';
+            } else {
+                messageElement.style.background = '#f8d7da';
+                messageElement.style.color = '#721c24';
+                messageElement.style.border = '1px solid #f5c6cb';
+            }
+            
+            // 3秒後に自動的に非表示
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 3000);
+        }
+
+        async function resetPrompt(type) {
+            const textareaId = type + 'PromptText';
+            const textarea = document.getElementById(textareaId);
+            
+            // デフォルトプロンプトを設定
+            textarea.value = getDefaultPromptTemplate(type);
+            
+            showPromptMessage(type, 'デフォルトプロンプトに戻しました', true);
+        }
+
+        // ページ読み込み時にプロンプトを読み込み
+        window.addEventListener('load', () => {
+            loadPrompts();
+            loadSuggestedQuestions(); // ページ読み込み時にも質問を読み込み
+            ensureChatInputVisible(); // ページ読み込み後に入力欄の可視性を確保
         });
     </script>
 </body>
