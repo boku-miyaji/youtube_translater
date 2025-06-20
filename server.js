@@ -1663,7 +1663,7 @@ app.post('/prompts', (req, res) => {
 // 記事智能合并API
 app.post('/merge-article', async (req, res) => {
   try {
-    const { existingArticle, userInstruction, aiResponse, gptModel = 'gpt-4o-mini' } = req.body;
+    const { existingArticle, userInstruction, aiResponse, gptModel = 'gpt-4o-mini', videoId } = req.body;
     
     console.log('=== MERGE REQUEST DEBUG ===');
     console.log('Existing article length:', existingArticle ? existingArticle.length : 0);
@@ -1778,17 +1778,29 @@ ${aiResponse}
     sessionCosts.gpt += mergeCost;
     sessionCosts.total += mergeCost;
 
-    // マージ前の記事を履歴に保存（現在のビデオ情報がある場合）
-    if (currentMetadata && currentMetadata.basic && currentMetadata.basic.videoId && currentArticle) {
-      addArticleToHistory(currentMetadata.basic.videoId, currentArticle, 'pre-merge');
+    // マージ前の記事を履歴に保存（リクエストの existingArticle を使用）
+    console.log('=== PRE-MERGE ARTICLE SAVE DEBUG ===');
+    console.log('videoId from request:', videoId);
+    console.log('existingArticle exists:', !!existingArticle);
+    console.log('existingArticle length:', existingArticle ? existingArticle.length : 0);
+    console.log('existingArticle preview:', existingArticle ? existingArticle.substring(0, 100) + '...' : 'null');
+    
+    if (videoId && existingArticle) {
+      console.log('✅ Saving pre-merge article to history');
+      addArticleToHistory(videoId, existingArticle, 'pre-merge');
+    } else {
+      console.log('❌ Cannot save pre-merge article - missing requirements');
+      console.log('  videoId:', videoId);
+      console.log('  existingArticle:', !!existingArticle);
     }
     
     // マージされた記事を現在の記事として保存
     currentArticle = response.choices[0].message.content;
     
     // マージ後の記事も履歴に保存
-    if (currentMetadata && currentMetadata.basic && currentMetadata.basic.videoId) {
-      addArticleToHistory(currentMetadata.basic.videoId, response.choices[0].message.content, 'merged');
+    if (videoId) {
+      console.log('✅ Saving merged article to history');
+      addArticleToHistory(videoId, response.choices[0].message.content, 'merged');
     }
 
     res.json({
