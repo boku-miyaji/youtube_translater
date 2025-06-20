@@ -3997,16 +3997,35 @@
                 // 解説記事タブに移動（処理中を表示するため）
                 switchTab('article');
                 
-                // 処理中インジケーターを表示
+                // 処理中インジケーターを表示（より目立つデザイン）
                 articleDiv.innerHTML = `
-                    <div style="text-align: center; padding: 2rem; color: #667eea;">
-                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔍</div>
-                        <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">記事に反映中</div>
-                        <div style="color: #718096;">
-                            ユーザー質問から該当箇所を特定し、その部分のみを改善しています...<br>
-                            <small>（既存記事の構造は保持されます）</small>
+                    <div style="text-align: center; padding: 3rem; background: linear-gradient(135deg, #f0f4ff, #e0e7ff); border-radius: 12px; margin: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <div style="font-size: 3rem; margin-bottom: 1rem; animation: pulse 1.5s ease-in-out infinite;">🔍</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; color: #5b21b6;">記事に反映中...</div>
+                        <div style="color: #6b7280; font-size: 1.1rem; line-height: 1.6;">
+                            ユーザー質問「<strong style="color: #4c1d95;">${userInstruction}</strong>」から<br>
+                            該当箇所を特定し、その部分のみを改善しています<br>
+                            <small style="color: #9ca3af;">（既存記事の構造は保持されます）</small>
+                        </div>
+                        <div style="margin-top: 1.5rem;">
+                            <div style="display: inline-block; padding: 0.5rem 1rem; background: #ffffff; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; margin-right: 0.5rem; animation: blink 1s ease-in-out infinite;"></span>
+                                <span style="color: #374151; font-weight: 500;">処理中...</span>
+                            </div>
                         </div>
                     </div>
+                    
+                    <style>
+                        @keyframes pulse {
+                            0% { transform: scale(1); }
+                            50% { transform: scale(1.1); }
+                            100% { transform: scale(1); }
+                        }
+                        @keyframes blink {
+                            0%, 100% { opacity: 1; }
+                            50% { opacity: 0.3; }
+                        }
+                    </style>
                 `;
                 
                 // バックエンドでスマートマージを実行
@@ -4041,19 +4060,23 @@
                     // 解説記事タブに移動
                     switchTab('article');
                     
+                    // 最新のarticleDivを取得
+                    const currentArticleDiv = document.getElementById('articleContent');
+                    
                     // マージされた記事を適用
                     if (typeof marked !== 'undefined') {
                         console.log('📝 Using marked to parse merged article');
-                        articleDiv.innerHTML = marked.parse(mergeResult.mergedArticle);
+                        currentArticleDiv.innerHTML = marked.parse(mergeResult.mergedArticle);
                     } else {
                         console.log('📝 Using basic HTML conversion for merged article');
-                        articleDiv.innerHTML = mergeResult.mergedArticle.replace(/\n/g, '<br>');
+                        currentArticleDiv.innerHTML = mergeResult.mergedArticle.replace(/\n/g, '<br>');
                     }
                     
                     console.log('✅ Merged article applied to DOM');
+                    console.log('📄 Article content preview:', currentArticleDiv.innerHTML.substring(0, 200) + '...');
                     
                     // タイムスタンプリンクを処理
-                    processTimestampLinks(articleDiv);
+                    processTimestampLinks(currentArticleDiv);
                     
                     // 成功メッセージを表示
                     const targetSection = mergeResult.analysis ? mergeResult.analysis.targetSection : '該当箇所';
@@ -4203,21 +4226,44 @@
             
             textNodes.forEach(textNode => {
                 const text = textNode.textContent;
-                const timestampRegex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
+                // 複数のタイムスタンプ形式に対応
+                const timestampPatterns = [
+                    /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g,  // [mm:ss] or [h:mm:ss]
+                    /(\d{1,2}:\d{2}(?::\d{2})?)/g       // mm:ss or h:mm:ss (括弧なし)
+                ];
                 
-                if (timestampRegex.test(text)) {
+                let hasTimestamp = false;
+                for (const pattern of timestampPatterns) {
+                    if (pattern.test(text)) {
+                        hasTimestamp = true;
+                        break;
+                    }
+                }
+                
+                if (hasTimestamp) {
                     console.log('📍 Found timestamp in text:', text);
                     
-                    // タイムスタンプをリンクに変換
-                    const newHTML = text.replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g, (match, timeStr) => {
+                    // タイムスタンプをリンクに変換（両方のパターンに対応）
+                    let newHTML = text;
+                    
+                    // [mm:ss] 形式
+                    newHTML = newHTML.replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g, (match, timeStr) => {
                         const seconds = timeToSeconds(timeStr);
                         return `<span class="timestamp-link" onclick="seekToTime(${seconds})">[${timeStr}]</span>`;
                     });
                     
-                    // テキストノードをHTMLで置換
-                    const span = document.createElement('span');
-                    span.innerHTML = newHTML;
-                    textNode.parentNode.replaceChild(span, textNode);
+                    // mm:ss 形式（括弧なし）
+                    newHTML = newHTML.replace(/(?<!\[)(\d{1,2}:\d{2}(?::\d{2})?)(?!\])/g, (match, timeStr) => {
+                        const seconds = timeToSeconds(timeStr);
+                        return `<span class="timestamp-link" onclick="seekToTime(${seconds})">[${timeStr}]</span>`;
+                    });
+                    
+                    if (newHTML !== text) {
+                        // テキストノードをHTMLで置換
+                        const span = document.createElement('span');
+                        span.innerHTML = newHTML;
+                        textNode.parentNode.replaceChild(span, textNode);
+                    }
                 }
             });
             
