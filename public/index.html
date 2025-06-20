@@ -1428,7 +1428,7 @@
                 </div>
             </div>
         </div>
-        <button onclick="uploadYouTube(false)" id="uploadBtn">解析開始</button>
+        <button id="uploadBtn">解析開始</button>
         <div id="uploadStatus"></div>
         
     </div>
@@ -4466,6 +4466,14 @@ Markdown形式で記事を作成し、以下の要素を含めてください：
             loadPrompts();
             loadSuggestedQuestions(); // ページ読み込み時にも質問を読み込み
             ensureChatInputVisible(); // ページ読み込み後に入力欄の可視性を確保
+            
+            // 解析開始ボタンのイベントリスナーを設定
+            const uploadBtn = document.getElementById('uploadBtn');
+            if (uploadBtn) {
+                uploadBtn.addEventListener('click', () => {
+                    uploadYouTube(false);
+                });
+            }
         });
         
         // 記事履歴管理機能
