@@ -4521,6 +4521,11 @@ Markdown形式で記事を作成し、以下の要素を含めてください：
             
             try {
                 const response = await fetch(`/article-history/${currentVideoId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
                 
                 if (result.success && result.history.length > 0) {
@@ -4557,6 +4562,11 @@ Markdown形式で記事を作成し、以下の要素を含めてください：
         async function loadHistoryArticle(historyId) {
             try {
                 const response = await fetch(`/article-history/${currentVideoId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
@@ -4592,6 +4602,7 @@ Markdown形式で記事を作成し、以下の要素を含めてください：
         // 動画読み込み時にvideoIdを設定
         function setCurrentVideoId(videoId) {
             currentVideoId = videoId;
+            console.log('🎬 Video ID set for article history:', videoId);
         }
         
     </script>
