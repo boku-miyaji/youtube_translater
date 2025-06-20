@@ -1622,11 +1622,30 @@
                         <div style="font-weight: 600; color: #0f172a; margin-bottom: 0.25rem;">📚 テンプレート情報</div>
                         <div id="templateInfo" style="color: #475569;">テンプレート情報を読み込み中...</div>
                     </div>
-                    <button id="generateArticleBtn" onclick="generateArticle()" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease;">
-                        📝 解説記事を作成
-                    </button>
-                    <span id="articleStatus" style="margin-left: 1rem; color: #666;"></span>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                        <button id="generateArticleBtn" onclick="generateArticle()" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease;">
+                            📝 解説記事を作成
+                        </button>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <button id="toggleArticleHistoryBtn" onclick="toggleArticleHistory()" style="background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.3s ease;">
+                                📜 履歴表示
+                            </button>
+                            <span id="articleStatus" style="color: #666;"></span>
+                        </div>
+                    </div>
                 </div>
+                
+                <!-- 記事履歴パネル -->
+                <div id="articleHistoryPanel" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                        <h4 style="margin: 0; color: #2d3748; font-size: 1rem;">📜 記事履歴</h4>
+                        <button onclick="toggleArticleHistory()" style="background: transparent; border: none; color: #718096; cursor: pointer; font-size: 1.2rem; padding: 0.25rem;">×</button>
+                    </div>
+                    <div id="articleHistoryList" style="max-height: 300px; overflow-y: auto;">
+                        <p style="color: #718096; text-align: center; padding: 1rem;">履歴を読み込み中...</p>
+                    </div>
+                </div>
+                
                 <div id="articleContent" style="line-height: 1.8;">
                     <p style="color: #888; text-align: center; padding: 2rem;">「解説記事を作成」ボタンを押すと、Zenn/Qiita用の記事が生成されます</p>
                 </div>
@@ -1915,38 +1934,16 @@
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // マークダウンレンダリング
-                    const renderedContent = marked.parse(data.article);
-                    
-                    articleContent.innerHTML = `
-                        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
-                                <span style="font-weight: 600; color: #4a5568;">💰 生成コスト: $${data.cost.toFixed(6)} (${data.model})</span>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <button onclick="copyArticleToClipboard()" style="background: #38a169; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
-                                        📋 Markdownコピー
-                                    </button>
-                                    <button onclick="copyArticleAsHTML()" style="background: #3182ce; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
-                                        🌐 HTMLコピー
-                                    </button>
-                                    <button onclick="saveArticleTemplate()" style="background: #805ad5; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
-                                        💾 テンプレート保存
-                                    </button>
-                                </div>
-                            </div>
-                            <div style="font-size: 0.85rem; color: #666;">
-                                📊 入力: ${data.tokens.input}トークン, 出力: ${data.tokens.output}トークン
-                            </div>
-                            <div style="font-size: 0.85rem; color: #2d3748; margin-top: 0.5rem;">
-                                💡 記事の修正が必要な場合は、下のAIアシスタントで「記事の○○の部分を修正して」などと指示してください
-                            </div>
-                        </div>
-                        <div class="article-markdown">${renderedContent}</div>
-                    `;
+                    // 新しいdisplayArticle関数を使用してコスト情報付きで表示
+                    displayArticle(data.article, {
+                        cost: data.cost,
+                        model: data.model,
+                        tokens: data.tokens
+                    });
                     
                     // 生成されたマークダウンとHTMLを保存（コピー用）
                     window.generatedArticleMarkdown = data.article;
-                    window.generatedArticleHTML = renderedContent;
+                    window.generatedArticleHTML = marked.parse(data.article);
                     
                     articleStatus.textContent = '記事が生成されました！';
                     articleStatus.style.color = '#38a169';
@@ -2082,6 +2079,114 @@
             }
         }
 
+        // 履歴から記事を読み込み
+        async function loadArticleFromHistory() {
+            try {
+                // 現在のビデオIDを取得
+                if (!currentVideoId) {
+                    // currentVideoIdがない場合、現在の記事を表示
+                    const response = await fetch('/current-article');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.hasArticle && data.article) {
+                            displayArticle(data.article);
+                        } else {
+                            displayNoArticleMessage();
+                        }
+                    } else {
+                        displayNoArticleMessage();
+                    }
+                    return;
+                }
+
+                // 履歴から記事を取得
+                const response = await fetch(`/article/${currentVideoId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.hasArticle && data.article) {
+                        displayArticle(data.article);
+                    } else {
+                        displayNoArticleMessage();
+                    }
+                } else {
+                    displayNoArticleMessage();
+                }
+            } catch (error) {
+                console.error('記事読み込みエラー:', error);
+                displayNoArticleMessage();
+            }
+        }
+
+        // 記事を表示する関数
+        function displayArticle(article, costInfo = null) {
+            const articleContent = document.getElementById('articleContent');
+            if (articleContent) {
+                const renderedContent = marked.parse(article);
+                
+                if (costInfo) {
+                    // コスト情報がある場合（新規生成時）
+                    articleContent.innerHTML = `
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600; color: #4a5568;">💰 生成コスト: $${costInfo.cost.toFixed(6)} (${costInfo.model})</span>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button onclick="copyArticleToClipboard()" style="background: #38a169; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        📋 Markdownコピー
+                                    </button>
+                                    <button onclick="copyArticleAsHTML()" style="background: #3182ce; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        🌐 HTMLコピー
+                                    </button>
+                                    <button onclick="saveArticleTemplate()" style="background: #805ad5; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        💾 テンプレート保存
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #666;">
+                                📊 入力: ${costInfo.tokens.input}トークン, 出力: ${costInfo.tokens.output}トークン
+                            </div>
+                            <div style="font-size: 0.85rem; color: #2d3748; margin-top: 0.5rem;">
+                                💡 記事の修正が必要な場合は、下のAIアシスタントで「記事の○○の部分を修正して」などと指示してください
+                            </div>
+                        </div>
+                        <div class="article-markdown">${renderedContent}</div>
+                    `;
+                } else {
+                    // 履歴から読み込み時はシンプルに表示
+                    articleContent.innerHTML = `
+                        <div style="background: #e6fffa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #38b2ac;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600; color: #2d3748;">📚 履歴から読み込まれた記事</span>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button onclick="copyArticleToClipboard()" style="background: #38a169; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        📋 Markdownコピー
+                                    </button>
+                                    <button onclick="copyArticleAsHTML()" style="background: #3182ce; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        🌐 HTMLコピー
+                                    </button>
+                                    <button onclick="saveArticleTemplate()" style="background: #805ad5; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        💾 テンプレート保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-markdown">${renderedContent}</div>
+                    `;
+                }
+                articleContent.style.textAlign = 'left';
+                
+                // タイムスタンプリンクを処理
+                processTimestampLinks(articleContent);
+            }
+        }
+
+        // 記事がない場合のメッセージを表示
+        function displayNoArticleMessage() {
+            const articleContent = document.getElementById('articleContent');
+            if (articleContent) {
+                articleContent.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">まだ記事が生成されていません。「解説記事を作成」ボタンを押してください。</p>';
+            }
+        }
+
         // アコーディオンのトグル機能
         function toggleAccordion(contentId) {
             const content = document.getElementById(contentId);
@@ -2127,6 +2232,7 @@
             // 解説記事タブが選択された場合、テンプレート情報を読み込み
             if (tabName === 'article') {
                 loadTemplateInfo();
+                loadArticleFromHistory();
             }
             
             // 文字起こしタブが選択された場合、同期を開始
@@ -2412,6 +2518,7 @@
                     // YouTubeプレイヤーを初期化（URLから動画IDを取得）
                     if (result.metadata?.basic?.videoId) {
                         initializeYouTubePlayer(result.metadata.basic.videoId);
+                        setCurrentVideoId(result.metadata.basic.videoId);
                     }
                     
                     // タイムスタンプ付き文字起こしを取得して表示
@@ -3446,6 +3553,7 @@
                         // YouTubeプレイヤーを初期化
                         if (result.metadata?.basic?.videoId) {
                             initializeYouTubePlayer(result.metadata.basic.videoId);
+                            setCurrentVideoId(result.metadata.basic.videoId);
                         }
                         
                         // 文字起こしを表示
@@ -3839,7 +3947,7 @@
                         const generateResponse = await fetch('/generate-article', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ gptModel: document.getElementById('chatGptModel').value || 'gpt-4o-mini' })
+                            body: JSON.stringify({ gptModel: document.getElementById('gptModelSelect').value || 'gpt-4o-mini' })
                         });
                         
                         const generateResult = await generateResponse.json();
@@ -3916,7 +4024,7 @@
                         existingArticle: existingArticle,
                         userInstruction: userInstruction,
                         aiResponse: aiResponse,
-                        gptModel: document.getElementById('chatGptModel').value || 'gpt-4o-mini'
+                        gptModel: document.getElementById('gptModelSelect').value || 'gpt-4o-mini'
                     })
                 });
                 
@@ -4359,6 +4467,107 @@ Markdown形式で記事を作成し、以下の要素を含めてください：
             loadSuggestedQuestions(); // ページ読み込み時にも質問を読み込み
             ensureChatInputVisible(); // ページ読み込み後に入力欄の可視性を確保
         });
+        
+        // 記事履歴管理機能
+        let currentVideoId = null;
+        
+        function toggleArticleHistory() {
+            const panel = document.getElementById('articleHistoryPanel');
+            const btn = document.getElementById('toggleArticleHistoryBtn');
+            
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                btn.textContent = '📜 履歴非表示';
+                loadArticleHistory();
+            } else {
+                panel.style.display = 'none';
+                btn.textContent = '📜 履歴表示';
+            }
+        }
+        
+        async function loadArticleHistory() {
+            const historyList = document.getElementById('articleHistoryList');
+            
+            if (!currentVideoId) {
+                historyList.innerHTML = '<p style="color: #718096; text-align: center; padding: 1rem;">動画が読み込まれていません</p>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/article-history/${currentVideoId}`);
+                const result = await response.json();
+                
+                if (result.success && result.history.length > 0) {
+                    historyList.innerHTML = result.history.map((item, index) => {
+                        const date = new Date(item.timestamp);
+                        const dateStr = date.toLocaleString('ja-JP');
+                        const typeIcon = item.type === 'generated' ? '🆕' : '🔄';
+                        const typeText = item.type === 'generated' ? '生成' : 'マージ';
+                        
+                        return `
+                            <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; background: white; cursor: pointer; transition: all 0.2s ease;" 
+                                 onclick="loadHistoryArticle('${item.id}')" 
+                                 onmouseover="this.style.background='#f7fafc'" 
+                                 onmouseout="this.style.background='white'">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="font-weight: 600; color: #2d3748;">${typeIcon} ${typeText}版 #${result.history.length - index}</span>
+                                    <span style="font-size: 0.8rem; color: #718096;">${dateStr}</span>
+                                </div>
+                                <div style="font-size: 0.9rem; color: #4a5568; line-height: 1.4; max-height: 60px; overflow: hidden; text-overflow: ellipsis;">
+                                    ${item.article.substring(0, 100)}...
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    historyList.innerHTML = '<p style="color: #718096; text-align: center; padding: 1rem;">記事履歴がありません</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load article history:', error);
+                historyList.innerHTML = '<p style="color: #e53e3e; text-align: center; padding: 1rem;">履歴の読み込みに失敗しました</p>';
+            }
+        }
+        
+        async function loadHistoryArticle(historyId) {
+            try {
+                const response = await fetch(`/article-history/${currentVideoId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const historyItem = result.history.find(item => item.id === historyId);
+                    if (historyItem) {
+                        const articleDiv = document.getElementById('articleContent');
+                        
+                        // 記事を表示
+                        if (typeof marked !== 'undefined') {
+                            articleDiv.innerHTML = marked.parse(historyItem.article);
+                        } else {
+                            articleDiv.innerHTML = historyItem.article.replace(/\n/g, '<br>');
+                        }
+                        
+                        // タイムスタンプリンクを処理
+                        processTimestampLinks(articleDiv);
+                        
+                        // 履歴パネルを閉じる
+                        toggleArticleHistory();
+                        
+                        // 成功メッセージ
+                        const typeText = historyItem.type === 'generated' ? '生成' : 'マージ';
+                        const date = new Date(historyItem.timestamp).toLocaleString('ja-JP');
+                        showMessage(`📜 ${typeText}版記事を読み込みました（${date}）`, 'success');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load history article:', error);
+                showMessage('履歴記事の読み込みに失敗しました', 'error');
+            }
+        }
+        
+        // 動画読み込み時にvideoIdを設定
+        function setCurrentVideoId(videoId) {
+            currentVideoId = videoId;
+        }
+        
     </script>
 </body>
 </html>
