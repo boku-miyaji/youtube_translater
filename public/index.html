@@ -867,6 +867,90 @@
             overflow-y: auto;
             font-size: 1rem;
             line-height: 1.8;
+        }
+        
+        /* 記事コンテンツのスタイル */
+        .article-content h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin: 2rem 0 1.5rem 0;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .article-content h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin: 2rem 0 1rem 0;
+            padding: 0.75rem 0;
+            border-bottom: 2px solid #e2e8f0;
+            position: relative;
+        }
+        
+        .article-content h2::before {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: #667eea;
+        }
+        
+        .article-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin: 1.5rem 0 0.75rem 0;
+            padding-left: 1rem;
+            border-left: 4px solid #667eea;
+            background: linear-gradient(135deg, #f7fafc, #edf2f7);
+            padding: 0.5rem 1rem;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .article-content p {
+            margin: 1rem 0;
+            color: #4a5568;
+            line-height: 1.8;
+        }
+        
+        .article-content ul, .article-content ol {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+        }
+        
+        .article-content li {
+            margin: 0.5rem 0;
+            color: #4a5568;
+            line-height: 1.6;
+        }
+        
+        .article-content strong {
+            color: #2d3748;
+            font-weight: 600;
+        }
+        
+        .article-content code {
+            background: #f7fafc;
+            color: #667eea;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .article-content blockquote {
+            border-left: 4px solid #667eea;
+            background: linear-gradient(135deg, #f0f4ff, #e0e7ff);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            color: #4c1d95;
+        }
             font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
             scrollbar-width: thin;
             scrollbar-color: #cbd5e0 transparent;
@@ -1646,7 +1730,7 @@
                     </div>
                 </div>
                 
-                <div id="articleContent" style="line-height: 1.8;">
+                <div id="articleContent" class="article-content" style="line-height: 1.8;">
                     <p style="color: #888; text-align: center; padding: 2rem;">「解説記事を作成」ボタンを押すと、Zenn/Qiita用の記事が生成されます</p>
                 </div>
             </div>
@@ -3997,36 +4081,63 @@
                 // 解説記事タブに移動（処理中を表示するため）
                 switchTab('article');
                 
-                // 処理中インジケーターを表示（より目立つデザイン）
-                articleDiv.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; background: linear-gradient(135deg, #f0f4ff, #e0e7ff); border-radius: 12px; margin: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                        <div style="font-size: 3rem; margin-bottom: 1rem; animation: pulse 1.5s ease-in-out infinite;">🔍</div>
-                        <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; color: #5b21b6;">記事に反映中...</div>
-                        <div style="color: #6b7280; font-size: 1.1rem; line-height: 1.6;">
-                            ユーザー質問「<strong style="color: #4c1d95;">${userInstruction}</strong>」から<br>
-                            該当箇所を特定し、その部分のみを改善しています<br>
-                            <small style="color: #9ca3af;">（既存記事の構造は保持されます）</small>
-                        </div>
-                        <div style="margin-top: 1.5rem;">
-                            <div style="display: inline-block; padding: 0.5rem 1rem; background: #ffffff; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; margin-right: 0.5rem; animation: blink 1s ease-in-out infinite;"></span>
-                                <span style="color: #374151; font-weight: 500;">処理中...</span>
+                // 処理中インジケーターを表示（段階的な進捗表示）
+                let progressSteps = [
+                    { icon: '🔍', text: '該当箇所を分析中...', detail: 'ユーザー質問から修正対象セクションを特定しています' },
+                    { icon: '🤖', text: 'AIがマージ版を作成中...', detail: '既存記事の構造を保持しつつ改善しています' },
+                    { icon: '✨', text: 'マージ版を最終調整中...', detail: 'タイムスタンプリンクとフォーマットを整備しています' }
+                ];
+                
+                let currentStep = 0;
+                
+                function showProgress() {
+                    const step = progressSteps[currentStep];
+                    articleDiv.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; background: linear-gradient(135deg, #f0f4ff, #e0e7ff); border-radius: 12px; margin: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                            <div style="font-size: 3rem; margin-bottom: 1rem; animation: pulse 1.5s ease-in-out infinite;">${step.icon}</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; color: #5b21b6;">${step.text}</div>
+                            <div style="color: #6b7280; font-size: 1.1rem; line-height: 1.6;">
+                                質問：「<strong style="color: #4c1d95;">${userInstruction}</strong>」<br>
+                                ${step.detail}
+                            </div>
+                            <div style="margin-top: 1.5rem;">
+                                <div style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                    ${progressSteps.map((_, i) => `
+                                        <div style="width: 12px; height: 12px; border-radius: 50%; background: ${i <= currentStep ? '#10b981' : '#d1d5db'}; transition: all 0.3s ease;"></div>
+                                    `).join('')}
+                                </div>
+                                <div style="display: inline-block; padding: 0.5rem 1rem; background: #ffffff; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                    <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; margin-right: 0.5rem; animation: blink 1s ease-in-out infinite;"></span>
+                                    <span style="color: #374151; font-weight: 500;">処理中... (${currentStep + 1}/${progressSteps.length})</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <style>
-                        @keyframes pulse {
-                            0% { transform: scale(1); }
-                            50% { transform: scale(1.1); }
-                            100% { transform: scale(1); }
-                        }
-                        @keyframes blink {
-                            0%, 100% { opacity: 1; }
-                            50% { opacity: 0.3; }
-                        }
-                    </style>
-                `;
+                        
+                        <style>
+                            @keyframes pulse {
+                                0% { transform: scale(1); }
+                                50% { transform: scale(1.1); }
+                                100% { transform: scale(1); }
+                            }
+                            @keyframes blink {
+                                0%, 100% { opacity: 1; }
+                                50% { opacity: 0.3; }
+                            }
+                        </style>
+                    `;
+                }
+                
+                showProgress();
+                
+                // 段階的に進捗を更新
+                const progressInterval = setInterval(() => {
+                    currentStep++;
+                    if (currentStep < progressSteps.length) {
+                        showProgress();
+                    } else {
+                        clearInterval(progressInterval);
+                    }
+                }, 1500);
                 
                 // バックエンドでスマートマージを実行
                 console.log('🚀 Calling merge API with:');
@@ -4057,6 +4168,9 @@
                     console.log('📄 Merged article length:', mergeResult.mergedArticle.length);
                     console.log('📄 Merged article preview:', mergeResult.mergedArticle.substring(0, 200) + '...');
                     console.log('🎯 Target section:', mergeResult.analysis.targetSection);
+                    
+                    // 進捗インジケーターを停止
+                    clearInterval(progressInterval);
                     
                     // 解説記事タブに移動
                     switchTab('article');
