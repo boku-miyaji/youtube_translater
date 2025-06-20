@@ -1402,11 +1402,11 @@
                 </div>
                 <div class="selected-main-tags" id="selectedMainTags" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;"></div>
             </div>
-            <input type="text" id="youtubeUrl" placeholder="YouTubeのURLを入力してください" oninput="checkForExistingContent()">
+            <input type="text" id="youtubeUrl" placeholder="YouTubeのURLを入力してください">
             <div class="controls-row">
                 <div class="language-selector">
                     <label for="languageSelect">文字起こし言語:</label>
-                    <select id="languageSelect" onchange="checkForExistingContent()">
+                    <select id="languageSelect">
                         <option value="original" selected>Original (自動判定)</option>
                         <option value="ja">日本語</option>
                         <option value="en">English</option>
@@ -1414,7 +1414,7 @@
                 </div>
                 <div class="model-selector">
                     <label for="gptModelSelect">GPTモデル:</label>
-                    <select id="gptModelSelect" onchange="checkForExistingContent()">
+                    <select id="gptModelSelect">
                         <option value="gpt-4o-mini">GPT-4o-mini - $0.60/$2.40 per 1M tokens</option>
                         <option value="gpt-4o">GPT-4o (高品質) - $5.00/$15.00 per 1M tokens</option>
                         <option value="gpt-4-turbo">GPT-4-turbo (最高品質) - $10.00/$30.00 per 1M tokens</option>
@@ -4474,10 +4474,28 @@ Markdown形式で記事を作成し、以下の要素を含めてください：
                     uploadYouTube(false);
                 });
             }
+            
+            // URL入力フィールドのイベントリスナーを設定
+            const youtubeUrl = document.getElementById('youtubeUrl');
+            if (youtubeUrl) {
+                youtubeUrl.addEventListener('input', checkForExistingContent);
+            }
+            
+            // 言語選択のイベントリスナーを設定
+            const languageSelect = document.getElementById('languageSelect');
+            if (languageSelect) {
+                languageSelect.addEventListener('change', checkForExistingContent);
+            }
+            
+            // GPTモデル選択のイベントリスナーを設定
+            const gptModelSelect = document.getElementById('gptModelSelect');
+            if (gptModelSelect) {
+                gptModelSelect.addEventListener('change', checkForExistingContent);
+            }
         });
         
         // 記事履歴管理機能
-        let currentVideoId = null;
+        // currentVideoId は既に上部で宣言済み
         
         function toggleArticleHistory() {
             const panel = document.getElementById('articleHistoryPanel');
