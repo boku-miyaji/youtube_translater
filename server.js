@@ -1778,10 +1778,15 @@ ${aiResponse}
     sessionCosts.gpt += mergeCost;
     sessionCosts.total += mergeCost;
 
+    // マージ前の記事を履歴に保存（現在のビデオ情報がある場合）
+    if (currentMetadata && currentMetadata.basic && currentMetadata.basic.videoId && currentArticle) {
+      addArticleToHistory(currentMetadata.basic.videoId, currentArticle, 'pre-merge');
+    }
+    
     // マージされた記事を現在の記事として保存
     currentArticle = response.choices[0].message.content;
     
-    // 記事履歴に保存（現在のビデオ情報がある場合）
+    // マージ後の記事も履歴に保存
     if (currentMetadata && currentMetadata.basic && currentMetadata.basic.videoId) {
       addArticleToHistory(currentMetadata.basic.videoId, response.choices[0].message.content, 'merged');
     }

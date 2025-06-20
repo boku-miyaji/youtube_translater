@@ -4185,16 +4185,43 @@
 
         // タイムスタンプリンクの処理を分離
         function processTimestampLinks(articleDiv) {
-            const timestampLinks = articleDiv.querySelectorAll('span');
-            timestampLinks.forEach(span => {
-                const text = span.textContent;
-                if (text.match(/\d{1,2}:\d{2}(?::\d{2})?/)) {
-                    span.className = 'timestamp-link';
-                    const timeStr = text.match(/\d{1,2}:\d{2}(?::\d{2})?/)[0];
-                    const seconds = timeToSeconds(timeStr);
-                    span.onclick = () => seekToTime(seconds);
+            console.log('🔗 Processing timestamp links in article...');
+            
+            // 全てのテキストノードを取得してタイムスタンプを検索
+            const walker = document.createTreeWalker(
+                articleDiv,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+            
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
+            }
+            
+            textNodes.forEach(textNode => {
+                const text = textNode.textContent;
+                const timestampRegex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
+                
+                if (timestampRegex.test(text)) {
+                    console.log('📍 Found timestamp in text:', text);
+                    
+                    // タイムスタンプをリンクに変換
+                    const newHTML = text.replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g, (match, timeStr) => {
+                        const seconds = timeToSeconds(timeStr);
+                        return `<span class="timestamp-link" onclick="seekToTime(${seconds})">[${timeStr}]</span>`;
+                    });
+                    
+                    // テキストノードをHTMLで置換
+                    const span = document.createElement('span');
+                    span.innerHTML = newHTML;
+                    textNode.parentNode.replaceChild(span, textNode);
                 }
             });
+            
+            console.log('✅ Timestamp link processing completed');
         }
 
         function extractArticleFromResponse(text) {
@@ -4532,8 +4559,8 @@ Markdown形式で記事を作成し、以下の要素を含めてください：
                     historyList.innerHTML = result.history.map((item, index) => {
                         const date = new Date(item.timestamp);
                         const dateStr = date.toLocaleString('ja-JP');
-                        const typeIcon = item.type === 'generated' ? '🆕' : '🔄';
-                        const typeText = item.type === 'generated' ? '生成' : 'マージ';
+                        const typeIcon = item.type === 'generated' ? '🆕' : (item.type === 'pre-merge' ? '📄' : '🔄');
+                        const typeText = item.type === 'generated' ? '生成' : (item.type === 'pre-merge' ? '反映前' : 'マージ');
                         
                         return `
                             <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; background: white; cursor: pointer; transition: all 0.2s ease;" 
@@ -4588,7 +4615,7 @@ Markdown形式で記事を作成し、以下の要素を含めてください：
                         toggleArticleHistory();
                         
                         // 成功メッセージ
-                        const typeText = historyItem.type === 'generated' ? '生成' : 'マージ';
+                        const typeText = historyItem.type === 'generated' ? '生成' : (historyItem.type === 'pre-merge' ? '反映前' : 'マージ');
                         const date = new Date(historyItem.timestamp).toLocaleString('ja-JP');
                         showMessage(`📜 ${typeText}版記事を読み込みました（${date}）`, 'success');
                     }
