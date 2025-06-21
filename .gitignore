@@ -46,3 +46,7 @@ hotspot-analysis.js
 youtube-metadata-example.js
 youtube-advanced-analysis.js
 YOUTUBE_METADATA_ANALYSIS.md
+
+# Backup and test files
+*-backup.js
+test-*.js
