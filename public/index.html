@@ -1471,6 +1471,7 @@
             background: white;
             border-top: 1px solid #e2e8f0;
         }
+        
     </style>
 </head>
 <body>
@@ -1495,7 +1496,10 @@
                 </div>
                 <div class="selected-main-tags" id="selectedMainTags" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;"></div>
             </div>
-            <input type="text" id="youtubeUrl" placeholder="YouTubeのURLを入力してください">
+            <input type="text" id="youtubeUrl" list="urlHistory" placeholder="YouTubeのURLを入力してください">
+            <datalist id="urlHistory">
+                <!-- URL history will be populated dynamically -->
+            </datalist>
             <div class="controls-row">
                 <div class="language-selector">
                     <label for="languageSelect">文字起こし言語:</label>
@@ -1565,25 +1569,23 @@
                 
                 <div id="analysisCosts" class="costs-tab-content active">
                     <div class="costs-filter">
-                        <select id="periodSelect" onchange="loadCostsAnalysis()">
+                        <select id="periodSelect" onchange="loadCostsAnalysis()" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #e2e8f0;">
                             <option value="today" selected>本日</option>
                             <option value="week">週間</option>
                             <option value="month">月間</option>
-                            <option value="total">トータル</option>
                         </select>
                     </div>
                     <div id="costsAnalysisResult">
-                        分析データを読み込み中...
+                        <!-- 料金分析情報がここに表示されます -->
                     </div>
                 </div>
                 
                 <div id="graphCosts" class="costs-tab-content">
                     <div class="costs-filter">
-                        <select id="graphPeriodSelect" onchange="loadCostsGraph()">
+                        <select id="graphPeriodSelect" onchange="loadCostsGraph()" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #e2e8f0;">
                             <option value="today" selected>本日</option>
                             <option value="week">週間</option>
                             <option value="month">月間</option>
-                            <option value="total">トータル</option>
                         </select>
                     </div>
                     <div id="costsGraphResult">
@@ -1828,6 +1830,7 @@
         let currentTimestampedTranscript = '';
         let currentTranscript = '';
         let videoSyncInterval = null;
+        let hasProcessedContent = false; // 処理済みコンテンツがあるかのフラグ
 
         // YouTube Player API ready callback
         function onYouTubeIframeAPIReady() {
@@ -2414,13 +2417,28 @@
         async function loadHistory() {
             try {
                 const response = await fetch('/history');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
+                console.log('History response:', result);
                 
                 if (result.success) {
                     displayHistory(result.history);
+                } else {
+                    console.error('History API returned success: false');
+                    const historyList = document.getElementById('historyList');
+                    if (historyList) {
+                        historyList.innerHTML = '<div style="text-align: center; color: #e53e3e; padding: 1rem;">履歴の読み込みに失敗しました</div>';
+                    }
                 }
             } catch (error) {
                 console.error('Error loading history:', error);
+                const historyList = document.getElementById('historyList');
+                if (historyList) {
+                    historyList.innerHTML = '<div style="text-align: center; color: #e53e3e; padding: 1rem;">履歴の読み込み中にエラーが発生しました</div>';
+                }
             }
         }
 
@@ -2692,6 +2710,13 @@
                     
                     showMessage(`履歴から読み込みました: ${result.title}`, 'success');
                     isTranscriptReady = true;
+                    
+                    // コンテンツが読み込まれたフラグを更新
+                    hasProcessedContent = true;
+                    currentTranscript = result.transcript || '';
+                    
+                    // ボタンテキストを更新
+                    updateUploadButtonText();
                     ensureChatInputVisible();
                 } else {
                     showMessage(`エラー: ${result.error}`, 'error');
@@ -4006,6 +4031,38 @@
             }
         }
 
+        // ボタンテキストを動的に更新する関数
+        function updateUploadButtonText() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            if (!uploadBtn) return;
+            
+            if (hasProcessedContent && currentTranscript && currentTranscript.trim() !== '') {
+                uploadBtn.textContent = '🔄 再解析';
+                uploadBtn.title = '文字起こしと要約を再実行します';
+            } else {
+                uploadBtn.textContent = '解析開始';
+                uploadBtn.title = '動画の文字起こしと要約を開始します';
+            }
+        }
+
+        // URLが変更された時にボタンテキストをチェックする関数
+        function checkContentForCurrentUrl() {
+            const url = document.getElementById('youtubeUrl').value.trim();
+            if (!url) {
+                hasProcessedContent = false;
+                updateUploadButtonText();
+                return;
+            }
+            
+            // 現在のURLで処理済みコンテンツがあるかチェック
+            if (currentTranscript && currentTranscript.trim() !== '') {
+                hasProcessedContent = true;
+            } else {
+                hasProcessedContent = false;
+            }
+            updateUploadButtonText();
+        }
+
         async function uploadYouTube(forceRegenerate = false) {
             console.log('uploadYouTube called with forceRegenerate:', forceRegenerate);
             
@@ -4022,6 +4079,12 @@
             if (!url) {
                 showMessage('YouTubeのURLを入力してください', 'error');
                 return;
+            }
+
+            // コンテンツがある場合は自動的に再解析モードにする
+            if (!forceRegenerate && hasProcessedContent && currentTranscript && currentTranscript.trim() !== '') {
+                forceRegenerate = true;
+                console.log('Auto-setting forceRegenerate to true due to existing content');
             }
 
             uploadBtn.disabled = true;
@@ -4044,6 +4107,8 @@
             }
 
             try {
+                console.log('Sending request to /upload-youtube with:', { url, language, gptModel, mainTags, tags, forceRegenerate });
+                
                 const response = await fetch('/upload-youtube', {
                     method: 'POST',
                     headers: {
@@ -4052,7 +4117,11 @@
                     body: JSON.stringify({ url: url, language: language, gptModel: gptModel, mainTags: mainTags, tags: tags, forceRegenerate: forceRegenerate })
                 });
 
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
                 const result = await response.json();
+                console.log('Response body:', result);
 
                 if (result.success) {
                     // 文字起こし結果を保存
@@ -4106,6 +4175,12 @@
                     isTranscriptReady = true;
                     ensureChatInputVisible();
                     
+                    // コンテンツ処理完了フラグを更新
+                    hasProcessedContent = true;
+                    
+                    // Save URL to history (newest first)
+                    saveUrlToHistory(url);
+                    
                     // コストを更新
                     if (result.costs) {
                         updateCosts(result.costs);
@@ -4128,15 +4203,19 @@
                     if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'block';
                     if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'block';
                 } else {
-                    showMessage(`エラー: ${result.error}`, 'error');
+                    console.error('Upload failed:', result);
+                    const errorMessage = result.message || result.error || 'Unknown error';
+                    showMessage(`エラー: ${errorMessage}`, 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showMessage('エラーが発生しました。もう一度お試しください。', 'error');
+                showMessage(`エラーが発生しました: ${error.message}`, 'error');
             } finally {
                 uploadBtn.disabled = false;
-                uploadBtn.textContent = '解析開始';
                 uploadBtn.style.display = 'block';
+                
+                // ボタンテキストを動的に更新
+                updateUploadButtonText();
                 
                 // 再生成セクションは各タブに個別に配置されているので特に処理不要
             }
@@ -4520,7 +4599,579 @@
             }
         }
         
-        // 残りの関数定義を追加（もし必要であれば）
+        // プロンプト設定関数
+        function togglePromptSettings(type) {
+            const content = document.getElementById(type + 'PromptSettings');
+            const arrow = document.getElementById(type + 'PromptArrow');
+            
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                arrow.textContent = '▲';
+                loadPromptSettings(type);
+            } else {
+                content.style.display = 'none';
+                arrow.textContent = '▼';
+            }
+        }
+        
+        async function loadPromptSettings(type) {
+            try {
+                const response = await fetch('/prompts');
+                const prompts = await response.json();
+                
+                const container = document.getElementById(type + 'PromptSettings');
+                const currentPrompt = prompts[type]?.template || '';
+                
+                container.innerHTML = `
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">プロンプトテンプレート:</label>
+                        <textarea id="${type}PromptTemplate" style="width: 100%; height: 200px; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9rem;" placeholder="プロンプトテンプレートを入力...">${currentPrompt}</textarea>
+                    </div>
+                    <div style="text-align: right;">
+                        <button onclick="savePromptSettings('${type}')" style="background: #4f46e5; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">保存</button>
+                        <button onclick="resetPromptSettings('${type}')" style="background: #6b7280; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; margin-left: 0.5rem;">リセット</button>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading prompt settings:', error);
+            }
+        }
+        
+        async function savePromptSettings(type) {
+            const template = document.getElementById(type + 'PromptTemplate').value;
+            
+            try {
+                const response = await fetch('/prompts/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: type,
+                        template: template
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showMessage('✅ プロンプト設定を保存しました', 'success');
+                } else {
+                    showMessage('❌ プロンプト設定の保存に失敗しました', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving prompt settings:', error);
+                showMessage('❌ プロンプト設定の保存に失敗しました', 'error');
+            }
+        }
+        
+        function resetPromptSettings(type) {
+            document.getElementById(type + 'PromptTemplate').value = '';
+            showMessage('プロンプトをリセットしました', 'info');
+        }
+        
+        // 分析タブの料金データ読み込み
+        async function loadCostsAnalysis() {
+            const periodSelect = document.getElementById('periodSelect');
+            const period = periodSelect ? periodSelect.value : 'today';
+            await loadCostData(period, 'analysis');
+        }
+        
+        // グラフタブの料金データ読み込み
+        async function loadCostsGraph() {
+            const graphPeriodSelect = document.getElementById('graphPeriodSelect');
+            const period = graphPeriodSelect ? graphPeriodSelect.value : 'today';
+            await loadCostData(period, 'graph');
+        }
+        
+        async function loadCostData(period = 'today', tabType = 'analysis') {
+            try {
+                
+                // 履歴データが必要な場合のみ /costs エンドポイントを呼び出し
+                const response = await fetch('/costs');
+                if (!response.ok) {
+                    throw new Error(`Costs API error! status: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Response is not JSON');
+                }
+                
+                const costs = await response.json();
+                
+                let filteredCosts = costs;
+                const now = new Date();
+                
+                switch (period) {
+                    case 'today':
+                        const today = now.toISOString().split('T')[0];
+                        filteredCosts = costs.filter(cost => cost.date === today);
+                        break;
+                    case 'week':
+                        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        filteredCosts = costs.filter(cost => new Date(cost.timestamp) >= weekAgo);
+                        break;
+                    case 'month':
+                        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                        filteredCosts = costs.filter(cost => new Date(cost.timestamp) >= monthAgo);
+                        break;
+                }
+                
+                if (tabType === 'graph') {
+                    console.log(`Displaying graph for ${period} with ${filteredCosts.length} records`);
+                    displayPeriodGraph(filteredCosts, period);
+                } else {
+                    displayPeriodCosts(filteredCosts, period, tabType);
+                }
+                
+            } catch (error) {
+                console.error('Error loading cost data:', error);
+                
+                // エラー時の表示
+                const container = tabType === 'analysis' ? 
+                    document.getElementById('costsAnalysisResult') : 
+                    document.getElementById('costsGraphResult');
+                
+                if (container) {
+                    const isSessionPeriod = period === 'session';
+                    const errorMessage = error.message.includes('Session costs') 
+                        ? 'セッションデータの取得に失敗しました。サーバーが起動しているか確認してください。'
+                        : error.message.includes('Costs API') 
+                        ? '履歴データの取得に失敗しました。サーバーが正常に動作しているか確認してください。'
+                        : 'データの読み込みに失敗しました。';
+                    
+                    container.innerHTML = `
+                        <div style="padding: 1rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626;">
+                            <h4 style="margin: 0 0 0.5rem 0;">❌ ${errorMessage}</h4>
+                            <div style="margin: 0.5rem 0; font-size: 0.9rem;">
+                                <p style="margin: 0;">考えられる原因:</p>
+                                <ul style="margin: 0.5rem 0; padding-left: 1.2rem;">
+                                    <li>サーバーが起動していない</li>
+                                    <li>ポート番号が異なる</li>
+                                    <li>ネットワーク接続の問題</li>
+                                </ul>
+                            </div>
+                            <button onclick="loadCostData('${period}', '${tabType}')" 
+                                    style="background: #dc2626; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+                                再試行
+                            </button>
+                            <details style="margin-top: 0.5rem;">
+                                <summary style="cursor: pointer; font-size: 0.8rem; color: #7f1d1d;">詳細なエラー情報</summary>
+                                <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #7f1d1d; font-family: monospace;">${error.message}</p>
+                            </details>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        function displaySessionCosts(sessionCosts, tabType = 'analysis') {
+            const container = tabType === 'analysis' ? 
+                document.getElementById('costsAnalysisResult') : 
+                document.getElementById('costsGraphResult');
+            
+            if (container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem; background: #f8fafc; border-radius: 8px;">
+                        <h3 style="margin: 0 0 1rem 0; color: #374151;">💰 セッション使用料金</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;">
+                            <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.9rem; color: #6b7280;">Whisper</div>
+                                <div style="font-size: 1.1rem; font-weight: 600; color: #059669;">$${sessionCosts.whisper.toFixed(4)}</div>
+                            </div>
+                            <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.9rem; color: #6b7280;">GPT</div>
+                                <div style="font-size: 1.1rem; font-weight: 600; color: #0369a1;">$${sessionCosts.gpt.toFixed(4)}</div>
+                            </div>
+                            <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.9rem; color: #6b7280;">合計</div>
+                                <div style="font-size: 1.1rem; font-weight: 600; color: #dc2626;">$${sessionCosts.total.toFixed(4)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayPeriodCosts(costs, period, tabType = 'analysis') {
+            const container = tabType === 'analysis' ? 
+                document.getElementById('costsAnalysisResult') : 
+                document.getElementById('costsGraphResult');
+            
+            const totalWhisper = costs.reduce((sum, cost) => sum + cost.whisperCost, 0);
+            const totalGpt = costs.reduce((sum, cost) => sum + cost.gptCost, 0);
+            const totalCost = costs.reduce((sum, cost) => sum + cost.totalCost, 0);
+            
+            const periodNames = {
+                'today': '本日',
+                'week': '過去7日間',
+                'month': '過去30日間'
+            };
+            
+            if (container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem; background: #f8fafc; border-radius: 8px;">
+                        <h3 style="margin: 0 0 1rem 0; color: #374151;">💰 ${periodNames[period]}の使用料金</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                            <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.9rem; color: #6b7280;">Whisper</div>
+                                <div style="font-size: 1.1rem; font-weight: 600; color: #059669;">$${totalWhisper.toFixed(4)}</div>
+                            </div>
+                            <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.9rem; color: #6b7280;">GPT</div>
+                                <div style="font-size: 1.1rem; font-weight: 600; color: #0369a1;">$${totalGpt.toFixed(4)}</div>
+                            </div>
+                            <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.9rem; color: #6b7280;">合計</div>
+                                <div style="font-size: 1.1rem; font-weight: 600; color: #dc2626;">$${totalCost.toFixed(4)}</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #6b7280;">処理件数: ${costs.length}件</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // グラフ表示用の関数
+        function displaySessionGraph(sessionCosts) {
+            // セッション表示は削除
+        }
+        
+        function displayPeriodGraph(costs, period) {
+            const canvas = document.getElementById('costsChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, width, height);
+            
+            const periodNames = {
+                'today': '本日',
+                'week': '週間',
+                'month': '月間'
+            };
+            
+            if (period === 'today') {
+                // 本日の場合は時間別に集計
+                const hourData = {};
+                // 0時から23時までのデータを初期化
+                for (let i = 0; i < 24; i++) {
+                    hourData[i] = { whisper: 0, gpt: 0, total: 0 };
+                }
+                
+                costs.forEach(cost => {
+                    const hour = new Date(cost.timestamp).getHours();
+                    hourData[hour].whisper += cost.whisperCost;
+                    hourData[hour].gpt += cost.gptCost;
+                    hourData[hour].total += cost.totalCost;
+                });
+                
+                const hours = Object.keys(hourData).map(h => parseInt(h)).sort((a, b) => a - b);
+                const labels = hours.map(h => `${h}時`);
+                
+                drawLineChart(ctx, labels, hourData, width, height, `${periodNames[period]}の時間別使用料金`);
+            } else {
+                // 週間・月間の場合は日付別に集計
+                const dateData = {};
+                costs.forEach(cost => {
+                    const date = cost.date || cost.timestamp.split('T')[0];
+                    if (!dateData[date]) {
+                        dateData[date] = { whisper: 0, gpt: 0, total: 0 };
+                    }
+                    dateData[date].whisper += cost.whisperCost;
+                    dateData[date].gpt += cost.gptCost;
+                    dateData[date].total += cost.totalCost;
+                });
+                
+                // 日付でソート
+                const sortedDates = Object.keys(dateData).sort();
+                
+                console.log(`${period} period - dates:`, sortedDates, 'data:', dateData);
+                drawLineChart(ctx, sortedDates, dateData, width, height, `${periodNames[period]}使用料金`);
+            }
+        }
+        
+        function drawLineChart(ctx, labels, data, width, height, title) {
+            const padding = 40;
+            const chartWidth = width - 2 * padding;
+            const chartHeight = height - 2 * padding - 30;
+            
+            // タイトルを描画
+            ctx.fillStyle = '#374151';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(title, width / 2, 20);
+            
+            if (labels.length === 0) {
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '12px sans-serif';
+                ctx.fillText('データがありません', width / 2, height / 2);
+                return;
+            }
+            
+            // データのキーを取得（数値または日付文字列）
+            const dataKeys = Object.keys(data);
+            
+            // 最大値を計算
+            const maxTotal = Math.max(...dataKeys.map(key => data[key].total || 0));
+            
+            // 軸を描画
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding + 30);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+            
+            // Y軸の目盛りを描画
+            const ySteps = 5;
+            for (let i = 0; i <= ySteps; i++) {
+                const y = padding + 30 + (chartHeight / ySteps) * i;
+                const value = maxTotal * (1 - i / ySteps);
+                
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`$${value.toFixed(3)}`, padding - 5, y + 3);
+                
+                // グリッドライン
+                ctx.strokeStyle = '#f3f4f6';
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+            }
+            
+            // データポイントの座標を計算
+            const xStep = chartWidth / (labels.length - 1 || 1);
+            const points = {
+                whisper: [],
+                gpt: [],
+                total: []
+            };
+            
+            labels.forEach((label, index) => {
+                const x = padding + index * xStep;
+                // dataKeysのインデックスを使用してデータアクセス
+                const dataKey = dataKeys[index] || index;
+                const currentData = data[dataKey] || { whisper: 0, gpt: 0, total: 0 };
+                
+                const yWhisper = maxTotal > 0 ? height - padding - (currentData.whisper / maxTotal) * chartHeight : height - padding;
+                const yGpt = maxTotal > 0 ? height - padding - (currentData.gpt / maxTotal) * chartHeight : height - padding;
+                const yTotal = maxTotal > 0 ? height - padding - (currentData.total / maxTotal) * chartHeight : height - padding;
+                
+                points.whisper.push({ x, y: yWhisper });
+                points.gpt.push({ x, y: yGpt });
+                points.total.push({ x, y: yTotal });
+                
+                // X軸ラベル
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.save();
+                ctx.translate(x, height - padding + 15);
+                ctx.rotate(-Math.PI / 4);
+                // ラベルをそのまま表示（日付の場合はMM-DD形式）
+                const displayLabel = typeof label === 'string' && label.includes('-') ? label.substring(5) : label;
+                ctx.fillText(displayLabel, 0, 0);
+                ctx.restore();
+            });
+            
+            // 線を描画
+            const lines = [
+                { points: points.whisper, color: '#059669', label: 'Whisper' },
+                { points: points.gpt, color: '#0369a1', label: 'GPT' },
+                { points: points.total, color: '#dc2626', label: '合計' }
+            ];
+            
+            lines.forEach(line => {
+                // 線を描画
+                ctx.strokeStyle = line.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                line.points.forEach((point, index) => {
+                    if (index === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                });
+                ctx.stroke();
+                
+                // データポイントを描画
+                line.points.forEach(point => {
+                    ctx.fillStyle = line.color;
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            });
+            
+            // 凡例を描画
+            const legendY = 40;
+            lines.forEach((line, index) => {
+                const legendX = width - 100;
+                ctx.fillStyle = line.color;
+                ctx.fillRect(legendX, legendY + index * 15, 10, 10);
+                ctx.fillStyle = '#374151';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(line.label, legendX + 15, legendY + index * 15 + 8);
+            });
+        }
+        
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // セッション料金をデフォルト表示
+            setTimeout(() => {
+                loadCostsAnalysis();
+                loadCostsGraph();
+            }, 1000); // 1秒待ってからロード
+        });
+        
+        // サーバー接続テスト関数
+        async function testServerConnection() {
+            try {
+                const response = await fetch('/session-costs');
+                return response.ok;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        // URL History Management Functions
+        function getUrlHistory() {
+            try {
+                const historyString = localStorage.getItem('youtubeUrlHistory');
+                console.log('Raw localStorage data:', historyString);
+                const history = historyString ? JSON.parse(historyString) : [];
+                console.log('Parsed URL history:', history);
+                return history;
+            } catch (error) {
+                console.error('Error loading URL history:', error);
+                return [];
+            }
+        }
+
+        function saveUrlToHistory(url) {
+            if (!url || !url.trim()) return;
+            
+            try {
+                let history = getUrlHistory();
+                
+                // Remove the URL if it already exists (to avoid duplicates)
+                history = history.filter(item => item.url !== url);
+                
+                // Add the new URL at the beginning (newest first)
+                history.unshift({
+                    url: url,
+                    timestamp: new Date().toISOString(),
+                    date: new Date().toLocaleDateString('ja-JP')
+                });
+                
+                // Keep only the last 20 URLs
+                if (history.length > 20) {
+                    history = history.slice(0, 20);
+                }
+                
+                localStorage.setItem('youtubeUrlHistory', JSON.stringify(history));
+                updateUrlSuggestions();
+            } catch (error) {
+                console.error('Error saving URL to history:', error);
+            }
+        }
+
+        function updateUrlSuggestions() {
+            try {
+                const datalist = document.getElementById('urlHistory');
+                if (!datalist) {
+                    console.warn('urlHistory datalist element not found');
+                    return;
+                }
+                
+                // Clear existing options
+                datalist.innerHTML = '';
+                
+                const history = getUrlHistory();
+                console.log('URL History loaded:', history);
+                
+                if (history.length === 0) {
+                    console.log('No URL history found');
+                    return;
+                }
+                
+                // Add each URL as an option (newest first)
+                history.forEach((item, index) => {
+                    const option = document.createElement('option');
+                    option.value = item.url;
+                    option.textContent = `${item.url} (${item.date})`;
+                    datalist.appendChild(option);
+                    console.log(`Added URL option ${index + 1}:`, item.url);
+                });
+                
+                console.log(`Updated ${history.length} URL suggestions`);
+            } catch (error) {
+                console.error('Error updating URL suggestions:', error);
+            }
+        }
+
+        function clearUrlHistory() {
+            try {
+                localStorage.removeItem('youtubeUrlHistory');
+                updateUrlSuggestions();
+                console.log('URL history cleared');
+            } catch (error) {
+                console.error('Error clearing URL history:', error);
+            }
+        }
+        
+        // Debug functions for testing (available in console)
+        window.debugUrlHistory = {
+            show: () => {
+                console.log('Current URL History:', getUrlHistory());
+            },
+            add: (url) => {
+                saveUrlToHistory(url);
+                console.log('Added URL:', url);
+            },
+            clear: () => {
+                clearUrlHistory();
+            },
+            refresh: () => {
+                updateUrlSuggestions();
+            }
+        };
+
+        // Initialize URL suggestions and button state when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded: Initializing URL suggestions and button state');
+            updateUrlSuggestions();
+            updateUploadButtonText();
+            
+            // URL入力フィールドの変更を監視
+            const urlInput = document.getElementById('youtubeUrl');
+            if (urlInput) {
+                urlInput.addEventListener('input', function() {
+                    checkContentForCurrentUrl();
+                });
+                urlInput.addEventListener('blur', function() {
+                    checkContentForCurrentUrl();
+                });
+            }
+        });
+        
+        // Also try to initialize after a short delay for safety
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                console.log('Window load: Re-initializing URL suggestions and button state');
+                updateUrlSuggestions();
+                updateUploadButtonText();
+            }, 100);
+        });
     </script>
 </body>
 </html>
