@@ -8,7 +8,10 @@
       "Bash(pkill:*)",
       "Bash(git add:*)",
       "Bash(git push:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(rm:*)",
+      "Bash(npm start)",
+      "Bash(PORT=8081 npm start)"
     ],
     "deny": []
   }
