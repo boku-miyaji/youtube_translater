@@ -95,23 +95,6 @@ export interface CostEntry {
   date: string;
 }
 
-export interface ArticleTemplate {
-  id: string;
-  content: string;
-  createdAt: string;
-  structure: ArticleStructure;
-}
-
-export interface ArticleStructure {
-  hasTitle: boolean;
-  hasIntroduction: boolean;
-  headingLevels: number[];
-  hasCodeBlocks: boolean;
-  hasLists: boolean;
-  hasConclusion: boolean;
-  pattern: string;
-}
-
 export interface ArticleHistoryEntry {
   article: string;
   type: 'generated' | 'merged' | 'pre-merge' | 'edited';
