@@ -14,7 +14,6 @@ import {
   SessionCosts,
   Pricing,
   CostEntry,
-  ArticleTemplate,
   ArticleHistoryEntry,
   TimestampedSegment,
   Summary,
@@ -33,8 +32,11 @@ import {
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: ['http://localhost:8080', 'http://127.0.0.1:8080'],
+  credentials: true
+}));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
 // Health check endpoint
@@ -44,6 +46,19 @@ app.get('/health', (req: Request, res: Response) => {
     server: 'typescript',
     timestamp: new Date().toISOString(),
     port: PORT
+  });
+});
+
+// Debug endpoint to check current state
+app.get('/debug/state', (req: Request, res: Response) => {
+  res.json({
+    hasTranscript: !!currentTranscript,
+    transcriptLength: currentTranscript ? currentTranscript.length : 0,
+    transcriptPreview: currentTranscript ? currentTranscript.substring(0, 200) : '',
+    hasMetadata: !!currentMetadata,
+    metadataTitle: currentMetadata ? currentMetadata.basic.title : '',
+    hasArticle: !!currentArticle,
+    articleLength: currentArticle ? currentArticle.length : 0
   });
 });
 
@@ -120,7 +135,6 @@ const pricing: Pricing = {
 // 履歴ファイルのパス
 const historyFile = path.join('history', 'transcripts.json');
 const costsFile = path.join('history', 'costs.json');
-const templatesFile = path.join('history', 'article_templates.json');
 
 function loadHistory(): HistoryEntry[] {
   if (fs.existsSync(historyFile)) {
@@ -162,25 +176,6 @@ function saveCosts(costs: CostEntry[]): void {
   }
 }
 
-function loadTemplates(): ArticleTemplate[] {
-  if (fs.existsSync(templatesFile)) {
-    try {
-      return JSON.parse(fs.readFileSync(templatesFile, 'utf8'));
-    } catch (error) {
-      console.error('Error loading templates:', error);
-      return [];
-    }
-  }
-  return [];
-}
-
-function saveTemplates(templates: ArticleTemplate[]): void {
-  try {
-    fs.writeFileSync(templatesFile, JSON.stringify(templates, null, 2));
-  } catch (error) {
-    console.error('Error saving templates:', error);
-  }
-}
 
 function addCostEntry(
   videoId: string,
@@ -885,6 +880,29 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         currentSummary = existingEntry.summary;
         currentTimestampedSegments = existingEntry.timestampedSegments || [];
         currentArticle = existingEntry.article;
+        
+        // セッションコストに加算（履歴から復元しても料金は発生したものとして扱う）
+        const totalCost = existingEntry.cost || 0;
+        sessionCosts.total += totalCost;
+        
+        // Whisperコストとして計上（methodがwhisperの場合）
+        if (existingEntry.method === 'whisper' && existingEntry.metadata?.basic?.duration) {
+          const durationMinutes = Math.ceil(existingEntry.metadata.basic.duration / 60);
+          const whisperCost = durationMinutes * pricing.whisper;
+          sessionCosts.whisper += whisperCost;
+        }
+        
+        // GPTコスト（要約分）を計上
+        if (existingEntry.summary?.cost) {
+          sessionCosts.gpt += existingEntry.summary.cost;
+        }
+        
+        console.log('Restored from history:');
+        console.log('- currentTranscript length:', currentTranscript.length);
+        console.log('- currentMetadata title:', currentMetadata?.basic.title);
+        console.log('- has currentArticle:', !!currentArticle);
+        console.log('- Added to session costs:', totalCost);
+        
         return res.json({
           success: true,
           title: existingEntry.title,
@@ -951,7 +969,13 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
     // Format transcript
     const formattedTranscript = formatTranscript(transcript);
     currentTranscript = formattedTranscript;
+    currentMetadata = metadata;
     currentTimestampedSegments = timestampedSegments;
+    
+    console.log('Updated server state:');
+    console.log('- currentTranscript length:', currentTranscript.length);
+    console.log('- currentMetadata title:', currentMetadata.basic.title);
+    console.log('- First 200 chars of transcript:', currentTranscript.substring(0, 200));
 
     // Generate summary
     console.log('Generating summary...');
@@ -1272,53 +1296,177 @@ app.delete('/article-history/:videoId/:entryId', (req: Request, res: Response) =
   }
 });
 
-// Template management endpoints
-app.get('/templates', (req: Request, res: Response) => {
-  const templates = loadTemplates();
-  res.json(templates);
-});
-
-app.post('/templates', (req: Request, res: Response) => {
+// Article generation endpoint
+app.post('/generate-article', async (req: Request, res: Response) => {
   try {
-    const { content } = req.body;
+    const { gptModel = 'gpt-4o-mini' } = req.body;
     
-    if (!content) {
-      return res.status(400).json({ error: 'Content is required' });
+    if (!currentTranscript) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'No transcript available. Please upload a video first.' 
+      });
     }
     
-    const templates = loadTemplates();
-    const template: ArticleTemplate = {
-      id: `template_${Date.now()}`,
-      content: content,
-      createdAt: new Date().toISOString(),
-      structure: {
-        hasTitle: content.includes('#'),
-        hasIntroduction: content.includes('## はじめに') || content.includes('## Introduction'),
-        headingLevels: [],
-        hasCodeBlocks: content.includes('```'),
-        hasLists: content.includes('- ') || content.includes('* ') || content.includes('1. '),
-        hasConclusion: content.includes('## まとめ') || content.includes('## Conclusion'),
-        pattern: 'auto-detected'
+    if (!currentMetadata) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'No metadata available. Please upload a video first.' 
+      });
+    }
+    
+    // Load article prompt template
+    const prompts = loadPrompts();
+    let articlePrompt = prompts.article?.template || `
+以下のYouTube動画の内容から、詳細な解説記事を日本語で作成してください。
+
+動画タイトル: {title}
+チャンネル: {channel}
+再生時間: {duration}分
+
+記事の構成：
+1. 導入部（動画の概要と重要性）
+2. 主要なポイントの詳細解説
+3. 具体例や実践的なアドバイス
+4. まとめと行動提案
+
+要件：
+- 読者にとって価値のある内容に
+- 適切な見出し構造を使用
+- 箇条書きや番号リストを効果的に活用
+- 2000-3000文字程度
+
+トランスクリプト:
+{transcript}
+`;
+    
+    // If using the custom prompt template, we need to add the video information
+    if (prompts.article?.template) {
+      articlePrompt = `
+以下のYouTube動画の内容をもとに記事を作成してください。
+
+動画情報:
+- タイトル: ${currentMetadata.basic.title}
+- チャンネル: ${currentMetadata.basic.channel}
+- 再生時間: ${Math.round(currentMetadata.basic.duration / 60)}分
+
+文字起こし内容:
+${currentTranscript}
+
+${prompts.article.template}
+`;
+    } else {
+      // Replace placeholders in default prompt
+      articlePrompt = articlePrompt
+        .replace('{title}', currentMetadata.basic.title)
+        .replace('{channel}', currentMetadata.basic.channel)
+        .replace('{duration}', Math.round(currentMetadata.basic.duration / 60).toString())
+        .replace('{transcript}', currentTranscript);
+    }
+    
+    const formattedPrompt = articlePrompt;
+    
+    console.log(`Generating article with ${gptModel}...`);
+    console.log('Current metadata title:', currentMetadata.basic.title);
+    console.log('Transcript length:', currentTranscript.length);
+    console.log('First 200 chars of transcript:', currentTranscript.substring(0, 200));
+    console.log('Article prompt preview (first 500 chars):', formattedPrompt.substring(0, 500));
+    
+    const response = await openai.chat.completions.create({
+      model: gptModel,
+      messages: [
+        { role: 'user', content: formattedPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 4000
+    });
+    
+    const article = response.choices[0].message.content;
+    const usage = response.usage;
+    
+    if (!article) {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to generate article content' 
+      });
+    }
+    
+    // Calculate cost
+    const modelPricing = pricing.models[gptModel];
+    let cost = 0;
+    if (modelPricing && usage) {
+      cost = (usage.prompt_tokens * modelPricing.input) + 
+             (usage.completion_tokens * modelPricing.output);
+      sessionCosts.gpt += cost;
+      sessionCosts.total += cost;
+    }
+    
+    // Update current article
+    currentArticle = article;
+    
+    // Save to history if we have a video ID
+    if (currentMetadata?.basic.videoId) {
+      addArticleToHistory(currentMetadata.basic.videoId, article, 'generated');
+      
+      // Update history entry with article
+      const history = loadHistory();
+      const existingIndex = history.findIndex(item => item.id === currentMetadata!.basic.videoId);
+      if (existingIndex !== -1) {
+        history[existingIndex].article = article;
+        saveHistory(history);
       }
-    };
-    
-    templates.unshift(template);
-    
-    // Keep only the latest 100 templates
-    if (templates.length > 100) {
-      templates.splice(100);
     }
-    
-    saveTemplates(templates);
     
     res.json({
       success: true,
-      template: template
+      article: article,
+      model: gptModel,
+      cost: cost,
+      costs: sessionCosts,
+      tokens: {
+        input: usage?.prompt_tokens || 0,
+        output: usage?.completion_tokens || 0
+      }
     });
     
   } catch (error) {
-    console.error('Error saving template:', error);
-    res.status(500).json({ error: 'Failed to save template' });
+    console.error('Error generating article:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to generate article' 
+    });
+  }
+});
+
+// Article retrieval endpoint
+app.get('/article/:videoId', (req: Request, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    
+    // Load history to find the article
+    const history = loadHistory();
+    const entry = history.find(item => item.id === videoId);
+    
+    if (!entry || !entry.article) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Article not found for this video' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      article: entry.article,
+      title: entry.title,
+      metadata: entry.metadata
+    });
+    
+  } catch (error) {
+    console.error('Error retrieving article:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to retrieve article' 
+    });
   }
 });
 
@@ -1332,15 +1480,21 @@ app.post('/prompts/save', (req: Request, res: Response) => {
   try {
     const { type, template } = req.body;
     
-    if (!type || !template) {
-      return res.status(400).json({ error: 'Type and template are required' });
+    if (!type) {
+      return res.status(400).json({ error: 'Type is required' });
     }
     
     const prompts = loadPrompts();
-    prompts[type] = {
-      name: type,
-      template: template
-    };
+    
+    // 空文字の場合はプロンプトを削除（デフォルトに戻す）
+    if (!template || template.trim() === '') {
+      delete prompts[type];
+    } else {
+      prompts[type] = {
+        name: type,
+        template: template
+      };
+    }
     
     const promptsFile = 'prompts.json';
     fs.writeFileSync(promptsFile, JSON.stringify(prompts, null, 2));
@@ -1356,7 +1510,25 @@ app.post('/prompts/save', (req: Request, res: Response) => {
   }
 });
 
+// Reset session costs endpoint
+app.post('/reset-session-costs', (req: Request, res: Response) => {
+  sessionCosts = {
+    whisper: 0,
+    gpt: 0,
+    total: 0
+  };
+  console.log('Session costs reset');
+  res.json({ success: true, message: 'Session costs reset', costs: sessionCosts });
+});
+
 // Server startup
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  // Reset session costs on server startup
+  sessionCosts = {
+    whisper: 0,
+    gpt: 0,
+    total: 0
+  };
+  console.log('Session costs initialized to zero');
 });

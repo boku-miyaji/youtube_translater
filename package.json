@@ -2,12 +2,10 @@
   "name": "youtube-translater",
   "version": "1.0.0",
   "description": "YouTube video transcription and LLM chat system",
-  "main": "server.js",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "node server.js",
-    "start:ts": "node dist/server.js",
-    "dev": "nodemon server.js",
-    "dev:ts": "ts-node src/server.ts",
+    "start": "npm run build && node dist/server.js",
+    "dev": "ts-node src/server.ts",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
@@ -15,7 +13,8 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "prestart": "npm run clean"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",

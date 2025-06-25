@@ -95,23 +95,6 @@ export interface CostEntry {
   date: string;
 }
 
-export interface ArticleTemplate {
-  id: string;
-  content: string;
-  createdAt: string;
-  structure: ArticleStructure;
-}
-
-export interface ArticleStructure {
-  hasTitle: boolean;
-  hasIntroduction: boolean;
-  headingLevels: number[];
-  hasCodeBlocks: boolean;
-  hasLists: boolean;
-  hasConclusion: boolean;
-  pattern: string;
-}
-
 export interface ArticleHistoryEntry {
   article: string;
   type: 'generated' | 'merged' | 'pre-merge' | 'edited';
@@ -126,7 +109,8 @@ export interface ChatMessage {
 
 export interface ChatResponse {
   success: boolean;
-  response: string;
+  response?: string;
+  error?: string;
   model: string;
   cost: number;
   costs: SessionCosts;
@@ -138,19 +122,20 @@ export interface ChatResponse {
 
 export interface UploadResponse {
   success: boolean;
-  title: string;
-  transcript: string;
+  title?: string;
+  transcript?: string;
   summary?: string;
-  metadata: VideoMetadata;
-  method: 'subtitle' | 'whisper';
-  language: string;
-  gptModel: string;
+  metadata?: VideoMetadata;
+  method?: 'subtitle' | 'whisper';
+  language?: string;
+  gptModel?: string;
   detectedLanguage?: string;
-  timestampedSegments: TimestampedSegment[];
-  cost: number;
+  timestampedSegments?: TimestampedSegment[];
+  cost?: number;
   message: string;
+  error?: string;
   fromHistory?: boolean;
-  costs: SessionCosts;
+  costs?: SessionCosts;
 }
 
 export interface PromptTemplate {
@@ -216,4 +201,16 @@ export interface MergeArticleRequest {
   aiResponse: string;
   gptModel?: string;
   videoId?: string;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  error: string;
+  details?: string;
+}
+
+export interface ApiSuccessResponse<T = unknown> {
+  success: true;
+  data?: T;
+  message?: string;
 }

@@ -1504,8 +1504,8 @@
                 <div class="language-selector">
                     <label for="languageSelect">文字起こし言語:</label>
                     <select id="languageSelect">
-                        <option value="original" selected>Original (自動判定)</option>
-                        <option value="ja">日本語</option>
+                        <option value="original">Original (自動判定)</option>
+                        <option value="ja" selected>日本語</option>
                         <option value="en">English</option>
                     </select>
                 </div>
@@ -1570,7 +1570,8 @@
                 <div id="analysisCosts" class="costs-tab-content active">
                     <div class="costs-filter">
                         <select id="periodSelect" onchange="loadCostsAnalysis()" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #e2e8f0;">
-                            <option value="today" selected>本日</option>
+                            <option value="session" selected>セッション</option>
+                            <option value="today">本日</option>
                             <option value="week">週間</option>
                             <option value="month">月間</option>
                         </select>
@@ -1713,10 +1714,6 @@
                             <option value="gpt-4o-mini-new">GPT-4o-mini (新) - $1.10/$4.40</option>
                         </select>
                     </div>
-                    <div id="templateStatus" style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem;">
-                        <div style="font-weight: 600; color: #0f172a; margin-bottom: 0.25rem;">📚 テンプレート情報</div>
-                        <div id="templateInfo" style="color: #475569;">テンプレート情報を読み込み中...</div>
-                    </div>
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
                         <button id="generateArticleBtn" onclick="generateArticle()" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease;">
                             📝 解説記事を作成
@@ -1829,6 +1826,8 @@
         let currentTimestampedSegments = [];
         let currentTimestampedTranscript = '';
         let currentTranscript = '';
+        let currentArticle = ''; // 現在の記事内容
+        let currentArticleCostInfo = null; // 記事のコスト情報
         let videoSyncInterval = null;
         let hasProcessedContent = false; // 処理済みコンテンツがあるかのフラグ
 
@@ -2041,6 +2040,10 @@
                 articleStatus.textContent = '解説記事を生成中です...';
                 articleStatus.style.color = '#667eea';
                 
+                console.log('Frontend state before article generation:');
+                console.log('- currentTranscript length:', currentTranscript ? currentTranscript.length : 0);
+                console.log('- currentTranscript preview:', currentTranscript ? currentTranscript.substring(0, 200) : 'N/A');
+                
                 const response = await fetch('/generate-article', {
                     method: 'POST',
                     headers: {
@@ -2054,12 +2057,16 @@
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // 新しいdisplayArticle関数を使用してコスト情報付きで表示
-                    displayArticle(data.article, {
+                    // 記事内容とコスト情報を保存
+                    currentArticle = data.article;
+                    currentArticleCostInfo = {
                         cost: data.cost,
                         model: data.model,
                         tokens: data.tokens
-                    });
+                    };
+                    
+                    // 新しいdisplayArticle関数を使用してコスト情報付きで表示
+                    displayArticle(data.article, currentArticleCostInfo);
                     
                     // 生成されたマークダウンとHTMLを保存（コピー用）
                     window.generatedArticleMarkdown = data.article;
@@ -2128,6 +2135,8 @@
         }
 
         // 記事をテンプレートとして保存
+        // Removed saveArticleTemplate function
+        /*
         async function saveArticleTemplate() {
             if (!window.generatedArticleMarkdown) {
                 showMessage('保存する記事がありません', 'error');
@@ -2169,8 +2178,10 @@
                 showMessage('テンプレート保存に失敗しました', 'error');
             }
         }
+        */
 
-        // テンプレート情報を読み込み
+        // Removed loadTemplateInfo function
+        /*
         async function loadTemplateInfo() {
             try {
                 const response = await fetch('/templates-info');
@@ -2198,6 +2209,7 @@
                 document.getElementById('templateInfo').textContent = 'テンプレート情報の読み込みに失敗しました';
             }
         }
+        */
 
         // 履歴から記事を読み込み
         async function loadArticleFromHistory() {
@@ -2274,9 +2286,6 @@
                                     <button onclick="copyArticleAsHTML()" style="background: #3182ce; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
                                         🌐 HTMLコピー
                                     </button>
-                                    <button onclick="saveArticleTemplate()" style="background: #805ad5; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
-                                        💾 テンプレート保存
-                                    </button>
                                 </div>
                             </div>
                             <div style="font-size: 0.85rem; color: #666;">
@@ -2300,9 +2309,6 @@
                                     </button>
                                     <button onclick="copyArticleAsHTML()" style="background: #3182ce; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
                                         🌐 HTMLコピー
-                                    </button>
-                                    <button onclick="saveArticleTemplate()" style="background: #805ad5; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
-                                        💾 テンプレート保存
                                     </button>
                                 </div>
                             </div>
@@ -2373,10 +2379,14 @@
             }
             document.getElementById(tabName + 'Tab').classList.add('active');
             
-            // 解説記事タブが選択された場合、テンプレート情報を読み込み
+            // 解説記事タブが選択された場合、記事を読み込み
             if (tabName === 'article') {
-                loadTemplateInfo();
                 loadArticleFromHistory();
+                
+                // 保存された記事があれば復元
+                if (currentArticle) {
+                    displayArticle(currentArticle, currentArticleCostInfo);
+                }
             }
             
             // 文字起こしタブが選択された場合、同期を開始
@@ -3147,15 +3157,23 @@
             try {
                 const period = document.getElementById('periodSelect').value;
                 const response = await fetch(`/costs-analysis?period=${period}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
                     displayCostsAnalysis(result);
+                } else {
+                    throw new Error(result.error || '分析データの取得に失敗しました');
                 }
             } catch (error) {
                 console.error('Error loading costs analysis:', error);
+                const errorMessage = error.message || '分析データの読み込みに失敗しました';
                 document.getElementById('costsAnalysisResult').innerHTML = 
-                    '<p style="color: red;">分析データの読み込みに失敗しました</p>';
+                    `<p style="color: red;">エラー: ${errorMessage}</p>`;
             }
         }
 
@@ -3853,8 +3871,6 @@
                 
                 // 解説記事を表示
                 if (entry.articleContent) {
-                    const articleDiv = document.getElementById('articleContent');
-                    
                     // articleContentがオブジェクトの場合、適切な文字列を取得
                     let articleText = '';
                     if (typeof entry.articleContent === 'object' && entry.articleContent !== null) {
@@ -3865,16 +3881,12 @@
                         articleText = String(entry.articleContent || '');
                     }
                     
-                    if (typeof marked !== 'undefined' && articleText) {
-                        try {
-                            articleDiv.innerHTML = marked.parse(articleText);
-                        } catch (error) {
-                            console.error('Error parsing article markdown:', error);
-                            articleDiv.innerHTML = articleText.replace(/\n/g, '<br>');
-                        }
-                    } else {
-                        articleDiv.innerHTML = articleText.replace(/\n/g, '<br>');
-                    }
+                    // グローバル状態に保存
+                    currentArticle = articleText;
+                    currentArticleCostInfo = null; // 履歴からの復元時はコスト情報なし
+                    
+                    // 記事を表示
+                    displayArticle(articleText);
                 }
                 
                 // コストを表示
@@ -4119,6 +4131,10 @@
 
                 console.log('Response status:', response.status);
                 console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 
                 const result = await response.json();
                 console.log('Response body:', result);
@@ -4607,10 +4623,120 @@
             if (content.style.display === 'none' || content.style.display === '') {
                 content.style.display = 'block';
                 arrow.textContent = '▲';
-                loadPromptSettings(type);
+                // 初回表示時にプロンプトを読み込む
+                loadPromptForTextarea(type);
             } else {
                 content.style.display = 'none';
                 arrow.textContent = '▼';
+            }
+        }
+        
+        // 旧UIのテキストエリアにプロンプトを読み込む
+        async function loadPromptForTextarea(type) {
+            try {
+                const response = await fetch('/prompts');
+                const prompts = await response.json();
+                const textarea = document.getElementById(type + 'PromptText');
+                
+                if (textarea) {
+                    let currentPrompt = prompts[type]?.template || '';
+                    // \nを実際の改行に変換して表示
+                    currentPrompt = currentPrompt.replace(/\\n/g, '\n');
+                    textarea.value = currentPrompt;
+                }
+            } catch (error) {
+                console.error('Error loading prompt:', error);
+            }
+        }
+        
+        // 旧UIの保存関数
+        async function savePrompt(type) {
+            const textarea = document.getElementById(type + 'PromptText');
+            if (!textarea) return;
+            
+            let template = textarea.value;
+            // 改行はそのまま保存（JSON.stringifyが自動的にエスケープする）
+            // template = template.replace(/\n/g, '\\n'); // この行を削除
+            
+            try {
+                const response = await fetch('/prompts/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: type,
+                        template: template
+                    })
+                });
+                
+                const result = await response.json();
+                const messageDiv = document.getElementById(type + 'PromptMessage');
+                
+                if (result.success) {
+                    if (messageDiv) {
+                        messageDiv.style.display = 'block';
+                        messageDiv.style.background = '#d4edda';
+                        messageDiv.style.color = '#155724';
+                        messageDiv.textContent = '✅ プロンプトを保存しました';
+                        setTimeout(() => {
+                            messageDiv.style.display = 'none';
+                        }, 3000);
+                    }
+                } else {
+                    if (messageDiv) {
+                        messageDiv.style.display = 'block';
+                        messageDiv.style.background = '#f8d7da';
+                        messageDiv.style.color = '#721c24';
+                        messageDiv.textContent = '❌ 保存に失敗しました';
+                    }
+                }
+            } catch (error) {
+                console.error('Error saving prompt:', error);
+                const messageDiv = document.getElementById(type + 'PromptMessage');
+                if (messageDiv) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = '#f8d7da';
+                    messageDiv.style.color = '#721c24';
+                    messageDiv.textContent = '❌ 保存に失敗しました';
+                }
+            }
+        }
+        
+        // リセット関数
+        async function resetPrompt(type) {
+            if (!confirm('プロンプトをデフォルトに戻しますか？')) return;
+            
+            try {
+                // デフォルトプロンプトを空文字として保存（サーバー側でデフォルトが適用される）
+                const response = await fetch('/prompts/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: type,
+                        template: ''
+                    })
+                });
+                
+                if (response.ok) {
+                    // プロンプトを再読み込み
+                    loadPromptForTextarea(type);
+                    
+                    const messageDiv = document.getElementById(type + 'PromptMessage');
+                    if (messageDiv) {
+                        messageDiv.style.display = 'block';
+                        messageDiv.style.background = '#d4edda';
+                        messageDiv.style.color = '#155724';
+                        messageDiv.textContent = '✅ デフォルトに戻しました';
+                        setTimeout(() => {
+                            messageDiv.style.display = 'none';
+                        }, 3000);
+                    }
+                }
+            } catch (error) {
+                console.error('Error resetting prompt:', error);
             }
         }
         
@@ -4620,12 +4746,15 @@
                 const prompts = await response.json();
                 
                 const container = document.getElementById(type + 'PromptSettings');
-                const currentPrompt = prompts[type]?.template || '';
+                let currentPrompt = prompts[type]?.template || '';
+                
+                // \nを実際の改行に変換して表示
+                currentPrompt = currentPrompt.replace(/\\n/g, '\n');
                 
                 container.innerHTML = `
                     <div style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">プロンプトテンプレート:</label>
-                        <textarea id="${type}PromptTemplate" style="width: 100%; height: 200px; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9rem;" placeholder="プロンプトテンプレートを入力...">${currentPrompt}</textarea>
+                        <textarea id="${type}PromptTemplate" style="width: 100%; height: 200px; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9rem;" placeholder="プロンプトテンプレートを入力...">${currentPrompt.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
                     </div>
                     <div style="text-align: right;">
                         <button onclick="savePromptSettings('${type}')" style="background: #4f46e5; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">保存</button>
@@ -4638,7 +4767,10 @@
         }
         
         async function savePromptSettings(type) {
-            const template = document.getElementById(type + 'PromptTemplate').value;
+            let template = document.getElementById(type + 'PromptTemplate').value;
+            
+            // 改行はそのまま保存（JSON.stringifyが自動的にエスケープする）
+            // template = template.replace(/\n/g, '\\n'); // この行を削除
             
             try {
                 const response = await fetch('/prompts/save', {
@@ -4685,6 +4817,16 @@
         
         async function loadCostData(period = 'today', tabType = 'analysis') {
             try {
+                // セッションデータの場合は /session-costs エンドポイントを使用
+                if (period === 'session') {
+                    const sessionResponse = await fetch('/session-costs');
+                    if (!sessionResponse.ok) {
+                        throw new Error(`HTTP ${sessionResponse.status}: ${sessionResponse.statusText}`);
+                    }
+                    const sessionCosts = await sessionResponse.json();
+                    displaySessionCosts(sessionCosts, tabType);
+                    return;
+                }
                 
                 // 履歴データが必要な場合のみ /costs エンドポイントを呼び出し
                 const response = await fetch('/costs');
@@ -4719,6 +4861,35 @@
                 
                 if (tabType === 'graph') {
                     console.log(`Displaying graph for ${period} with ${filteredCosts.length} records`);
+                    
+                    // デバッグ: フィルタリング期間を表示
+                    if (period === 'week') {
+                        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        console.log(`Week period: from ${weekAgo.toISOString()} to ${now.toISOString()}`);
+                    } else if (period === 'month') {
+                        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                        console.log(`Month period: from ${monthAgo.toISOString()} to ${now.toISOString()}`);
+                    }
+                    
+                    // 日付ごとのコストを確認
+                    const dateGroups = {};
+                    filteredCosts.forEach(cost => {
+                        const date = cost.date || cost.timestamp.split('T')[0];
+                        if (!dateGroups[date]) {
+                            dateGroups[date] = [];
+                        }
+                        dateGroups[date].push(cost);
+                    });
+                    console.log(`${period} - Dates with data:`, Object.keys(dateGroups).sort());
+                    
+                    // 特定の日付のデータを詳しく表示（デバッグ用）
+                    const targetDate = '2025-06-18';
+                    if (dateGroups[targetDate]) {
+                        console.log(`${period} - ${targetDate} entries:`, dateGroups[targetDate].length);
+                        const total = dateGroups[targetDate].reduce((sum, cost) => sum + cost.totalCost, 0);
+                        console.log(`${period} - ${targetDate} total cost: $${total.toFixed(4)}`);
+                    }
+                    
                     displayPeriodGraph(filteredCosts, period);
                 } else {
                     displayPeriodCosts(filteredCosts, period, tabType);
@@ -4869,32 +5040,46 @@
                     hourData[hour].total += cost.totalCost;
                 });
                 
-                const hours = Object.keys(hourData).map(h => parseInt(h)).sort((a, b) => a - b);
+                // 24時間すべて表示
+                const hours = Array.from({length: 24}, (_, i) => i);
                 const labels = hours.map(h => `${h}時`);
                 
-                drawLineChart(ctx, labels, hourData, width, height, `${periodNames[period]}の時間別使用料金`);
+                drawLineChart(ctx, labels, hourData, width, height, `${periodNames[period]}の時間別使用料金`, period);
             } else {
                 // 週間・月間の場合は日付別に集計
                 const dateData = {};
                 costs.forEach(cost => {
-                    const date = cost.date || cost.timestamp.split('T')[0];
+                    // dateフィールドを優先、なければtimestampから抽出
+                    const date = cost.date || (cost.timestamp ? cost.timestamp.split('T')[0] : null);
+                    if (!date) {
+                        console.warn('Cost entry missing date/timestamp:', cost);
+                        return;
+                    }
+                    
                     if (!dateData[date]) {
                         dateData[date] = { whisper: 0, gpt: 0, total: 0 };
                     }
-                    dateData[date].whisper += cost.whisperCost;
-                    dateData[date].gpt += cost.gptCost;
-                    dateData[date].total += cost.totalCost;
+                    dateData[date].whisper += cost.whisperCost || 0;
+                    dateData[date].gpt += cost.gptCost || 0;
+                    dateData[date].total += cost.totalCost || 0;
                 });
                 
                 // 日付でソート
                 const sortedDates = Object.keys(dateData).sort();
                 
                 console.log(`${period} period - dates:`, sortedDates, 'data:', dateData);
-                drawLineChart(ctx, sortedDates, dateData, width, height, `${periodNames[period]}使用料金`);
+                console.log(`${period} costs data:`, costs);
+                // ラベル形式を調整（日付のみ表示）
+                const formattedLabels = sortedDates.map(date => date.substring(5)); // MM-DD形式
+                const formattedData = {};
+                sortedDates.forEach((date, index) => {
+                    formattedData[index] = dateData[date];
+                });
+                drawLineChart(ctx, formattedLabels, formattedData, width, height, `${periodNames[period]}使用料金`, period);
             }
         }
         
-        function drawLineChart(ctx, labels, data, width, height, title) {
+        function drawLineChart(ctx, labels, data, width, height, title, period) {
             const padding = 40;
             const chartWidth = width - 2 * padding;
             const chartHeight = height - 2 * padding - 30;
@@ -4956,9 +5141,16 @@
             
             labels.forEach((label, index) => {
                 const x = padding + index * xStep;
-                // dataKeysのインデックスを使用してデータアクセス
-                const dataKey = dataKeys[index] || index;
-                const currentData = data[dataKey] || { whisper: 0, gpt: 0, total: 0 };
+                // periodがtodayの場合は時間（index）をキーに、それ以外はインデックスをキーに使用
+                let currentData;
+                if (period === 'today') {
+                    // 本日の場合、labelから時間を抽出
+                    const hour = parseInt(label.replace('時', ''));
+                    currentData = data[hour] || { whisper: 0, gpt: 0, total: 0 };
+                } else {
+                    // 週間・月間の場合はインデックスを使用
+                    currentData = data[index] || { whisper: 0, gpt: 0, total: 0 };
+                }
                 
                 const yWhisper = maxTotal > 0 ? height - padding - (currentData.whisper / maxTotal) * chartHeight : height - padding;
                 const yGpt = maxTotal > 0 ? height - padding - (currentData.gpt / maxTotal) * chartHeight : height - padding;
@@ -4968,17 +5160,29 @@
                 points.gpt.push({ x, y: yGpt });
                 points.total.push({ x, y: yTotal });
                 
-                // X軸ラベル
-                ctx.fillStyle = '#6b7280';
-                ctx.font = '9px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.save();
-                ctx.translate(x, height - padding + 15);
-                ctx.rotate(-Math.PI / 4);
-                // ラベルをそのまま表示（日付の場合はMM-DD形式）
-                const displayLabel = typeof label === 'string' && label.includes('-') ? label.substring(5) : label;
-                ctx.fillText(displayLabel, 0, 0);
-                ctx.restore();
+                // X軸ラベル（期間に応じて表示頻度を調整）
+                let shouldShowLabel = true;
+                if (period === 'today') {
+                    // 本日の場合、3時間ごとに表示（0, 3, 6, 9, 12, 15, 18, 21時）
+                    shouldShowLabel = index % 3 === 0;
+                } else if (period === 'week' && labels.length > 7) {
+                    // 週間の場合、7個以上なら適度に間引く
+                    shouldShowLabel = index % Math.ceil(labels.length / 7) === 0 || index === labels.length - 1;
+                } else if (period === 'month' && labels.length > 15) {
+                    // 月間の場合、15個以上なら適度に間引く
+                    shouldShowLabel = index % Math.ceil(labels.length / 10) === 0 || index === labels.length - 1;
+                }
+                
+                if (shouldShowLabel) {
+                    ctx.fillStyle = '#6b7280';
+                    ctx.font = '9px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.save();
+                    ctx.translate(x, height - padding + 15);
+                    ctx.rotate(-Math.PI / 4);
+                    ctx.fillText(label, 0, 0);
+                    ctx.restore();
+                }
             });
             
             // 線を描画
