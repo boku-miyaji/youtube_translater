@@ -1,6 +1,6 @@
 // Simple verification script for default language setting
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
 
 console.log('Verifying default language implementation...\n');
 

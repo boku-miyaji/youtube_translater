@@ -14,25 +14,25 @@ describe('Transcription Default Language', () => {
   });
 
   test('should default to "Original" for new users', () => {
-    const languageSelect = document.getElementById('languageSelect');
+    const languageSelect = document.getElementById('languageSelect') as HTMLSelectElement;
     expect(languageSelect.value).toBe('original');
   });
 
   test('should have "Original" option selected by default', () => {
-    const originalOption = document.querySelector('option[value="original"]');
+    const originalOption = document.querySelector('option[value="original"]') as HTMLOptionElement;
     expect(originalOption.hasAttribute('selected')).toBe(true);
   });
 
   test('should not have other options selected by default', () => {
-    const jaOption = document.querySelector('option[value="ja"]');
-    const enOption = document.querySelector('option[value="en"]');
+    const jaOption = document.querySelector('option[value="ja"]') as HTMLOptionElement;
+    const enOption = document.querySelector('option[value="en"]') as HTMLOptionElement;
     
     expect(jaOption.hasAttribute('selected')).toBe(false);
     expect(enOption.hasAttribute('selected')).toBe(false);
   });
 
   test('should maintain user selection when changed', () => {
-    const languageSelect = document.getElementById('languageSelect');
+    const languageSelect = document.getElementById('languageSelect') as HTMLSelectElement;
     
     // Change to Japanese
     languageSelect.value = 'ja';
@@ -57,7 +57,7 @@ describe('Upload Function Language Parameter', () => {
         ok: true,
         json: () => Promise.resolve({ success: true })
       })
-    );
+    ) as jest.Mock;
 
     // Set up DOM elements
     document.body.innerHTML = `
@@ -70,8 +70,8 @@ describe('Upload Function Language Parameter', () => {
     `;
 
     // Simulate upload function behavior
-    const url = document.getElementById('url').value;
-    const language = document.getElementById('languageSelect').value;
+    const url = (document.getElementById('url') as HTMLInputElement).value;
+    const language = (document.getElementById('languageSelect') as HTMLSelectElement).value;
     
     const formData = new FormData();
     formData.append('url', url);
@@ -89,8 +89,8 @@ describe('Upload Function Language Parameter', () => {
     });
 
     // Verify the language parameter is 'original'
-    const callArgs = global.fetch.mock.calls[0];
-    const sentFormData = callArgs[1].body;
+    const callArgs = (global.fetch as jest.Mock).mock.calls[0];
+    const sentFormData = callArgs[1].body as FormData;
     expect(sentFormData.get('language')).toBe('original');
   });
 });
