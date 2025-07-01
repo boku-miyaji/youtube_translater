@@ -5,32 +5,41 @@ const Header: React.FC = () => {
   const { sidebarCollapsed, setSidebarCollapsed } = useAppStore()
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 backdrop-blur-md">
+    <header className="bg-white/90 backdrop-blur-xl shadow-lg border-b border-white/20 px-6 py-4 relative z-50">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200"
+            className="p-3 rounded-2xl text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300 shadow-sm hover:shadow-md"
           >
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">🎬</span>
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-xl">🎬</span>
+              </div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              YouTube Transcriber
-            </h1>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                YouTube Transcriber
+              </h1>
+              <p className="text-sm text-gray-500 font-medium">AI-Powered Video Analysis</p>
+            </div>
           </div>
         </div>
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2 bg-gray-50 px-3 py-1.5 rounded-lg">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-600">Online</span>
+          <div className="flex items-center space-x-2 bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-2 rounded-xl border border-green-200 shadow-sm">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-sm"></div>
+            <span className="text-sm font-semibold text-green-700">All Systems Online</span>
           </div>
-          <span className="text-sm text-gray-400 bg-gray-50 px-2 py-1 rounded-md">v1.0.0</span>
+          <div className="flex items-center space-x-2 bg-gray-100/80 px-3 py-2 rounded-xl">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <span className="text-sm font-medium text-gray-600">v1.0.0</span>
+          </div>
         </div>
       </div>
     </header>
