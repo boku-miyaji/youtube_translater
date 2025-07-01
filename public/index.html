@@ -3730,10 +3730,10 @@
                     //     document.getElementById('youtubeUrl').value = latestEntry.url;
                     // }
                     
-                    // 言語設定のみ復元
-                    if (latestEntry.language) {
-                        document.getElementById('languageSelect').value = latestEntry.language;
-                    }
+                    // 言語設定は復元しない（デフォルト設定を維持）
+                    // if (latestEntry.language) {
+                    //     document.getElementById('languageSelect').value = latestEntry.language;
+                    // }
                     
                     // モデル設定のみ復元
                     if (latestEntry.gptModel) {
@@ -4182,6 +4182,25 @@
                     } else {
                         const methodText = result.method === 'subtitle' ? 'YouTube字幕' : 'Whisper API';
                         message += ` (${methodText}使用)`;
+                        
+                        // Show detected language if it's different from requested
+                        if (result.detectedLanguage && result.detectedLanguage !== result.language && result.language === 'original') {
+                            const langNames = {
+                                'ja': '日本語',
+                                'en': '英語',
+                                'es': 'スペイン語',
+                                'fr': 'フランス語',
+                                'de': 'ドイツ語',
+                                'it': 'イタリア語',
+                                'pt': 'ポルトガル語',
+                                'ru': 'ロシア語',
+                                'ko': '韓国語',
+                                'zh': '中国語'
+                            };
+                            const detectedLangName = langNames[result.detectedLanguage] || result.detectedLanguage;
+                            message += ` - ${detectedLangName}を検出`;
+                        }
+                        
                         if (forceRegenerate) {
                             message += ' - 新しく生成';
                         }
@@ -5355,6 +5374,23 @@
             console.log('DOMContentLoaded: Initializing URL suggestions and button state');
             updateUrlSuggestions();
             updateUploadButtonText();
+            
+            // Language preference management
+            const languageSelect = document.getElementById('languageSelect');
+            if (languageSelect) {
+                // Restore language preference from localStorage
+                const savedLanguage = localStorage.getItem('preferredLanguage');
+                if (savedLanguage && languageSelect.querySelector(`option[value="${savedLanguage}"]`)) {
+                    languageSelect.value = savedLanguage;
+                    console.log('Restored language preference:', savedLanguage);
+                }
+                
+                // Save language preference when changed
+                languageSelect.addEventListener('change', function() {
+                    localStorage.setItem('preferredLanguage', this.value);
+                    console.log('Saved language preference:', this.value);
+                });
+            }
             
             // URL入力フィールドの変更を監視
             const urlInput = document.getElementById('youtubeUrl');
