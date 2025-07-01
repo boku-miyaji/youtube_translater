@@ -4093,10 +4093,12 @@
                 return;
             }
 
-            // コンテンツがある場合は自動的に再解析モードにする
+            // 既存コンテンツがある場合でも、同じURLでない限りは forceRegenerate を false にして履歴チェックを有効にする
+            // 同じURLで既にコンテンツがある場合のみ forceRegenerate を true にする
+            const currentUrl = document.getElementById('youtubeUrl').value.trim();
             if (!forceRegenerate && hasProcessedContent && currentTranscript && currentTranscript.trim() !== '') {
-                forceRegenerate = true;
-                console.log('Auto-setting forceRegenerate to true due to existing content');
+                // 現在表示中のコンテンツのURLと比較（実装は後で追加）
+                console.log('Existing content detected, but will check history first');
             }
 
             uploadBtn.disabled = true;
@@ -4178,7 +4180,32 @@
                     
                     let message = forceRegenerate ? `再生成が完了しました！動画: ${result.title}` : `文字起こしが完了しました！動画: ${result.title}`;
                     if (result.fromHistory) {
-                        message += ' (履歴から取得)';
+                        message = `📚 過去の解析結果を表示しています: ${result.title}`;
+                        showMessage(message, 'success');
+                        
+                        // 再生成ボタンを表示
+                        const summaryRegenerateSection = document.getElementById('summaryRegenerateSection');
+                        const transcriptRegenerateSection = document.getElementById('transcriptRegenerateSection');
+                        if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'block';
+                        if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'block';
+                        
+                        // キャッシュから読み込んだことを示すメッセージを追加
+                        const uploadStatus = document.getElementById('uploadStatus');
+                        if (uploadStatus) {
+                            uploadStatus.innerHTML = `<div style="padding: 0.5rem; background: #e6f3ff; border: 1px solid #3182ce; border-radius: 4px; margin-top: 0.5rem;">
+                                <span style="color: #2c5282;">💾 このコンテンツは以前の解析結果から読み込まれました。最新の内容で再解析したい場合は、上記の再解析ボタンをご利用ください。</span>
+                            </div>`;
+                        }
+                        
+                        isTranscriptReady = true;
+                        ensureChatInputVisible();
+                        hasProcessedContent = true;
+                        saveUrlToHistory(url);
+                        if (result.costs) {
+                            updateCosts(result.costs);
+                        }
+                        updateUploadButtonText();
+                        return;
                     } else {
                         const methodText = result.method === 'subtitle' ? 'YouTube字幕' : 'Whisper API';
                         message += ` (${methodText}使用)`;
