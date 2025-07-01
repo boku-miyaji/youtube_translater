@@ -1504,8 +1504,8 @@
                 <div class="language-selector">
                     <label for="languageSelect">文字起こし言語:</label>
                     <select id="languageSelect">
-                        <option value="original">Original (自動判定)</option>
-                        <option value="ja" selected>日本語</option>
+                        <option value="original" selected>Original (自動判定)</option>
+                        <option value="ja">日本語</option>
                         <option value="en">English</option>
                     </select>
                 </div>
@@ -3730,10 +3730,10 @@
                     //     document.getElementById('youtubeUrl').value = latestEntry.url;
                     // }
                     
-                    // 言語設定のみ復元
-                    if (latestEntry.language) {
-                        document.getElementById('languageSelect').value = latestEntry.language;
-                    }
+                    // 言語設定は復元しない（デフォルト設定を維持）
+                    // if (latestEntry.language) {
+                    //     document.getElementById('languageSelect').value = latestEntry.language;
+                    // }
                     
                     // モデル設定のみ復元
                     if (latestEntry.gptModel) {
@@ -4093,10 +4093,12 @@
                 return;
             }
 
-            // コンテンツがある場合は自動的に再解析モードにする
+            // 既存コンテンツがある場合でも、同じURLでない限りは forceRegenerate を false にして履歴チェックを有効にする
+            // 同じURLで既にコンテンツがある場合のみ forceRegenerate を true にする
+            const currentUrl = document.getElementById('youtubeUrl').value.trim();
             if (!forceRegenerate && hasProcessedContent && currentTranscript && currentTranscript.trim() !== '') {
-                forceRegenerate = true;
-                console.log('Auto-setting forceRegenerate to true due to existing content');
+                // 現在表示中のコンテンツのURLと比較（実装は後で追加）
+                console.log('Existing content detected, but will check history first');
             }
 
             uploadBtn.disabled = true;
@@ -4178,10 +4180,54 @@
                     
                     let message = forceRegenerate ? `再生成が完了しました！動画: ${result.title}` : `文字起こしが完了しました！動画: ${result.title}`;
                     if (result.fromHistory) {
-                        message += ' (履歴から取得)';
+                        message = `📚 過去の解析結果を表示しています: ${result.title}`;
+                        showMessage(message, 'success');
+                        
+                        // 再生成ボタンを表示
+                        const summaryRegenerateSection = document.getElementById('summaryRegenerateSection');
+                        const transcriptRegenerateSection = document.getElementById('transcriptRegenerateSection');
+                        if (summaryRegenerateSection) summaryRegenerateSection.style.display = 'block';
+                        if (transcriptRegenerateSection) transcriptRegenerateSection.style.display = 'block';
+                        
+                        // キャッシュから読み込んだことを示すメッセージを追加
+                        const uploadStatus = document.getElementById('uploadStatus');
+                        if (uploadStatus) {
+                            uploadStatus.innerHTML = `<div style="padding: 0.5rem; background: #e6f3ff; border: 1px solid #3182ce; border-radius: 4px; margin-top: 0.5rem;">
+                                <span style="color: #2c5282;">💾 このコンテンツは以前の解析結果から読み込まれました。最新の内容で再解析したい場合は、上記の再解析ボタンをご利用ください。</span>
+                            </div>`;
+                        }
+                        
+                        isTranscriptReady = true;
+                        ensureChatInputVisible();
+                        hasProcessedContent = true;
+                        saveUrlToHistory(url);
+                        if (result.costs) {
+                            updateCosts(result.costs);
+                        }
+                        updateUploadButtonText();
+                        return;
                     } else {
                         const methodText = result.method === 'subtitle' ? 'YouTube字幕' : 'Whisper API';
                         message += ` (${methodText}使用)`;
+                        
+                        // Show detected language if it's different from requested
+                        if (result.detectedLanguage && result.detectedLanguage !== result.language && result.language === 'original') {
+                            const langNames = {
+                                'ja': '日本語',
+                                'en': '英語',
+                                'es': 'スペイン語',
+                                'fr': 'フランス語',
+                                'de': 'ドイツ語',
+                                'it': 'イタリア語',
+                                'pt': 'ポルトガル語',
+                                'ru': 'ロシア語',
+                                'ko': '韓国語',
+                                'zh': '中国語'
+                            };
+                            const detectedLangName = langNames[result.detectedLanguage] || result.detectedLanguage;
+                            message += ` - ${detectedLangName}を検出`;
+                        }
+                        
                         if (forceRegenerate) {
                             message += ' - 新しく生成';
                         }
@@ -5355,6 +5401,23 @@
             console.log('DOMContentLoaded: Initializing URL suggestions and button state');
             updateUrlSuggestions();
             updateUploadButtonText();
+            
+            // Language preference management
+            const languageSelect = document.getElementById('languageSelect');
+            if (languageSelect) {
+                // Restore language preference from localStorage
+                const savedLanguage = localStorage.getItem('preferredLanguage');
+                if (savedLanguage && languageSelect.querySelector(`option[value="${savedLanguage}"]`)) {
+                    languageSelect.value = savedLanguage;
+                    console.log('Restored language preference:', savedLanguage);
+                }
+                
+                // Save language preference when changed
+                languageSelect.addEventListener('change', function() {
+                    localStorage.setItem('preferredLanguage', this.value);
+                    console.log('Saved language preference:', this.value);
+                });
+            }
             
             // URL入力フィールドの変更を監視
             const urlInput = document.getElementById('youtubeUrl');

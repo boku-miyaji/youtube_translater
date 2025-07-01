@@ -1,0 +1,18 @@
+issue: 11
+title: "文字起こしのデフォルト言語をOriginalに設定"
+description: |
+  文字起こしの言語のデフォルトをOriginalに設定する。
+type: Feature
+state: Dev
+createdAt: "2025-06-29T09:34:34Z"
+updatedAt: "2025-06-30T09:35:00Z"
+design: "tasks/design/11_Feature.md"
+implementation:
+  branch: "feature/implement-11"
+  commit: "3aec2d6"
+  files:
+    - "public/index.html"
+    - "tests/default-language.test.ts"
+    - "tests/verify-default-language.ts"
+pr: "tasks/pr/11_Feature.md"
+review: "tasks/pr/11_Feature_review.md"
