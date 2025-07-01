@@ -1,0 +1,14 @@
+issue: 13
+title: "UI改善: 画面分離とサイドバー追加"
+description: |
+  一つの画面で全てを表示するのをやめ、使用料金・履歴は別のページとして表示したい。サイドバーでそれぞれの画面を選択できるようにしたい
+type: Feature
+state: Dev
+design: tasks/design/13_Feature.md
+createdAt: "2025-07-01T02:35:03Z"
+updatedAt: "2025-07-01T12:20:15Z"
+implementation:
+  branch: feature/implement-13
+  commit: 3fd928b
+pr: tasks/pr/13_Feature.md
+review: tasks/pr/13_Feature_review.md
