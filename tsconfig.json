@@ -15,10 +15,13 @@
     "sourceMap": true
   },
   "include": [
-    "src/**/*"
+    "src/server.ts",
+    "src/types/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "src/**/*.tsx",
+    "src/**/*.jsx"
   ]
 }
