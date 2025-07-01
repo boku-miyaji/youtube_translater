@@ -3,42 +3,52 @@ import { NavLink } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
-  { name: 'Upload', href: '/upload', icon: '📹' },
-  { name: 'History', href: '/history', icon: '📚' },
-  { name: 'Analysis', href: '/analysis', icon: '📊' },
-  { name: 'Settings', href: '/settings', icon: '⚙️' },
+  { name: 'Dashboard', href: '/dashboard', icon: '🏠', color: 'from-blue-500 to-indigo-600' },
+  { name: 'Upload', href: '/upload', icon: '📤', color: 'from-green-500 to-emerald-600' },
+  { name: 'History', href: '/history', icon: '📚', color: 'from-purple-500 to-violet-600' },
+  { name: 'Analysis', href: '/analysis', icon: '📊', color: 'from-orange-500 to-red-600' },
+  { name: 'Settings', href: '/settings', icon: '⚙️', color: 'from-gray-500 to-slate-600' },
 ]
 
 const Sidebar: React.FC = () => {
   const { sidebarCollapsed } = useAppStore()
 
   return (
-    <div className={`bg-white shadow-sm border-r border-gray-200 transition-all duration-300 ${
-      sidebarCollapsed ? 'w-16' : 'w-64'
+    <div className={`bg-white shadow-lg border-r border-gray-100 transition-all duration-300 ${
+      sidebarCollapsed ? 'w-16' : 'w-72'
     }`}>
-      <nav className="h-full px-3 py-4">
-        <ul className="space-y-2">
+      <nav className="h-full px-4 py-6">
+        <div className="space-y-3">
           {navigation.map((item) => (
-            <li key={item.name}>
-              <NavLink
-                to={item.href}
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                    isActive
-                      ? 'bg-indigo-100 text-indigo-700 border-r-4 border-indigo-700'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`
-                }
-              >
-                <span className="text-lg mr-3">{item.icon}</span>
-                {!sidebarCollapsed && (
-                  <span className="truncate">{item.name}</span>
-                )}
-              </NavLink>
-            </li>
+            <NavLink
+              key={item.name}
+              to={item.href}
+              className={({ isActive }) =>
+                `group flex items-center px-4 py-3 text-sm font-medium rounded-2xl transition-all duration-200 ${
+                  isActive
+                    ? `bg-gradient-to-r ${item.color} text-white shadow-lg transform scale-105`
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:shadow-md hover:scale-102'
+                }`
+              }
+            >
+              <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-200 ${
+                sidebarCollapsed ? 'mr-0' : 'mr-4'
+              }`}>
+                <span className="text-lg">{item.icon}</span>
+              </div>
+              {!sidebarCollapsed && (
+                <span className="truncate font-semibold">{item.name}</span>
+              )}
+              {!sidebarCollapsed && (
+                <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              )}
+            </NavLink>
           ))}
-        </ul>
+        </div>
       </nav>
     </div>
   )
