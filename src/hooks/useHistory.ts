@@ -5,7 +5,8 @@ const fetchHistory = async () => {
   if (!response.ok) {
     throw new Error('Failed to fetch history')
   }
-  return response.json()
+  const data = await response.json()
+  return data.history || []
 }
 
 export const useHistory = () => {
