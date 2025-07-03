@@ -4,13 +4,16 @@
   "description": "YouTube video transcription and LLM chat system",
   "main": "dist/server.js",
   "scripts": {
-    "start": "npm run build && node dist/server.js",
+    "start": "npm run build:all && node dist/server.js",
     "dev": "ts-node src/server.ts",
+    "dev:client": "vite",
     "build": "tsc",
+    "build:client": "vite build",
+    "build:all": "npm run clean && npm run build && npm run build:client",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
+    "lint": "eslint src/server.ts src/types/**/*.ts",
+    "lint:fix": "eslint src/server.ts src/types/**/*.ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "type-check": "tsc --noEmit",
@@ -18,13 +21,21 @@
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
+    "@tanstack/react-query": "^5.81.5",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "fluent-ffmpeg": "^2.1.2",
     "multer": "^1.4.5-lts.1",
     "openai": "^4.20.1",
-    "youtube-transcript-api": "^3.0.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.3",
+    "tailwindcss": "^3.4.17",
+    "youtube-transcript-api": "^3.0.0",
+    "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -35,10 +46,14 @@
     "@typescript-eslint/eslint-plugin": "^8.35.0",
     "@typescript-eslint/eslint-plugin-tslint": "^7.0.2",
     "@typescript-eslint/parser": "^8.35.0",
+    "@vitejs/plugin-react": "^4.6.0",
+    "autoprefixer": "^10.4.21",
     "eslint": "^8.57.1",
     "nodemon": "^3.0.1",
+    "postcss": "^8.5.6",
     "prettier": "^3.6.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
   }
 }

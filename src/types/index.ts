@@ -18,6 +18,7 @@ export interface VideoMetadata {
     hasSubtitles: boolean;
     keywords: string[];
   };
+  transcript?: string;
 }
 
 export interface Chapter {

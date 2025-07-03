@@ -1,0 +1,164 @@
+import React, { useState, useEffect } from 'react'
+import { useAppStore } from '../../store/appStore'
+
+const SettingsPage: React.FC = () => {
+  const { language, setLanguage } = useAppStore()
+  const [prompts, setPrompts] = useState<any>({})
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    loadPrompts()
+  }, [])
+
+  const loadPrompts = async () => {
+    try {
+      const response = await fetch('/api/prompts')
+      if (response.ok) {
+        const data = await response.json()
+        setPrompts(data)
+      }
+    } catch (error) {
+      console.error('Error loading prompts:', error)
+    }
+  }
+
+  const savePrompts = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/prompts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(prompts),
+      })
+      if (response.ok) {
+        alert('Settings saved successfully!')
+      } else {
+        throw new Error('Failed to save settings')
+      }
+    } catch (error) {
+      console.error('Error saving prompts:', error)
+      alert('Failed to save settings. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePromptChange = (key: string, value: string) => {
+    setPrompts({ ...prompts, [key]: value })
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        <p className="mt-2 text-gray-600">Configure your preferences and system settings.</p>
+      </div>
+
+      {/* Language Settings */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">Language Settings</h2>
+        <div className="max-w-xs">
+          <label htmlFor="language" className="block text-sm font-medium text-gray-700">
+            Default Language
+          </label>
+          <select
+            id="language"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="ja">Japanese</option>
+            <option value="en">English</option>
+            <option value="Original">Original</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Prompt Settings */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">Prompt Settings</h2>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="summarize" className="block text-sm font-medium text-gray-700">
+              Summarize Prompt
+            </label>
+            <textarea
+              id="summarize"
+              rows={4}
+              value={prompts.summarize || ''}
+              onChange={(e) => handlePromptChange('summarize', e.target.value)}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Enter your summarize prompt..."
+            />
+          </div>
+
+          <div>
+            <label htmlFor="article" className="block text-sm font-medium text-gray-700">
+              Article Generation Prompt
+            </label>
+            <textarea
+              id="article"
+              rows={4}
+              value={prompts.article || ''}
+              onChange={(e) => handlePromptChange('article', e.target.value)}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Enter your article generation prompt..."
+            />
+          </div>
+
+          <div>
+            <label htmlFor="chat" className="block text-sm font-medium text-gray-700">
+              Chat System Prompt
+            </label>
+            <textarea
+              id="chat"
+              rows={4}
+              value={prompts.chat || ''}
+              onChange={(e) => handlePromptChange('chat', e.target.value)}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Enter your chat system prompt..."
+            />
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <button
+            onClick={savePrompts}
+            disabled={loading}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <div className="loading mr-2" />
+                Saving...
+              </>
+            ) : (
+              'Save Settings'
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Export/Import */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">Data Management</h2>
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-gray-600 mb-2">Export your data for backup or migration</p>
+            <button
+              onClick={() => window.open('/api/export', '_blank')}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <span className="mr-2">📤</span>
+              Export Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default SettingsPage

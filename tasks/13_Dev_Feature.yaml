@@ -1,0 +1,27 @@
+issue: 13
+title: "UI改善: 画面分離とサイドバー追加"
+description: |
+  一つの画面で全てを表示するのをやめ、使用料金・履歴は別のページとして表示したい。サイドバーでそれぞれの画面を選択できるようにしたい
+type: Feature
+state: Dev
+design: tasks/design/13_Feature.md
+createdAt: "2025-07-01T02:35:03Z"
+updatedAt: "2025-07-02T07:47:26Z"
+implementation:
+  branch: feature/implement-13
+  commit: 6a51956
+  status: "Implementation completed with quality checks passed"
+  changes:
+    - "Fixed Vite proxy configuration for API forwarding"
+    - "Resolved Tailwind CSS version conflicts (v4 → v3.4.17)"
+    - "Fixed useHistory hook API response handling"
+    - "Improved localhost accessibility with proper host binding"
+pr: tasks/pr/13_Feature_final.md
+review: tasks/pr/13_Feature_review.md
+response: tasks/pr/13_Feature_response.md
+diff: tasks/pr/13_Feature_diff_20250702164714.md
+qualityChecks:
+  typeScript: "PASS"
+  build: "PASS"
+  lint: "104 problems (non-blocking)"
+  security: "PASS"

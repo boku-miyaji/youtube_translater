@@ -37,6 +37,23 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
+
+// Add CSP middleware
+app.use((req: Request, res: Response, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://www.youtube.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " +
+    "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; " +
+    "img-src 'self' data: blob: https:; " +
+    "connect-src 'self' http://localhost:8080 http://127.0.0.1:8080; " +
+    "frame-src https://www.youtube.com https://youtube.com; " +
+    "media-src *"
+  );
+  next();
+});
+
 app.use(express.static('public'));
 
 // Health check endpoint
