@@ -24,7 +24,7 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarCollapsed: false,
   currentVideo: null,
   loading: false,
-  language: 'ja',
+  language: 'original',
   theme: 'light',
   
   // Actions

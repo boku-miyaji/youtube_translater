@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 import VideoPlayer from '../shared/VideoPlayer'
 import TranscriptViewer from '../shared/TranscriptViewer'
@@ -6,10 +7,17 @@ import ChatInterface from '../shared/ChatInterface'
 
 const UploadPage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
+  const location = useLocation()
   const [url, setUrl] = useState('')
-  const [language, setLanguage] = useState('Original')
+  const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4.1-mini')
   const [urlError, setUrlError] = useState('')
+
+  useEffect(() => {
+    if (location.state?.url) {
+      setUrl(location.state.url)
+    }
+  }, [location.state])
 
   // YouTube URL validation function
   const validateYouTubeUrl = (url: string): boolean => {
@@ -43,7 +51,7 @@ const UploadPage: React.FC = () => {
     setLoading(true)
     setUrlError('')
     try {
-      const response = await fetch('/api/process-video', {
+      const response = await fetch('/api/upload-youtube', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

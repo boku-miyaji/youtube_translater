@@ -14,7 +14,21 @@ description: |
     - prompt settingsにデフォルトのプロンプトが表示されていない。
     - defalut languageが日本語になっている。デフォルトにしてほしい。あとなんの言語設定なのか分かりにくい。
 type: "Bug"
-state: Design
+state: Dev
 design: tasks/design/16_Bug.md
+implementation:
+  branch: feature/implement-16
+  commit: 97f90f4
+  status: "Implementation completed with High and Medium priority fixes"
+  changes:
+    - "Fixed sidebar toggle button visibility and functionality"
+    - "Implemented proper Daily Spending calculation with yesterday comparison"
+    - "Added YouTube URL validation with real-time error display"
+    - "Added default prompts display in Settings page"
+    - "Improved Recent Transcriptions error handling"
+    - "Implemented Quick Upload URL input in Dashboard"
+pr: tasks/pr/16_Bug.md
+review: tasks/pr/16_Bug_review.md
+diff: tasks/pr/16_Bug_diff_20250703155730.md
 createdAt: "2025-07-03T06:12:40Z"
-updatedAt: "2025-07-03T06:18:30Z"
+updatedAt: "2025-07-03T15:57:30Z"

@@ -92,13 +92,13 @@ const SettingsPage: React.FC = () => {
           </p>
           <select
             id="language"
-            value={language || 'ja'}
+            value={language || 'original'}
             onChange={(e) => setLanguage(e.target.value)}
             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="ja">Japanese (日本語)</option>
             <option value="en">English</option>
-            <option value="Original">Original Language</option>
+            <option value="original">Original Language</option>
           </select>
         </div>
       </div>

@@ -1,5 +1,5 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useHistory } from '../../hooks/useHistory'
 import { useCosts } from '../../hooks/useCosts'
 import MiniChart from '../shared/MiniChart'
@@ -7,6 +7,8 @@ import MiniChart from '../shared/MiniChart'
 const DashboardPage: React.FC = () => {
   const { data: history, isLoading: historyLoading, error: historyError } = useHistory()
   const { data: costs, isLoading: costsLoading } = useCosts()
+  const navigate = useNavigate()
+  const [quickUrl, setQuickUrl] = useState('')
 
   const recentVideos = history ? history.slice(0, 5) : []
   
@@ -43,6 +45,12 @@ const DashboardPage: React.FC = () => {
   const costTrend = [0.12, 0.19, 0.15, 0.25, 0.31, 0.28, 0.35]
   const videoTrend = [2, 3, 1, 5, 4, 6, 3]
   const processingTimes = [45, 52, 38, 65, 43, 58, 41]
+
+  const handleQuickAnalyze = () => {
+    if (quickUrl.trim()) {
+      navigate('/upload', { state: { url: quickUrl.trim() } })
+    }
+  }
 
   return (
     <div className="space-y-10">
@@ -298,6 +306,8 @@ const DashboardPage: React.FC = () => {
               <div className="mb-4">
                 <input
                   type="text"
+                  value={quickUrl}
+                  onChange={(e) => setQuickUrl(e.target.value)}
                   placeholder="Paste YouTube URL here..."
                   className="w-full px-4 py-3 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50"
                   data-testid="quick-url-input"
@@ -306,6 +316,7 @@ const DashboardPage: React.FC = () => {
               
               <div className="space-y-3">
                 <button
+                  onClick={handleQuickAnalyze}
                   className="w-full inline-flex items-center justify-center px-8 py-3 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                   data-testid="quick-analyze-button"
                 >
@@ -315,10 +326,10 @@ const DashboardPage: React.FC = () => {
                 
                 <Link
                   to="/upload"
-                  className="w-full inline-flex items-center justify-center px-8 py-3 bg-white/20 text-white font-semibold rounded-2xl hover:bg-white/30 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50 transition-all duration-200 backdrop-blur-sm"
+                  className="inline-flex items-center justify-center px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors duration-200"
                 >
-                  <span className="mr-3 text-xl">📤</span>
-                  Full Upload Page
+                  <span className="mr-2 text-sm">📤</span>
+                  Go to full upload page →
                 </Link>
               </div>
             </div>
