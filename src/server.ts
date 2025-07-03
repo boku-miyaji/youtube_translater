@@ -293,9 +293,16 @@ function addToHistory(
 // YouTube metadata analysis
 async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
   try {
+    console.log('Fetching YouTube metadata for:', url);
     const info = await ytdl.getInfo(url);
     const videoDetails = info.videoDetails;
     const formats = info.formats;
+    
+    console.log('Successfully retrieved video info:');
+    console.log('- Title:', videoDetails.title);
+    console.log('- Channel:', videoDetails.author?.name);
+    console.log('- Duration:', videoDetails.lengthSeconds);
+    console.log('- View Count:', videoDetails.viewCount);
     
     // Chapter information extraction
     const description = videoDetails.description || '';
@@ -313,23 +320,23 @@ async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
     // Caption information
     const captions = (info as any).player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
     
-    return {
+    const metadata = {
       basic: {
-        title: videoDetails.title,
-        videoId: videoDetails.videoId,
-        duration: parseInt(videoDetails.lengthSeconds),
-        channel: videoDetails.author.name,
+        title: videoDetails.title || 'Unknown Title',
+        videoId: videoDetails.videoId || extractVideoId(url) || '',
+        duration: parseInt(videoDetails.lengthSeconds || '0'),
+        channel: videoDetails.author?.name || 'Unknown Channel',
         viewCount: parseInt(videoDetails.viewCount || '0'),
         likes: parseInt(String(videoDetails.likes || '0')),
-        uploadDate: videoDetails.uploadDate,
-        publishDate: videoDetails.publishDate,
-        category: videoDetails.category,
-        description: videoDetails.description
+        uploadDate: videoDetails.uploadDate || '',
+        publishDate: videoDetails.publishDate || '',
+        category: videoDetails.category || '',
+        description: videoDetails.description || ''
       },
       chapters: chapters,
       captions: captions.map((cap: any) => ({
-        language: cap.languageCode,
-        name: cap.name.simpleText
+        language: cap.languageCode || 'unknown',
+        name: cap.name?.simpleText || 'Unknown'
       })),
       stats: {
         formatCount: formats.length,
@@ -337,8 +344,41 @@ async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
         keywords: videoDetails.keywords || []
       }
     };
+    
+    console.log('Metadata extraction completed successfully');
+    return metadata;
   } catch (error) {
     console.error('Metadata retrieval error:', error);
+    console.log('Attempting to create fallback metadata...');
+    
+    // Create fallback metadata with at least the video ID
+    const videoId = extractVideoId(url);
+    if (videoId) {
+      console.log('Creating fallback metadata with video ID:', videoId);
+      return {
+        basic: {
+          title: 'Unable to retrieve title',
+          videoId: videoId,
+          duration: 0,
+          channel: 'Unable to retrieve channel',
+          viewCount: 0,
+          likes: 0,
+          uploadDate: '',
+          publishDate: '',
+          category: '',
+          description: 'Unable to retrieve description'
+        },
+        chapters: [],
+        captions: [],
+        stats: {
+          formatCount: 0,
+          hasSubtitles: false,
+          keywords: []
+        }
+      };
+    }
+    
+    console.log('Failed to create fallback metadata - no video ID found');
     return null;
   }
 }
@@ -1598,6 +1638,34 @@ app.post('/api/prompts', (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error saving prompts:', error);
     res.status(500).json({ error: 'Failed to save prompts' });
+  }
+});
+
+// Summarize endpoint
+app.post('/api/summarize', async (req: Request, res: Response) => {
+  try {
+    const { transcript, gptModel = 'gpt-4o-mini' } = req.body;
+    
+    if (!transcript) {
+      return res.status(400).json({ error: 'Transcript is required' });
+    }
+
+    // Generate summary
+    const summary = await generateSummary(transcript, null, gptModel, []);
+    
+    if (!summary) {
+      return res.status(500).json({ error: 'Failed to generate summary' });
+    }
+
+    res.json({
+      success: true,
+      summary: summary.content,
+      cost: summary.cost || 0
+    });
+
+  } catch (error) {
+    console.error('Error generating summary:', error);
+    res.status(500).json({ error: 'Failed to generate summary' });
   }
 });
 

@@ -2,11 +2,13 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useHistory } from '../../hooks/useHistory'
 import { useCosts } from '../../hooks/useCosts'
+import { useAppStore } from '../../store/appStore'
 import MiniChart from '../shared/MiniChart'
 
 const DashboardPage: React.FC = () => {
   const { data: history, isLoading: historyLoading, error: historyError } = useHistory()
   const { data: costs, isLoading: costsLoading } = useCosts()
+  const { setCurrentVideo } = useAppStore()
   const navigate = useNavigate()
   const [quickUrl, setQuickUrl] = useState('')
 
@@ -50,6 +52,35 @@ const DashboardPage: React.FC = () => {
     if (quickUrl.trim()) {
       navigate('/upload', { state: { url: quickUrl.trim() } })
     }
+  }
+
+  const handleVideoClick = (video: any) => {
+    // Set the current video in the app store
+    setCurrentVideo({
+      basic: {
+        title: video.title,
+        videoId: video.videoId || video.id,
+        duration: video.metadata?.basic?.duration || 0,
+        channel: video.metadata?.basic?.channel || 'Unknown',
+        viewCount: video.metadata?.basic?.viewCount || 0,
+        likes: video.metadata?.basic?.likes || 0,
+        uploadDate: video.metadata?.basic?.uploadDate || '',
+        publishDate: video.metadata?.basic?.publishDate || '',
+        category: video.metadata?.basic?.category || '',
+        description: video.metadata?.basic?.description || ''
+      },
+      chapters: video.metadata?.chapters || [],
+      captions: video.metadata?.captions || [],
+      stats: video.metadata?.stats || {
+        formatCount: 0,
+        hasSubtitles: false,
+        keywords: []
+      },
+      transcript: video.transcript
+    })
+    
+    // Navigate to upload page to show the historical video
+    navigate('/upload')
   }
 
   return (
@@ -226,7 +257,11 @@ const DashboardPage: React.FC = () => {
                 </div>
               ) : recentVideos.length > 0 ? (
                 recentVideos.map((video: any, index: number) => (
-                  <div key={index} className="px-8 py-6 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-cyan-50/50 transition-all duration-300 group/item">
+                  <div 
+                    key={index} 
+                    onClick={() => handleVideoClick(video)}
+                    className="px-8 py-6 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-cyan-50/50 transition-all duration-300 group/item cursor-pointer"
+                  >
                     <div className="flex items-center space-x-6">
                       {/* Video Thumbnail */}
                       <div className="relative">

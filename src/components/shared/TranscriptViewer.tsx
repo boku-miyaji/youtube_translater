@@ -45,7 +45,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript }) => {
           <div className="space-x-2">
             <button
               onClick={() => setShowSummary(!showSummary)}
-              className="text-sm text-indigo-600 hover:text-indigo-500"
+              className="inline-flex items-center px-3 py-1 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
             >
               {showSummary ? 'Show Transcript' : 'Show Summary'}
             </button>
@@ -53,7 +53,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript }) => {
               <button
                 onClick={generateSummary}
                 disabled={loading}
-                className="text-sm text-indigo-600 hover:text-indigo-500 disabled:opacity-50"
+                className="inline-flex items-center px-3 py-1 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? 'Generating...' : 'Generate Summary'}
               </button>

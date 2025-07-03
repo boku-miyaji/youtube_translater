@@ -55,6 +55,33 @@
   - "Analyze Now" ボタンで即座に処理
   - "Full Upload Page" リンクも保持
 
+### 🔨 追加修正 (レビュー対応)
+
+#### 8. Dashboard Quick Uploadボタンのスタイル改善
+- **問題**: "Full upload page" ボタンが大きすぎて目立ちすぎる
+- **解決**:
+  - ボタンを控えめなテキストリンクスタイルに変更
+  - 文言を "Go to full upload page →" に変更
+
+#### 9. バックエンドAPIエンドポイントの修正
+- **問題**: POST http://localhost:3001/api/process-video でConnection Refused エラー
+- **解決**:
+  - APIエンドポイントを `/api/upload-youtube` に修正（バックエンドと一致）
+  - Quick Analyze機能を実装（DashboardからUploadページにURL付きで遷移）
+
+#### 10. 履歴データ取得エラーの対応
+- **問題**: "Error loading history: Failed to fetch" エラー
+- **解決**:
+  - バックエンドサーバー（ポート8080）の起動が必要であることを明記
+  - 開発時は別々のターミナルで `npm run dev` と `npm run dev:client` を実行
+
+#### 11. デフォルト言語設定の修正
+- **問題**: デフォルト言語が 'ja' に設定されている
+- **解決**:
+  - appStoreのデフォルト言語を 'original' に変更
+  - SettingsPageのフォールバック値も同様に修正
+  - 言語選択肢の値を小文字 'original' に統一
+
 ## テスト結果
 
 ### ✅ 品質チェック
@@ -161,6 +188,13 @@ POST /api/prompts      - プロンプト保存
 
 ## ブランチ情報
 - **ブランチ**: `feature/implement-16`
-- **コミット**: `97f90f4`
+- **初回実装コミット**: `97f90f4`
+- **追加修正コミット**: `3649d12`
 - **ベースブランチ**: `main`
 - **開始コミット**: `87d9138`
+
+## 重要な注意事項
+- **開発環境での実行方法**:
+  - ターミナル1: `npm run dev` (バックエンドサーバー、ポート8080)
+  - ターミナル2: `npm run dev:client` (フロントエンド開発サーバー、ポート3001)
+  - 両方のサーバーが起動していないとAPIエラーが発生します
