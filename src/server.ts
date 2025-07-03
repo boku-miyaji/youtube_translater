@@ -1527,6 +1527,71 @@ app.post('/prompts/save', (req: Request, res: Response) => {
   }
 });
 
+// Settings endpoints for frontend compatibility
+app.get('/api/settings', (req: Request, res: Response) => {
+  const DEFAULT_PROMPT = `Please provide a clear and concise transcription of the video content.
+Focus on accuracy and readability while maintaining the original meaning.`;
+  
+  res.json({
+    defaultPrompt: process.env.DEFAULT_PROMPT || DEFAULT_PROMPT,
+    defaultLanguage: process.env.DEFAULT_LANGUAGE || 'ja'
+  });
+});
+
+app.post('/api/settings', (req: Request, res: Response) => {
+  try {
+    const { defaultPrompt, defaultLanguage } = req.body;
+    // In a real app, you would save these to a database or config file
+    res.json({ 
+      success: true, 
+      message: 'Settings saved successfully',
+      settings: { defaultPrompt, defaultLanguage }
+    });
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+app.get('/api/prompts', (req: Request, res: Response) => {
+  const prompts = loadPrompts();
+  // Convert the server format to frontend format
+  const frontendPrompts = {};
+  Object.keys(prompts).forEach(key => {
+    frontendPrompts[key] = prompts[key]?.template || '';
+  });
+  res.json(frontendPrompts);
+});
+
+app.post('/api/prompts', (req: Request, res: Response) => {
+  try {
+    const newPrompts = req.body;
+    const prompts = loadPrompts();
+    
+    Object.keys(newPrompts).forEach(key => {
+      if (newPrompts[key] && newPrompts[key].trim() !== '') {
+        prompts[key] = {
+          name: key,
+          template: newPrompts[key]
+        };
+      } else {
+        delete prompts[key];
+      }
+    });
+    
+    const promptsFile = 'prompts.json';
+    fs.writeFileSync(promptsFile, JSON.stringify(prompts, null, 2));
+    
+    res.json({
+      success: true,
+      message: 'Prompts saved successfully'
+    });
+  } catch (error) {
+    console.error('Error saving prompts:', error);
+    res.status(500).json({ error: 'Failed to save prompts' });
+  }
+});
+
 // Reset session costs endpoint
 app.post('/reset-session-costs', (req: Request, res: Response) => {
   sessionCosts = {

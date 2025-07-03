@@ -14,9 +14,12 @@ const Sidebar: React.FC = () => {
   const { sidebarCollapsed } = useAppStore()
 
   return (
-    <div className={`bg-white/95 backdrop-blur-xl shadow-2xl border-r border-white/30 transition-all duration-300 relative z-40 ${
-      sidebarCollapsed ? 'w-20' : 'w-80'
-    }`}>
+    <div 
+      className={`bg-white/95 backdrop-blur-xl shadow-2xl border-r border-white/30 transition-all duration-300 relative z-40 ${
+        sidebarCollapsed ? 'w-20' : 'w-80'
+      }`}
+      data-testid="sidebar"
+    >
       {/* Sidebar background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-gray-50/40 to-white/60 backdrop-blur-sm"></div>
       

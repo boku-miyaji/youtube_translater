@@ -9,12 +9,39 @@ const UploadPage: React.FC = () => {
   const [url, setUrl] = useState('')
   const [language, setLanguage] = useState('Original')
   const [model, setModel] = useState('gpt-4.1-mini')
+  const [urlError, setUrlError] = useState('')
+
+  // YouTube URL validation function
+  const validateYouTubeUrl = (url: string): boolean => {
+    const patterns = [
+      /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/,
+      /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=[\w-]+/,
+      /^(https?:\/\/)?(www\.)?youtu\.be\/[\w-]+/
+    ]
+    return patterns.some(pattern => pattern.test(url))
+  }
+
+  const handleUrlChange = (value: string) => {
+    setUrl(value)
+    setUrlError('')
+    
+    if (value.trim() && !validateYouTubeUrl(value.trim())) {
+      setUrlError('Please enter a valid YouTube URL')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!url.trim()) return
 
+    // Validate URL before processing
+    if (!validateYouTubeUrl(url.trim())) {
+      setUrlError('Please enter a valid YouTube URL')
+      return
+    }
+
     setLoading(true)
+    setUrlError('')
     try {
       const response = await fetch('/api/process-video', {
         method: 'POST',
@@ -60,11 +87,19 @@ const UploadPage: React.FC = () => {
               type="url"
               id="url"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => handleUrlChange(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..."
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                urlError ? 'border-red-300' : 'border-gray-300'
+              }`}
+              data-testid="url-input"
               required
             />
+            {urlError && (
+              <p className="mt-2 text-sm text-red-600" data-testid="url-error">
+                {urlError}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -103,8 +138,9 @@ const UploadPage: React.FC = () => {
 
           <button
             type="submit"
-            disabled={loading || !url.trim()}
+            disabled={loading || !url.trim() || !!urlError}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="analyze-button"
           >
             {loading ? (
               <>

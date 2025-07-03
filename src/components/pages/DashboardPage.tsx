@@ -5,16 +5,39 @@ import { useCosts } from '../../hooks/useCosts'
 import MiniChart from '../shared/MiniChart'
 
 const DashboardPage: React.FC = () => {
-  const { data: history, isLoading: historyLoading } = useHistory()
+  const { data: history, isLoading: historyLoading, error: historyError } = useHistory()
   const { data: costs, isLoading: costsLoading } = useCosts()
 
   const recentVideos = history ? history.slice(0, 5) : []
+  
+  // Calculate today's and yesterday's costs
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  
   const todaysCosts = costs ? costs.filter(cost => {
-    const today = new Date().toDateString()
-    return new Date(cost.timestamp).toDateString() === today
+    const costDate = new Date(cost.timestamp).toDateString()
+    return costDate === today.toDateString()
+  }) : []
+  
+  const yesterdaysCosts = costs ? costs.filter(cost => {
+    const costDate = new Date(cost.timestamp).toDateString()
+    return costDate === yesterday.toDateString()
   }) : []
 
   const totalTodaysCost = todaysCosts.reduce((sum, cost) => sum + (cost.totalCost || 0), 0)
+  const totalYesterdaysCost = yesterdaysCosts.reduce((sum, cost) => sum + (cost.totalCost || 0), 0)
+  
+  // Calculate spending change percentage
+  const calculateSpendingChange = (current: number, previous: number) => {
+    if (previous === 0) {
+      return current > 0 ? '+100%' : '0%'
+    }
+    const change = ((current - previous) / previous) * 100
+    return `${change > 0 ? '+' : ''}${change.toFixed(1)}%`
+  }
+  
+  const spendingChange = calculateSpendingChange(totalTodaysCost, totalYesterdaysCost)
   
   // Mock data for charts (replace with real data)
   const costTrend = [0.12, 0.19, 0.15, 0.25, 0.31, 0.28, 0.35]
@@ -63,8 +86,13 @@ const DashboardPage: React.FC = () => {
                     `$${totalTodaysCost.toFixed(4)}`
                   )}
                 </div>
-                <div className="flex items-center text-sm">
-                  <span className="text-green-500 font-semibold mr-2">↗ +12.5%</span>
+                <div className="flex items-center text-sm" data-testid="spending-change">
+                  <span className={`font-semibold mr-2 ${
+                    spendingChange.startsWith('+') ? 'text-green-500' : 
+                    spendingChange.startsWith('-') ? 'text-red-500' : 'text-gray-500'
+                  }`}>
+                    {spendingChange.startsWith('+') ? '↗' : spendingChange.startsWith('-') ? '↘' : '→'} {spendingChange}
+                  </span>
                   <span className="text-gray-500">vs yesterday</span>
                 </div>
               </div>
@@ -91,7 +119,7 @@ const DashboardPage: React.FC = () => {
                     history?.length || 0
                   )}
                 </div>
-                <div className="text-xs text-gray-500">Total Videos</div>
+                <div className="text-xs text-gray-500">Total Videos (All Time)</div>
               </div>
             </div>
             <div className="h-12 -mx-2">
@@ -160,7 +188,22 @@ const DashboardPage: React.FC = () => {
             
             {/* Content */}
             <div className="divide-y divide-gray-100">
-              {historyLoading ? (
+              {historyError ? (
+                <div className="px-8 py-16 text-center">
+                  <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl text-red-400">⚠️</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-700 mb-2">Error loading history</h3>
+                  <p className="text-gray-500 mb-6">Failed to fetch history: {historyError.message}</p>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-orange-600 text-white font-semibold rounded-2xl hover:shadow-lg transition-all duration-200"
+                  >
+                    <span className="mr-2">🔄</span>
+                    Retry
+                  </button>
+                </div>
+              ) : historyLoading ? (
                 <div className="px-8 py-6">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="animate-pulse flex space-x-4 py-4">
@@ -250,13 +293,34 @@ const DashboardPage: React.FC = () => {
                 <h3 className="text-2xl font-bold mb-2">Quick Upload</h3>
                 <p className="text-indigo-100">Transform your videos into text instantly</p>
               </div>
-              <Link
-                to="/upload"
-                className="w-full inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-              >
-                <span className="mr-3 text-xl">📤</span>
-                Upload Video
-              </Link>
+              
+              {/* URL Input */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Paste YouTube URL here..."
+                  className="w-full px-4 py-3 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50"
+                  data-testid="quick-url-input"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <button
+                  className="w-full inline-flex items-center justify-center px-8 py-3 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                  data-testid="quick-analyze-button"
+                >
+                  <span className="mr-3 text-xl">⚡</span>
+                  Analyze Now
+                </button>
+                
+                <Link
+                  to="/upload"
+                  className="w-full inline-flex items-center justify-center px-8 py-3 bg-white/20 text-white font-semibold rounded-2xl hover:bg-white/30 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50 transition-all duration-200 backdrop-blur-sm"
+                >
+                  <span className="mr-3 text-xl">📤</span>
+                  Full Upload Page
+                </Link>
+              </div>
             </div>
           </div>
 

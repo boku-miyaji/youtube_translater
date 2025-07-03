@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../../store/appStore'
 
+// Default prompts
+const DEFAULT_PROMPTS = {
+  summarize: `Please provide a clear and concise summary of the video content.
+Focus on the main points and key insights while maintaining accuracy.`,
+  article: `Please create a well-structured article based on the video content.
+Include an introduction, main sections with clear headings, and a conclusion.
+Ensure the content is engaging and informative for readers.`,
+  chat: `You are a helpful AI assistant that can answer questions about the video content.
+Provide accurate, detailed responses based on the transcript information.
+Be friendly and informative in your responses.`
+}
+
 const SettingsPage: React.FC = () => {
   const { language, setLanguage } = useAppStore()
-  const [prompts, setPrompts] = useState<any>({})
+  const [prompts, setPrompts] = useState<any>(DEFAULT_PROMPTS)
   const [loading, setLoading] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     loadPrompts()
@@ -15,10 +28,21 @@ const SettingsPage: React.FC = () => {
       const response = await fetch('/api/prompts')
       if (response.ok) {
         const data = await response.json()
-        setPrompts(data)
+        // Merge with defaults to ensure all prompts have values
+        setPrompts({
+          ...DEFAULT_PROMPTS,
+          ...data
+        })
+      } else {
+        // If API fails, use defaults
+        setPrompts(DEFAULT_PROMPTS)
       }
     } catch (error) {
       console.error('Error loading prompts:', error)
+      // If API fails, use defaults
+      setPrompts(DEFAULT_PROMPTS)
+    } finally {
+      setIsLoaded(true)
     }
   }
 
@@ -59,19 +83,22 @@ const SettingsPage: React.FC = () => {
       {/* Language Settings */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Language Settings</h2>
-        <div className="max-w-xs">
+        <div className="max-w-sm">
           <label htmlFor="language" className="block text-sm font-medium text-gray-700">
-            Default Language
+            Default Transcription Language
           </label>
+          <p className="text-xs text-gray-500 mt-1 mb-2">
+            The default language for video transcription and processing
+          </p>
           <select
             id="language"
-            value={language}
+            value={language || 'ja'}
             onChange={(e) => setLanguage(e.target.value)}
             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
           >
-            <option value="ja">Japanese</option>
+            <option value="ja">Japanese (日本語)</option>
             <option value="en">English</option>
-            <option value="Original">Original</option>
+            <option value="Original">Original Language</option>
           </select>
         </div>
       </div>
@@ -87,10 +114,11 @@ const SettingsPage: React.FC = () => {
             <textarea
               id="summarize"
               rows={4}
-              value={prompts.summarize || ''}
+              value={prompts.summarize || DEFAULT_PROMPTS.summarize}
               onChange={(e) => handlePromptChange('summarize', e.target.value)}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Enter your summarize prompt..."
+              placeholder={DEFAULT_PROMPTS.summarize}
+              disabled={!isLoaded}
             />
           </div>
 
@@ -101,10 +129,11 @@ const SettingsPage: React.FC = () => {
             <textarea
               id="article"
               rows={4}
-              value={prompts.article || ''}
+              value={prompts.article || DEFAULT_PROMPTS.article}
               onChange={(e) => handlePromptChange('article', e.target.value)}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Enter your article generation prompt..."
+              placeholder={DEFAULT_PROMPTS.article}
+              disabled={!isLoaded}
             />
           </div>
 
@@ -115,10 +144,11 @@ const SettingsPage: React.FC = () => {
             <textarea
               id="chat"
               rows={4}
-              value={prompts.chat || ''}
+              value={prompts.chat || DEFAULT_PROMPTS.chat}
               onChange={(e) => handlePromptChange('chat', e.target.value)}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Enter your chat system prompt..."
+              placeholder={DEFAULT_PROMPTS.chat}
+              disabled={!isLoaded}
             />
           </div>
         </div>
