@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
 import multer from 'multer';
 import ytdl from '@distube/ytdl-core';
@@ -7,6 +7,15 @@ import OpenAI from 'openai';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+
+// Load environment variables from .env file
+const envPath = path.resolve(process.cwd(), '.env');
+const result = dotenv.config({ path: envPath });
+
+// Manually set the environment variables if they were parsed but not set
+if (result.parsed && !process.env.OPENAI_API_KEY) {
+  process.env.OPENAI_API_KEY = result.parsed.OPENAI_API_KEY;
+}
 import { YoutubeTranscript } from 'youtube-transcript-api';
 import {
   VideoMetadata,
