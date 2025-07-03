@@ -28,10 +28,26 @@ const SettingsPage: React.FC = () => {
       const response = await fetch('/api/prompts')
       if (response.ok) {
         const data = await response.json()
+        console.log('Loaded prompts data:', data)
+        
+        // Ensure all values are strings
+        const processedData = {}
+        Object.keys(data).forEach(key => {
+          if (typeof data[key] === 'string') {
+            processedData[key] = data[key]
+          } else if (data[key]?.template) {
+            // Handle case where data might be objects with template property
+            processedData[key] = data[key].template
+          } else {
+            // Fallback to default for invalid data
+            processedData[key] = DEFAULT_PROMPTS[key] || ''
+          }
+        })
+        
         // Merge with defaults to ensure all prompts have values
         setPrompts({
           ...DEFAULT_PROMPTS,
-          ...data
+          ...processedData
         })
       } else {
         // If API fails, use defaults

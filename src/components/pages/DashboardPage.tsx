@@ -265,9 +265,28 @@ const DashboardPage: React.FC = () => {
                     <div className="flex items-center space-x-6">
                       {/* Video Thumbnail */}
                       <div className="relative">
-                        <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg group-hover/item:scale-105 transition-transform duration-200">
-                          <span className="text-white text-2xl">🎬</span>
-                        </div>
+                        {video.videoId || video.id ? (
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg group-hover/item:scale-105 transition-transform duration-200">
+                            <img
+                              src={`https://img.youtube.com/vi/${video.videoId || video.id}/mqdefault.jpg`}
+                              alt={video.title || 'Video thumbnail'}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  parent.className = 'w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg group-hover/item:scale-105 transition-transform duration-200';
+                                  parent.innerHTML = '<span class="text-white text-2xl">🎬</span>';
+                                }
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg group-hover/item:scale-105 transition-transform duration-200">
+                            <span className="text-white text-2xl">🎬</span>
+                          </div>
+                        )}
                         <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
                           <span className="text-xs">✓</span>
                         </div>
@@ -281,7 +300,7 @@ const DashboardPage: React.FC = () => {
                         <div className="flex items-center space-x-4 text-sm text-gray-500">
                           <div className="flex items-center">
                             <span className="mr-2">🆔</span>
-                            <span className="font-mono">{video.videoId || 'No ID'}</span>
+                            <span className="font-mono">{video.videoId || video.id || 'No ID'}</span>
                           </div>
                           <div className="flex items-center">
                             <span className="mr-2">📅</span>

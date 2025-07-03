@@ -26,13 +26,6 @@ import {
   ArticleHistoryEntry,
   TimestampedSegment,
   Summary,
-  ChatRequest,
-  ChatResponse,
-  UploadYouTubeRequest,
-  UploadResponse,
-  SaveArticleRequest,
-  LoadFromHistoryRequest,
-  RegenerateSummaryRequest,
   PromptsConfig,
   TranscriptionResult,
   SubtitlesResult
@@ -92,7 +85,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-const upload = multer({ dest: 'uploads/' });
+// const upload = multer({ dest: 'uploads/' });
 
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
@@ -106,7 +99,7 @@ if (!fs.existsSync('history')) {
 
 let currentTranscript = '';
 let currentMetadata: VideoMetadata | null = null;
-let currentSummary: Summary | null = null;
+// let currentSummary: Summary | null = null;
 let currentTimestampedSegments: TimestampedSegment[] = [];
 let currentArticle: string | null = null;
 let sessionCosts: SessionCosts = {
@@ -943,7 +936,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
       if (existingEntry) {
         currentTranscript = existingEntry.transcript;
         currentMetadata = existingEntry.metadata;
-        currentSummary = existingEntry.summary;
+        // currentSummary = existingEntry.summary;
         currentTimestampedSegments = existingEntry.timestampedSegments || [];
         currentArticle = existingEntry.article;
         
@@ -1046,7 +1039,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
     // Generate summary
     console.log('Generating summary...');
     const summary = await generateSummary(formattedTranscript, metadata, gptModel, timestampedSegments);
-    currentSummary = summary;
+    // currentSummary = summary;
 
     // Save to history
     const entry = addToHistory(
@@ -1245,7 +1238,7 @@ app.post('/load-from-history', async (req: Request, res: Response) => {
     // Update current session variables
     currentTranscript = entry.transcript;
     currentMetadata = entry.metadata;
-    currentSummary = entry.summary;
+    // currentSummary = entry.summary;
     currentTimestampedSegments = entry.timestampedSegments || [];
     currentArticle = entry.article;
 
@@ -1262,7 +1255,7 @@ app.post('/load-from-history', async (req: Request, res: Response) => {
 
 app.post('/regenerate-summary', async (req: Request, res: Response) => {
   try {
-    const { url, language = 'original', gptModel = 'gpt-4o-mini' } = req.body;
+    const { url, gptModel = 'gpt-4o-mini' } = req.body;
     
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
@@ -1274,7 +1267,7 @@ app.post('/regenerate-summary', async (req: Request, res: Response) => {
 
     // Generate new summary
     const summary = await generateSummary(currentTranscript, currentMetadata, gptModel, currentTimestampedSegments);
-    currentSummary = summary;
+    // currentSummary = summary;
 
     // Update history
     const videoId = extractVideoId(url);
@@ -1666,6 +1659,69 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error generating summary:', error);
     res.status(500).json({ error: 'Failed to generate summary' });
+  }
+});
+
+// Generate article endpoint for TranscriptViewer
+app.post('/api/generate-article', async (req: Request, res: Response) => {
+  try {
+    const { transcript, gptModel = 'gpt-4o-mini' } = req.body;
+    
+    if (!transcript) {
+      return res.status(400).json({ error: 'Transcript is required' });
+    }
+
+    // Load article prompt template
+    const prompts = loadPrompts();
+    let articlePrompt = prompts.article?.template || `
+以下のYouTube動画の内容から、詳細な解説記事を日本語で作成してください。
+
+記事の構成:
+1. 概要
+2. 主要なポイント
+3. 詳細な解説
+4. まとめ
+
+文字起こし:
+{transcript}
+`;
+
+    // Replace template variables
+    const finalPrompt = articlePrompt.replace('{transcript}', transcript);
+
+    console.log('Generating article with OpenAI...');
+    const completion = await openai.chat.completions.create({
+      model: gptModel,
+      messages: [
+        {
+          role: 'user',
+          content: finalPrompt
+        }
+      ],
+      temperature: 0.7,
+    });
+
+    const article = completion.choices[0]?.message?.content || '';
+    
+    // Calculate cost
+    const inputTokens = completion.usage?.prompt_tokens || 0;
+    const outputTokens = completion.usage?.completion_tokens || 0;
+    const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
+    const cost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
+
+    // Add to session costs
+    sessionCosts.gpt += cost;
+    sessionCosts.total += cost;
+
+    res.json({
+      success: true,
+      article: article,
+      cost: cost
+    });
+
+  } catch (error) {
+    console.error('Error generating article:', error);
+    res.status(500).json({ error: 'Failed to generate article' });
   }
 });
 
