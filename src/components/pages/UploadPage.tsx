@@ -98,7 +98,7 @@ const UploadPage: React.FC = () => {
               value={url}
               onChange={(e) => handleUrlChange(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..."
-              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 ${
                 urlError ? 'border-red-300' : 'border-gray-300'
               }`}
               data-testid="url-input"
@@ -120,7 +120,7 @@ const UploadPage: React.FC = () => {
                 id="language"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
               >
                 <option value="Original">Original</option>
                 <option value="Japanese">Japanese</option>
@@ -136,7 +136,7 @@ const UploadPage: React.FC = () => {
                 id="model"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
               >
                 <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
                 <option value="gpt-4">GPT-4</option>
@@ -148,7 +148,7 @@ const UploadPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading || !url.trim() || !!urlError}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="analyze-button"
           >
             {loading ? (

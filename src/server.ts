@@ -318,23 +318,23 @@ async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
         title: videoDetails.title || 'Unknown Title',
         videoId: videoDetails.videoId || extractVideoId(url) || '',
         duration: parseInt(videoDetails.lengthSeconds || '0'),
-        channel: videoDetails.author?.name || 'Unknown Channel',
+        channel: videoDetails.author?.name || videoDetails.ownerChannelName || 'Unknown Channel',
         viewCount: parseInt(videoDetails.viewCount || '0'),
         likes: parseInt(String(videoDetails.likes || '0')),
-        uploadDate: videoDetails.uploadDate || '',
-        publishDate: videoDetails.publishDate || '',
-        category: videoDetails.category || '',
-        description: videoDetails.description || ''
+        uploadDate: videoDetails.uploadDate || videoDetails.publishDate || '',
+        publishDate: videoDetails.publishDate || videoDetails.uploadDate || '',
+        category: videoDetails.category || 'Unknown Category',
+        description: (videoDetails.description || '').slice(0, 2000) // Limit description length
       },
       chapters: chapters,
       captions: captions.map((cap: any) => ({
-        language: cap.languageCode || 'unknown',
-        name: cap.name?.simpleText || 'Unknown'
+        language: cap.languageCode || cap.vssId || 'unknown',
+        name: cap.name?.simpleText || cap.name?.runs?.[0]?.text || 'Unknown'
       })),
       stats: {
         formatCount: formats.length,
         hasSubtitles: captions.length > 0,
-        keywords: videoDetails.keywords || []
+        keywords: (videoDetails.keywords || []).slice(0, 10) // Limit keywords to first 10
       }
     };
     
@@ -348,18 +348,31 @@ async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
     const videoId = extractVideoId(url);
     if (videoId) {
       console.log('Creating fallback metadata with video ID:', videoId);
+      
+      // Try to extract title from URL or use fallback
+      let fallbackTitle = 'Unable to retrieve title';
+      try {
+        const urlParams = new URL(url).searchParams;
+        const titleFromUrl = urlParams.get('title') || urlParams.get('v');
+        if (titleFromUrl) {
+          fallbackTitle = `Video: ${titleFromUrl}`;
+        }
+      } catch (e) {
+        // URL parsing failed, use default
+      }
+      
       return {
         basic: {
-          title: 'Unable to retrieve title',
+          title: fallbackTitle,
           videoId: videoId,
           duration: 0,
-          channel: 'Unable to retrieve channel',
+          channel: 'Channel information unavailable',
           viewCount: 0,
           likes: 0,
           uploadDate: '',
           publishDate: '',
-          category: '',
-          description: 'Unable to retrieve description'
+          category: 'Unknown Category',
+          description: 'Video description could not be retrieved due to API limitations'
         },
         chapters: [],
         captions: [],

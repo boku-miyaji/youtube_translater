@@ -132,7 +132,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 >
                   <button
                     onClick={() => onSeek && onSeek(segment.start)}
-                    className="text-blue-600 hover:text-blue-800 font-mono text-sm whitespace-nowrap"
+                    className="text-gray-600 hover:text-gray-800 font-mono text-sm whitespace-nowrap px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
                   >
                     {formatTime(segment.start)}
                   </button>
@@ -172,7 +172,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             {transcript && !loadingSummary && (
               <button
                 onClick={generateSummary}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors"
               >
                 <span className="mr-2">✨</span>
                 要約を生成
@@ -204,7 +204,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             {transcript && !loadingArticle && (
               <button
                 onClick={generateArticle}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors"
               >
                 <span className="mr-2">📄</span>
                 記事を生成

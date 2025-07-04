@@ -380,10 +380,10 @@ const DashboardPage: React.FC = () => {
                 
                 <Link
                   to="/upload"
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors duration-200"
+                  className="w-full inline-flex items-center justify-center px-4 py-3 bg-white/20 text-white font-semibold rounded-xl hover:bg-white/30 transition-all duration-200 border border-white/30"
                 >
-                  <span className="mr-2 text-sm">📤</span>
-                  Go to full upload page →
+                  <span className="mr-2">📤</span>
+                  Go to full upload page
                 </Link>
               </div>
             </div>
