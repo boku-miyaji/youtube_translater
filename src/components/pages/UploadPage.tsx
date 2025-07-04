@@ -12,6 +12,7 @@ const UploadPage: React.FC = () => {
   const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4.1-mini')
   const [urlError, setUrlError] = useState('')
+  const [playerRef, setPlayerRef] = useState<any>(null)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -166,8 +167,19 @@ const UploadPage: React.FC = () => {
       {currentVideo && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
-            <VideoPlayer video={currentVideo} />
-            <TranscriptViewer transcript={currentVideo.transcript} />
+            <VideoPlayer 
+              video={currentVideo} 
+              onPlayerReady={(player) => setPlayerRef(player)}
+            />
+            <TranscriptViewer 
+              transcript={currentVideo.transcript}
+              timestampedSegments={currentVideo.timestampedSegments}
+              onSeek={(time) => {
+                if (playerRef && playerRef.seekTo) {
+                  playerRef.seekTo(time, true)
+                }
+              }}
+            />
           </div>
           <div>
             <ChatInterface videoId={currentVideo.basic?.videoId} />

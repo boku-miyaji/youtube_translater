@@ -2,11 +2,57 @@ import React, { useState } from 'react'
 
 interface TranscriptViewerProps {
   transcript?: string
+  timestampedSegments?: Array<{
+    start: number
+    duration: number
+    text: string
+  }>
+  onSeek?: (time: number) => void
 }
 
 type TabType = 'transcript' | 'summary' | 'article'
 
-const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript }) => {
+// Simple markdown to HTML converter
+const markdownToHtml = (markdown: string): string => {
+  if (!markdown) return ''
+  
+  let html = markdown
+  
+  // Headers
+  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
+  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
+  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>')
+  
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+  
+  // Lists
+  html = html.replace(/^\* (.+)/gim, '<li class="ml-4 mb-1">• $1</li>')
+  html = html.replace(/^\d+\. (.+)/gim, '<li class="ml-4 mb-1">$1</li>')
+  
+  // Wrap consecutive list items
+  html = html.replace(/(<li class="ml-4 mb-1">.*<\/li>\n?)+/g, (match) => {
+    return `<ul class="list-none mb-4">${match}</ul>`
+  })
+  
+  // Paragraphs
+  html = html.replace(/\n\n/g, '</p><p class="mb-4">')
+  html = '<p class="mb-4">' + html + '</p>'
+  
+  // Clean up empty paragraphs
+  html = html.replace(/<p class="mb-4">\s*<\/p>/g, '')
+  
+  return html
+}
+
+// Format time from seconds to mm:ss
+const formatTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = Math.floor(seconds % 60)
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
+const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, onSeek }) => {
   const [activeTab, setActiveTab] = useState<TabType>('transcript')
   const [summary, setSummary] = useState('')
   const [article, setArticle] = useState('')
@@ -76,6 +122,28 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript }) => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'transcript':
+        if (timestampedSegments && timestampedSegments.length > 0) {
+          return (
+            <div className="space-y-2">
+              {timestampedSegments.map((segment, index) => (
+                <div
+                  key={index}
+                  className="flex gap-4 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <button
+                    onClick={() => onSeek && onSeek(segment.start)}
+                    className="text-blue-600 hover:text-blue-800 font-mono text-sm whitespace-nowrap"
+                  >
+                    {formatTime(segment.start)}
+                  </button>
+                  <p className="text-sm text-gray-700 leading-relaxed flex-1">
+                    {segment.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )
+        }
         return transcript ? (
           <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
             {transcript}
@@ -90,8 +158,8 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript }) => {
       case 'summary':
         if (summary) {
           return (
-            <div className="prose max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br>') }} />
+            <div className="prose max-w-none text-gray-700">
+              <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary) }} />
             </div>
           )
         }
@@ -122,8 +190,8 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript }) => {
       case 'article':
         if (article) {
           return (
-            <div className="prose max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: article.replace(/\n/g, '<br>') }} />
+            <div className="prose max-w-none text-gray-700">
+              <div dangerouslySetInnerHTML={{ __html: markdownToHtml(article) }} />
             </div>
           )
         }

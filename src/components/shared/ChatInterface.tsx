@@ -98,7 +98,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId }) => {
               >
                 <p className="text-sm">{message.content}</p>
                 <p className={`text-xs mt-1 ${
-                  message.role === 'user' ? 'text-indigo-200' : 'text-gray-500'
+                  message.role === 'user' ? 'text-white opacity-75' : 'text-gray-500'
                 }`}>
                   {message.timestamp.toLocaleTimeString()}
                 </p>

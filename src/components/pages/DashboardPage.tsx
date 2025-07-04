@@ -353,7 +353,7 @@ const DashboardPage: React.FC = () => {
                   <span className="text-3xl">🚀</span>
                 </div>
                 <h3 className="text-2xl font-bold mb-2">Quick Upload</h3>
-                <p className="text-indigo-100">Transform your videos into text instantly</p>
+                <p className="text-white opacity-90">Transform your videos into text instantly</p>
               </div>
               
               {/* URL Input */}
