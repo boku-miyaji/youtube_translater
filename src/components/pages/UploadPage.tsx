@@ -165,23 +165,34 @@ const UploadPage: React.FC = () => {
 
       {/* Video Content */}
       {currentVideo && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <VideoPlayer 
-              video={currentVideo} 
-              onPlayerReady={(player) => setPlayerRef(player)}
-            />
-            <TranscriptViewer 
-              transcript={currentVideo.transcript}
-              timestampedSegments={currentVideo.timestampedSegments}
-              onSeek={(time) => {
-                if (playerRef && playerRef.seekTo) {
-                  playerRef.seekTo(time, true)
-                }
-              }}
-            />
+        <div className="space-y-6">
+          {/* Main Content Area */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Video Player - Left Side */}
+            <div className="lg:col-span-1">
+              <VideoPlayer 
+                video={currentVideo} 
+                onPlayerReady={(player) => setPlayerRef(player)}
+              />
+            </div>
+            
+            {/* Transcript Viewer - Right Side (Takes 2 columns) */}
+            <div className="lg:col-span-2">
+              <TranscriptViewer 
+                transcript={currentVideo.transcript}
+                timestampedSegments={currentVideo.timestampedSegments}
+                summary={currentVideo.summary}
+                onSeek={(time) => {
+                  if (playerRef && playerRef.seekTo) {
+                    playerRef.seekTo(time, true)
+                  }
+                }}
+              />
+            </div>
           </div>
-          <div>
+          
+          {/* Chat Interface - Bottom */}
+          <div className="w-full">
             <ChatInterface videoId={currentVideo.basic?.videoId} />
           </div>
         </div>

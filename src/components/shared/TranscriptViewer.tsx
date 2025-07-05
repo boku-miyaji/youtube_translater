@@ -7,6 +7,7 @@ interface TranscriptViewerProps {
     duration: number
     text: string
   }>
+  summary?: string
   onSeek?: (time: number) => void
 }
 
@@ -52,9 +53,9 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, onSeek }) => {
+const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, onSeek }) => {
   const [activeTab, setActiveTab] = useState<TabType>('transcript')
-  const [summary, setSummary] = useState('')
+  const [summary, setSummary] = useState(initialSummary || '')
   const [article, setArticle] = useState('')
   const [loadingSummary, setLoadingSummary] = useState(false)
   const [loadingArticle, setLoadingArticle] = useState(false)
@@ -172,9 +173,9 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             {transcript && !loadingSummary && (
               <button
                 onClick={generateSummary}
-                className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors"
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
-                <span className="mr-2">✨</span>
+                <span className="mr-2 text-lg">✨</span>
                 要約を生成
               </button>
             )}
@@ -204,9 +205,9 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             {transcript && !loadingArticle && (
               <button
                 onClick={generateArticle}
-                className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition-colors"
+                className="inline-flex items-center px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
-                <span className="mr-2">📄</span>
+                <span className="mr-2 text-lg">📄</span>
                 記事を生成
               </button>
             )}
@@ -233,10 +234,10 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
-              className={`relative px-6 py-4 text-sm font-medium transition-colors ${
+              className={`relative px-6 py-4 text-sm font-semibold transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  ? 'text-white bg-gray-800 border-b-2 border-gray-800'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100 border-b-2 border-transparent'
               }`}
             >
               <div className="flex items-center">
@@ -256,7 +257,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
 
       {/* Tab Content */}
       <div className="p-6">
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-[600px] overflow-y-auto">
           {renderTabContent()}
         </div>
       </div>
