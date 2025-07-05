@@ -52,7 +52,7 @@ const UploadPage: React.FC = () => {
     setLoading(true)
     setUrlError('')
     try {
-      const response = await fetch('/api/upload-youtube', {
+      const response = await fetch('/upload-youtube', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,7 +69,34 @@ const UploadPage: React.FC = () => {
       }
 
       const data = await response.json()
-      setCurrentVideo(data)
+      
+      // Convert server response to VideoMetadata format
+      const videoMetadata = {
+        basic: {
+          title: data.title,
+          videoId: data.metadata?.basic?.videoId || '',
+          duration: data.metadata?.basic?.duration || 0,
+          channel: data.metadata?.basic?.channel || 'Unknown',
+          viewCount: data.metadata?.basic?.viewCount || 0,
+          likes: data.metadata?.basic?.likes || 0,
+          uploadDate: data.metadata?.basic?.uploadDate || '',
+          publishDate: data.metadata?.basic?.publishDate || '',
+          category: data.metadata?.basic?.category || '',
+          description: data.metadata?.basic?.description || ''
+        },
+        chapters: data.metadata?.chapters || [],
+        captions: data.metadata?.captions || [],
+        stats: data.metadata?.stats || {
+          formatCount: 0,
+          hasSubtitles: false,
+          keywords: []
+        },
+        transcript: data.transcript,
+        summary: data.summary,
+        timestampedSegments: data.timestampedSegments || []
+      }
+      
+      setCurrentVideo(videoMetadata)
     } catch (error) {
       console.error('Error processing video:', error)
       alert('Failed to process video. Please try again.')

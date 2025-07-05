@@ -61,7 +61,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
   const [loadingArticle, setLoadingArticle] = useState(false)
 
   const generateSummary = async () => {
-    if (!transcript || summary) return
+    if (!transcript) return
     
     setLoadingSummary(true)
     try {
@@ -74,21 +74,24 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate summary')
+        const errorText = await response.text()
+        console.error('Summary generation failed:', response.status, errorText)
+        throw new Error(`Failed to generate summary: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
       setSummary(data.summary)
     } catch (error) {
       console.error('Error generating summary:', error)
-      alert('Failed to generate summary. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Failed to generate summary: ${errorMessage}`)
     } finally {
       setLoadingSummary(false)
     }
   }
 
   const generateArticle = async () => {
-    if (!transcript || article) return
+    if (!transcript) return
     
     setLoadingArticle(true)
     try {
@@ -125,29 +128,51 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
       case 'transcript':
         if (timestampedSegments && timestampedSegments.length > 0) {
           return (
-            <div className="space-y-2">
-              {timestampedSegments.map((segment, index) => (
-                <div
-                  key={index}
-                  className="flex gap-4 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+            <div className="space-y-4">
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => alert('文字起こしの再生成機能は実装予定です')}
+                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
                 >
-                  <button
-                    onClick={() => onSeek && onSeek(segment.start)}
-                    className="text-gray-600 hover:text-gray-800 font-mono text-sm whitespace-nowrap px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+                  <span className="mr-2">🔄</span>
+                  再生成
+                </button>
+              </div>
+              <div className="space-y-2">
+                {timestampedSegments.map((segment, index) => (
+                  <div
+                    key={index}
+                    className="flex gap-4 p-2 hover:bg-gray-50 rounded-lg transition-colors"
                   >
-                    {formatTime(segment.start)}
-                  </button>
-                  <p className="text-sm text-gray-700 leading-relaxed flex-1">
-                    {segment.text}
-                  </p>
-                </div>
-              ))}
+                    <button
+                      onClick={() => onSeek && onSeek(segment.start)}
+                      className="text-gray-600 hover:text-gray-800 font-mono text-sm whitespace-nowrap px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+                    >
+                      {formatTime(segment.start)}
+                    </button>
+                    <p className="text-sm text-gray-700 leading-relaxed flex-1">
+                      {segment.text}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )
         }
         return transcript ? (
-          <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
-            {transcript}
+          <div className="space-y-4">
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => alert('文字起こしの再生成機能は実装予定です')}
+                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <span className="mr-2">🔄</span>
+                再生成
+              </button>
+            </div>
+            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+              {transcript}
+            </div>
           </div>
         ) : (
           <div className="text-center py-8">
@@ -159,8 +184,20 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
       case 'summary':
         if (summary) {
           return (
-            <div className="prose max-w-none text-gray-700">
-              <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary) }} />
+            <div className="space-y-4">
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={generateSummary}
+                  disabled={loadingSummary}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="mr-2">🔄</span>
+                  {loadingSummary ? '生成中...' : '再生成'}
+                </button>
+              </div>
+              <div className="prose max-w-none text-gray-700">
+                <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary) }} />
+              </div>
             </div>
           )
         }
@@ -191,8 +228,20 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
       case 'article':
         if (article) {
           return (
-            <div className="prose max-w-none text-gray-700">
-              <div dangerouslySetInnerHTML={{ __html: markdownToHtml(article) }} />
+            <div className="space-y-4">
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={generateArticle}
+                  disabled={loadingArticle}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="mr-2">🔄</span>
+                  {loadingArticle ? '生成中...' : '再生成'}
+                </button>
+              </div>
+              <div className="prose max-w-none text-gray-700">
+                <div dangerouslySetInnerHTML={{ __html: markdownToHtml(article) }} />
+              </div>
             </div>
           )
         }

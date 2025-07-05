@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
-import multer from 'multer';
 import ytdl from '@distube/ytdl-core';
 import ffmpeg from 'fluent-ffmpeg';
 import OpenAI from 'openai';
@@ -357,7 +356,7 @@ async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
         if (titleFromUrl) {
           fallbackTitle = `Video: ${titleFromUrl}`;
         }
-      } catch (e) {
+      } catch {
         // URL parsing failed, use default
       }
       
@@ -1389,7 +1388,7 @@ app.post('/generate-article', async (req: Request, res: Response) => {
     
     // Load article prompt template
     const prompts = loadPrompts();
-    let articlePrompt = prompts.article?.template || `
+    const articlePrompt = prompts.article?.template || `
 以下のYouTube動画の内容から、詳細な解説記事を日本語で作成してください。
 
 動画タイトル: {title}
@@ -1412,9 +1411,10 @@ app.post('/generate-article', async (req: Request, res: Response) => {
 {transcript}
 `;
     
-    // If using the custom prompt template, we need to add the video information
+    // Prepare formatted prompt based on template type
+    let formattedPrompt: string;
     if (prompts.article?.template) {
-      articlePrompt = `
+      formattedPrompt = `
 以下のYouTube動画の内容をもとに記事を作成してください。
 
 動画情報:
@@ -1429,14 +1429,12 @@ ${prompts.article.template}
 `;
     } else {
       // Replace placeholders in default prompt
-      articlePrompt = articlePrompt
+      formattedPrompt = articlePrompt
         .replace('{title}', currentMetadata.basic.title)
         .replace('{channel}', currentMetadata.basic.channel)
         .replace('{duration}', Math.round(currentMetadata.basic.duration / 60).toString())
         .replace('{transcript}', currentTranscript);
     }
-    
-    const formattedPrompt = articlePrompt;
     
     console.log(`Generating article with ${gptModel}...`);
     console.log('Current metadata title:', currentMetadata.basic.title);
@@ -1686,7 +1684,7 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
 
     // Load article prompt template
     const prompts = loadPrompts();
-    let articlePrompt = prompts.article?.template || `
+    const articlePrompt = prompts.article?.template || `
 以下のYouTube動画の内容から、詳細な解説記事を日本語で作成してください。
 
 記事の構成:
