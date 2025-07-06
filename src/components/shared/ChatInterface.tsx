@@ -134,63 +134,156 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     return uniqueQuestions.slice(0, 5)
   }
 
-  // Advanced content analysis function
+  // Advanced content analysis function - ensures questions are answerable from content
   const analyzeContentForQuestions = (summary: string, transcript: string, title: string) => {
     const specificQuestions: string[] = []
     const contextualQuestions: string[] = []
     const deepDiveQuestions: string[] = []
     
-    // Extract key entities and concepts from summary (most important)
-    if (summary) {
-      const summaryAnalysis = extractKeyEntities(summary)
-      
-      // Generate specific questions based on summary content
-      summaryAnalysis.concepts.forEach(concept => {
-        if (concept.length > 2 && concept.length < 20) {
-          specificQuestions.push(`${concept}について詳しく説明してもらえますか？`)
-        }
-      })
-      
-      summaryAnalysis.numbers.forEach(number => {
-        specificQuestions.push(`${number}という数字の根拠や意味は？`)
-      })
-      
-      summaryAnalysis.methods.forEach(method => {
-        specificQuestions.push(`${method}の具体的な手順を教えて`)
-      })
-      
-      // Generate contextual questions based on summary themes
-      if (summaryAnalysis.hasResults) {
-        contextualQuestions.push('この結果を実際に活用するにはどうすれば？')
-      }
-      
-      if (summaryAnalysis.hasComparison) {
-        contextualQuestions.push('比較されている選択肢の違いをもっと詳しく')
-      }
-      
-      if (summaryAnalysis.hasProcess) {
-        contextualQuestions.push('このプロセスで最も重要なステップは？')
-      }
+    // Use primary content (summary preferred, then transcript)
+    const primaryContent = summary || transcript
+    const secondaryContent = summary ? transcript : ''
+    
+    if (!primaryContent) {
+      return { specificQuestions, contextualQuestions, deepDiveQuestions }
     }
     
-    // Extract additional insights from transcript
-    if (transcript && transcript !== summary) {
-      const transcriptAnalysis = extractKeyEntities(transcript)
-      
-      // Find mentions not in summary for deeper exploration
-      transcriptAnalysis.specificMentions.forEach(mention => {
-        if (!summary.includes(mention) && mention.length > 3) {
-          deepDiveQuestions.push(`動画で触れられていた「${mention}」について詳しく`)
+    // Extract key entities and concepts from content
+    const contentAnalysis = extractKeyEntities(primaryContent)
+    
+    // Generate specific questions only for concepts that are explained in the content
+    contentAnalysis.concepts.forEach(concept => {
+      if (concept.length > 2 && concept.length < 20) {
+        // Only ask if the concept appears to be explained (has context around it)
+        const conceptContext = findConceptContext(primaryContent, concept)
+        if (conceptContext.isExplained) {
+          specificQuestions.push(`${concept}について、動画で説明されていた内容をもう少し詳しく教えて`)
         }
-      })
+      }
+    })
+    
+    // Generate questions for numbers that have context in the content
+    contentAnalysis.numbers.forEach(number => {
+      const numberContext = findNumberContext(primaryContent, number)
+      if (numberContext.hasExplanation) {
+        specificQuestions.push(`動画で言及されていた「${number}」について詳しく説明して`)
+      }
+    })
+    
+    // Generate questions for methods that are actually described
+    contentAnalysis.methods.forEach(method => {
+      const methodContext = findMethodContext(primaryContent, method)
+      if (methodContext.isDescribed) {
+        specificQuestions.push(`動画で紹介されていた「${method}」について詳しく教えて`)
+      }
+    })
+    
+    // Generate contextual questions only for themes present in content
+    if (contentAnalysis.hasResults && hasResultsDetails(primaryContent)) {
+      contextualQuestions.push('動画で紹介されていた結果について、より詳しく説明して')
     }
     
-    // Generate title-based questions
-    if (title && !specificQuestions.some(q => q.includes(title))) {
-      contextualQuestions.push(`「${title}」に関連する他の事例はありますか？`)
+    if (contentAnalysis.hasComparison && hasComparisonDetails(primaryContent)) {
+      contextualQuestions.push('動画で比較されていた内容について、違いをもっと詳しく教えて')
+    }
+    
+    if (contentAnalysis.hasProcess && hasProcessDetails(primaryContent)) {
+      contextualQuestions.push('動画で説明されていたプロセスの重要なポイントを教えて')
+    }
+    
+    // Extract quotes and specific mentions that have enough context
+    const quotes = extractMeaningfulQuotes(primaryContent)
+    quotes.forEach(quote => {
+      if (quote.length > 5 && quote.length < 30) {
+        deepDiveQuestions.push(`動画で「${quote}」と言っていたのはどういう意味ですか？`)
+      }
+    })
+    
+    // Generate questions about specific examples mentioned in the content
+    const examples = extractExamples(primaryContent)
+    examples.forEach(example => {
+      deepDiveQuestions.push(`動画で例として挙げられていた「${example}」について詳しく教えて`)
+    })
+    
+    // Only include title-based questions if the title content is actually discussed
+    if (title && isTitleContentDiscussed(primaryContent, title)) {
+      contextualQuestions.push(`動画のタイトル「${title}」に関する内容で、特に重要だと思うポイントは？`)
     }
     
     return { specificQuestions, contextualQuestions, deepDiveQuestions }
+  }
+
+  // Helper functions to validate content availability
+  const findConceptContext = (content: string, concept: string) => {
+    const conceptRegex = new RegExp(`${concept}(?:とは|について|に関して|を|が|は).{10,}`, 'g')
+    const matches = content.match(conceptRegex)
+    return { isExplained: matches && matches.length > 0 }
+  }
+
+  const findNumberContext = (content: string, number: string) => {
+    const numberRegex = new RegExp(`${number}.{5,50}(?:理由|根拠|なぜ|について|意味|効果|結果)`, 'g')
+    const matches = content.match(numberRegex)
+    return { hasExplanation: matches && matches.length > 0 }
+  }
+
+  const findMethodContext = (content: string, method: string) => {
+    const methodRegex = new RegExp(`${method}.{10,100}(?:手順|方法|やり方|ステップ|プロセス)`, 'g')
+    const matches = content.match(methodRegex)
+    return { isDescribed: matches && matches.length > 0 }
+  }
+
+  const hasResultsDetails = (content: string) => {
+    return /結果.{20,}|成果.{20,}|効果.{20,}/.test(content)
+  }
+
+  const hasComparisonDetails = (content: string) => {
+    return /比較.{30,}|違い.{20,}|対比.{20,}/.test(content)
+  }
+
+  const hasProcessDetails = (content: string) => {
+    return /手順.{30,}|ステップ.{30,}|プロセス.{30,}/.test(content)
+  }
+
+  const extractMeaningfulQuotes = (content: string) => {
+    const quotes = content.match(/「([^」]{5,30})」/g) || []
+    return quotes.map(quote => quote.replace(/[「」]/g, ''))
+      .filter(quote => {
+        // Filter out common generic phrases
+        const genericPhrases = ['そうですね', 'はい', 'ありがとう', 'よろしく', 'おつかれ']
+        return !genericPhrases.some(phrase => quote.includes(phrase))
+      })
+  }
+
+  const extractExamples = (content: string) => {
+    const examplePatterns = [
+      /例えば([^。]{5,30})/g,
+      /具体的には([^。]{5,30})/g,
+      /実際に([^。]{5,30})/g
+    ]
+    
+    const examples: string[] = []
+    examplePatterns.forEach(pattern => {
+      const matches = content.match(pattern)
+      if (matches) {
+        matches.forEach(match => {
+          const example = match.replace(/(例えば|具体的には|実際に)/, '').trim()
+          if (example.length > 3) {
+            examples.push(example)
+          }
+        })
+      }
+    })
+    
+    return [...new Set(examples)]
+  }
+
+  const isTitleContentDiscussed = (content: string, title: string) => {
+    // Check if title keywords appear with substantial discussion
+    const titleWords = title.split(/[\s\-_]+/).filter(word => word.length > 2)
+    return titleWords.some(word => {
+      const wordRegex = new RegExp(`${word}.{50,}`, 'g')
+      return wordRegex.test(content)
+    })
   }
 
   // Extract key entities and patterns from content

@@ -98,6 +98,7 @@ if (!fs.existsSync('history')) {
 
 let currentTranscript = '';
 let currentMetadata: VideoMetadata | null = null;
+let currentVideo: VideoMetadata | null = null;
 // let currentSummary: Summary | null = null;
 let currentTimestampedSegments: TimestampedSegment[] = [];
 let currentArticle: string | null = null;
