@@ -191,7 +191,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
                   <button
                     key={index}
                     onClick={() => handleSampleQuestionClick(question)}
-                    className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-xs rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all cursor-pointer shadow-sm"
+                    className="px-3 py-2 bg-white border border-gray-300 text-gray-900 text-xs rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all cursor-pointer shadow-sm"
                     title="クリックでチャットに質問を入力"
                   >
                     {question}
@@ -245,7 +245,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
               <button
                 key={index}
                 onClick={() => handleSampleQuestionClick(question)}
-                className="px-2 py-1 bg-white border border-gray-300 text-gray-600 text-xs rounded hover:bg-gray-100 transition-all"
+                className="px-2 py-1 bg-white border border-gray-300 text-gray-900 text-xs rounded hover:bg-gray-100 transition-all"
                 title="クリックでチャットに質問を入力"
               >
                 {question}
