@@ -56,13 +56,19 @@ const DashboardPage: React.FC = () => {
 
   const handleVideoClick = (video: any) => {
     console.log('Dashboard: Clicked video data:', video)
+    console.log('Dashboard: Video structure:', Object.keys(video))
+    
+    // Handle both HistoryEntry and direct video data structures
+    const transcript = video.transcript || video.metadata?.transcript || ''
+    const summary = video.summary?.content || video.summary || ''
+    const timestampedSegments = video.timestampedSegments || video.metadata?.timestampedSegments || []
     
     // Set the current video in the app store with complete data including summary
     const videoData = {
       basic: {
-        title: video.title,
-        videoId: video.videoId || video.id,
-        duration: video.metadata?.basic?.duration || 0,
+        title: video.title || video.metadata?.basic?.title || 'Unknown Title',
+        videoId: video.videoId || video.id || video.metadata?.basic?.videoId || '',
+        duration: video.metadata?.basic?.duration || video.duration || 0,
         channel: video.metadata?.basic?.channel || 'Unknown',
         viewCount: video.metadata?.basic?.viewCount || 0,
         likes: video.metadata?.basic?.likes || 0,
@@ -79,14 +85,15 @@ const DashboardPage: React.FC = () => {
         hasSubtitles: false,
         keywords: []
       },
-      transcript: video.transcript,
-      summary: video.summary, // Include existing summary
-      timestampedSegments: video.timestampedSegments || []
+      transcript: transcript,
+      summary: summary,
+      timestampedSegments: timestampedSegments
     }
     
-    console.log('Dashboard: Setting video data:', videoData)
-    console.log('Dashboard: Has transcript:', !!video.transcript)
-    console.log('Dashboard: Has summary:', !!video.summary)
+    console.log('Dashboard: Enhanced video data:', videoData)
+    console.log('Dashboard: Final transcript:', !!transcript, transcript?.length || 0)
+    console.log('Dashboard: Final summary:', !!summary, summary?.length || 0)
+    console.log('Dashboard: Final timestampedSegments:', timestampedSegments?.length || 0)
     
     setCurrentVideo(videoData)
     

@@ -44,7 +44,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
       const totalSeconds = hours 
         ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
         : parseInt(minutes) * 60 + parseInt(seconds)
-      return `<span class="text-blue-600 hover:text-blue-800 underline font-mono text-sm cursor-pointer bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-300 hover:border-gray-400 transition-all time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
+      return `<span class="text-gray-600 hover:text-gray-800 font-mono text-sm cursor-pointer bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-300 hover:border-gray-400 transition-all time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
     })
   }
   
@@ -69,7 +69,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
             !trimmedQuestion.includes('&') &&
             !trimmedQuestion.includes('question-reference')) {
           const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ')
-          return `<span class="text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 underline cursor-pointer inline-block px-3 py-1 rounded-md transition-all question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
+          return `<span class="text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 cursor-pointer inline-block px-3 py-1 rounded-md transition-all question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
         }
         return match
       })

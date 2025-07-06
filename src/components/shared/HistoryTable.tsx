@@ -25,12 +25,18 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
 
   const handleViewVideo = (video: any) => {
     console.log('HistoryTable: Clicked video data:', video)
+    console.log('HistoryTable: Video structure:', Object.keys(video))
+    
+    // Handle both HistoryEntry and direct video data structures
+    const transcript = video.transcript || video.metadata?.transcript || ''
+    const summary = video.summary?.content || video.summary || ''
+    const timestampedSegments = video.timestampedSegments || video.metadata?.timestampedSegments || []
     
     // Set current video with complete data including summary
     const videoData = {
       basic: {
-        title: video.title || video.metadata?.basic?.title,
-        videoId: video.videoId || video.id || video.metadata?.basic?.videoId,
+        title: video.title || video.metadata?.basic?.title || 'Unknown Title',
+        videoId: video.videoId || video.id || video.metadata?.basic?.videoId || '',
         duration: video.metadata?.basic?.duration || video.duration || 0,
         channel: video.metadata?.basic?.channel || 'Unknown',
         viewCount: video.metadata?.basic?.viewCount || 0,
@@ -48,14 +54,15 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
         hasSubtitles: false,
         keywords: []
       },
-      transcript: video.transcript,
-      summary: video.summary, // Include existing summary
-      timestampedSegments: video.timestampedSegments || []
+      transcript: transcript,
+      summary: summary,
+      timestampedSegments: timestampedSegments
     }
     
-    console.log('HistoryTable: Setting video data:', videoData)
-    console.log('HistoryTable: Has transcript:', !!video.transcript)
-    console.log('HistoryTable: Has summary:', !!video.summary)
+    console.log('HistoryTable: Enhanced video data:', videoData)
+    console.log('HistoryTable: Final transcript:', !!transcript, transcript?.length || 0)
+    console.log('HistoryTable: Final summary:', !!summary, summary?.length || 0)
+    console.log('HistoryTable: Final timestampedSegments:', timestampedSegments?.length || 0)
     
     setCurrentVideo(videoData)
     
