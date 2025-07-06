@@ -10,9 +10,11 @@ interface ChatInterfaceProps {
   videoId?: string
   prefillQuestion?: string
   videoTitle?: string
+  transcript?: string
+  summary?: string
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion, videoTitle }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion, videoTitle, transcript, summary }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -85,14 +87,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     }
   }
 
-  // Sample deep dive questions
-  const sampleQuestions = [
-    "この動画の要点を3つ教えて",
-    "実践で活用できるポイントは？",
-    "関連する技術について詳しく説明して",
-    "この内容で疑問に思う点は？",
-    "初心者が注意すべきことは？"
-  ]
+  // Generate smart deep dive questions based on video content
+  const generateSmartQuestions = () => {
+    const contentText = summary || transcript || ''
+    const title = videoTitle || ''
+    
+    // Extract key topics and generate contextual questions
+    const smartQuestions: string[] = []
+    
+    if (title) {
+      smartQuestions.push(`「${title}」について詳しく教えて`)
+    }
+    
+    // Check for common topics and generate relevant questions
+    if (contentText.toLowerCase().includes('技術') || contentText.toLowerCase().includes('tech')) {
+      smartQuestions.push('この技術の実用的な応用例は？')
+    }
+    
+    if (contentText.toLowerCase().includes('学習') || contentText.toLowerCase().includes('勉強')) {
+      smartQuestions.push('効率的な学習方法のポイントは？')
+    }
+    
+    if (contentText.toLowerCase().includes('ビジネス') || contentText.toLowerCase().includes('business')) {
+      smartQuestions.push('ビジネスでの活用シーンは？')
+    }
+    
+    if (contentText.toLowerCase().includes('問題') || contentText.toLowerCase().includes('課題')) {
+      smartQuestions.push('この問題の解決策について詳しく説明して')
+    }
+    
+    if (contentText.toLowerCase().includes('メリット') || contentText.toLowerCase().includes('利点')) {
+      smartQuestions.push('デメリットや注意点もあれば教えて')
+    }
+    
+    // Extract first meaningful sentence as a question
+    const sentences = contentText.split(/[。！？]/).filter(s => s.trim().length > 10)
+    if (sentences.length > 0) {
+      smartQuestions.push(`${sentences[0].slice(0, 30)}...について詳しく教えて`)
+    }
+    
+    // Add some generic fallbacks if we don't have enough smart questions
+    while (smartQuestions.length < 5) {
+      const fallbacks = [
+        'この動画の要点を3つ教えて',
+        '実践で活用できるポイントは？',
+        '初心者が注意すべきことは？',
+        'さらに深く学ぶためのリソースは？',
+        '関連する分野について教えて'
+      ]
+      
+      for (const fallback of fallbacks) {
+        if (!smartQuestions.includes(fallback) && smartQuestions.length < 5) {
+          smartQuestions.push(fallback)
+        }
+      }
+      break
+    }
+    
+    return smartQuestions.slice(0, 5)
+  }
+
+  const sampleQuestions = generateSmartQuestions()
 
   const handleSampleQuestionClick = (question: string) => {
     setInput(question)

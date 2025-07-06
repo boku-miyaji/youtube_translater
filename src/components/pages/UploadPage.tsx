@@ -129,14 +129,33 @@ const UploadPage: React.FC = () => {
 
   // Debug current video data
   useEffect(() => {
+    console.log('🎬 UploadPage: VIDEO DATA CHANGED EVENT')
     if (currentVideo) {
-      console.log('UploadPage: Current video updated:', currentVideo)
-      console.log('UploadPage: Has transcript:', !!currentVideo.transcript)
-      console.log('UploadPage: Has summary:', !!currentVideo.summary)
-      console.log('UploadPage: Has timestampedSegments:', !!currentVideo.timestampedSegments?.length)
+      console.log('🎬 UploadPage: Current video received:', {
+        title: currentVideo.basic?.title,
+        videoId: currentVideo.basic?.videoId,
+        transcript: currentVideo.transcript ? `PRESENT (${currentVideo.transcript.length} chars)` : 'MISSING',
+        summary: currentVideo.summary ? `PRESENT (${currentVideo.summary.length} chars)` : 'MISSING',
+        timestampedSegments: `${currentVideo.timestampedSegments?.length || 0} segments`,
+        chapters: `${currentVideo.chapters?.length || 0} chapters`,
+        captions: `${currentVideo.captions?.length || 0} captions`
+      })
+      
+      // Detailed content inspection
+      if (currentVideo.transcript) {
+        console.log('🎬 UploadPage: Transcript preview:', currentVideo.transcript.substring(0, 100) + '...')
+      }
+      if (currentVideo.summary) {
+        console.log('🎬 UploadPage: Summary preview:', currentVideo.summary.substring(0, 100) + '...')
+      }
+      if (currentVideo.timestampedSegments?.length) {
+        console.log('🎬 UploadPage: First timestamped segment:', currentVideo.timestampedSegments[0])
+      }
+      
     } else {
-      console.log('UploadPage: No current video')
+      console.log('🎬 UploadPage: No current video (cleared)')
     }
+    console.log('🎬 UploadPage: VIDEO DATA CHANGE EVENT COMPLETE')
   }, [currentVideo])
 
   return (
@@ -244,20 +263,37 @@ const UploadPage: React.FC = () => {
                 timestampedSegments={currentVideo.timestampedSegments}
                 summary={currentVideo.summary}
                 onSeek={(time) => {
+                  console.log('🎥 UploadPage: onSeek called with time:', time)
+                  console.log('🎥 UploadPage: playerRef available:', !!playerRef)
+                  
                   if (playerRef) {
+                    console.log('🎥 UploadPage: playerRef methods:', {
+                      seekToWithAutoplay: !!playerRef.seekToWithAutoplay,
+                      seekTo: !!playerRef.seekTo,
+                      getPlayerState: !!playerRef.getPlayerState,
+                      playVideo: !!playerRef.playVideo
+                    })
+                    
                     // Use the enhanced seekTo function with autoplay
                     if (playerRef.seekToWithAutoplay) {
+                      console.log('🎥 Using seekToWithAutoplay')
                       playerRef.seekToWithAutoplay(time, true)
                     } else if (playerRef.seekTo) {
+                      console.log('🎥 Using fallback seekTo method')
                       // Fallback to original method
                       playerRef.seekTo(time, true)
                       // Auto-play if not already playing
                       setTimeout(() => {
                         if (playerRef.getPlayerState && playerRef.getPlayerState() !== 1 && playerRef.playVideo) {
+                          console.log('🎥 Auto-playing video after seek')
                           playerRef.playVideo()
                         }
                       }, 100)
+                    } else {
+                      console.error('🚨 No seek method available on playerRef!')
                     }
+                  } else {
+                    console.error('🚨 playerRef is not available!')
                   }
                 }}
                 onQuestionClick={handleQuestionClick}
@@ -271,6 +307,8 @@ const UploadPage: React.FC = () => {
               videoId={currentVideo.basic?.videoId} 
               prefillQuestion={prefillQuestion}
               videoTitle={currentVideo.basic?.title}
+              transcript={currentVideo.transcript}
+              summary={currentVideo.summary}
             />
           </div>
         </div>

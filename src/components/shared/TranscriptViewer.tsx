@@ -111,29 +111,34 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
     const handleClick = (e: Event) => {
       const target = e.target as HTMLElement
       
-      // Prevent clicks on summary content from bubbling up and causing issues
-      if (target.closest('.prose')) {
-        e.stopPropagation()
-      }
-      
+      // Handle time reference clicks (transcript and summary)
       if (target.classList.contains('time-reference')) {
         e.preventDefault()
         e.stopPropagation()
         const time = parseInt(target.getAttribute('data-time') || '0')
-        console.log('Time reference clicked:', time)
+        console.log('🎯 Time reference clicked:', time, 'from element:', target)
         if (onSeek) {
+          console.log('🎯 Calling onSeek with time:', time)
           onSeek(time)
+        } else {
+          console.error('🚨 onSeek callback is not available!')
         }
+        return
       }
       
+      // Handle question reference clicks
       if (target.classList.contains('question-reference')) {
         e.preventDefault()
         e.stopPropagation()
         const question = target.getAttribute('data-question') || ''
-        console.log('Question reference clicked:', question)
+        console.log('💬 Question reference clicked:', question)
         if (onQuestionClick && question) {
+          console.log('💬 Calling onQuestionClick with:', question)
           onQuestionClick(question)
+        } else {
+          console.error('🚨 onQuestionClick callback is not available!')
         }
+        return
       }
     }
 

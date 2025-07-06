@@ -24,13 +24,20 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
   })
 
   const handleViewVideo = (video: any) => {
-    console.log('HistoryTable: Clicked video data:', video)
-    console.log('HistoryTable: Video structure:', Object.keys(video))
+    console.log('🏛️ HistoryTable: CLICK EVENT TRIGGERED')
+    console.log('🏛️ HistoryTable: Raw video data:', video)
+    console.log('🏛️ HistoryTable: Video structure keys:', Object.keys(video))
+    console.log('🏛️ HistoryTable: Video metadata structure:', video.metadata ? Object.keys(video.metadata) : 'No metadata')
     
     // Handle both HistoryEntry and direct video data structures
     const transcript = video.transcript || video.metadata?.transcript || ''
     const summary = video.summary?.content || video.summary || ''
     const timestampedSegments = video.timestampedSegments || video.metadata?.timestampedSegments || []
+    
+    console.log('🏛️ HistoryTable: Extracted data:')
+    console.log('  - transcript source:', video.transcript ? 'direct' : video.metadata?.transcript ? 'metadata' : 'none')
+    console.log('  - summary source:', video.summary?.content ? 'summary.content' : video.summary ? 'direct' : 'none')
+    console.log('  - timestampedSegments source:', video.timestampedSegments ? 'direct' : video.metadata?.timestampedSegments ? 'metadata' : 'none')
     
     // Set current video with complete data including summary
     const videoData = {
@@ -59,15 +66,20 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
       timestampedSegments: timestampedSegments
     }
     
-    console.log('HistoryTable: Enhanced video data:', videoData)
-    console.log('HistoryTable: Final transcript:', !!transcript, transcript?.length || 0)
-    console.log('HistoryTable: Final summary:', !!summary, summary?.length || 0)
-    console.log('HistoryTable: Final timestampedSegments:', timestampedSegments?.length || 0)
+    console.log('🏛️ HistoryTable: Final constructed videoData:', {
+      ...videoData,
+      transcript: `${transcript ? 'PRESENT' : 'MISSING'} (${transcript?.length || 0} chars)`,
+      summary: `${summary ? 'PRESENT' : 'MISSING'} (${summary?.length || 0} chars)`,
+      timestampedSegments: `${timestampedSegments?.length || 0} segments`
+    })
     
+    console.log('🏛️ HistoryTable: Calling setCurrentVideo...')
     setCurrentVideo(videoData)
     
-    // Navigate to upload page to show the historical video with all content
+    console.log('🏛️ HistoryTable: Navigating to /upload...')
     navigate('/upload')
+    
+    console.log('🏛️ HistoryTable: CLICK EVENT COMPLETE')
   }
 
   return (
