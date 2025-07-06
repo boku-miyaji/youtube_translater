@@ -290,8 +290,8 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary, onSeek, onQuestionClick) }} />
                 {/* Deep dive questions section */}
                 {(summary.includes('深掘り質問') || summary.includes('?')) && (
-                  <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                    <p className="text-sm text-purple-800 mb-2">
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-sm text-gray-700 mb-2">
                       <strong>💡 ヒント:</strong> 上記の質問をクリックすると、チャットで自動的に質問できます
                     </p>
                   </div>

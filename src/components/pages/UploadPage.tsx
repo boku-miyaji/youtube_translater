@@ -266,35 +266,43 @@ const UploadPage: React.FC = () => {
                   console.log('🎥 UploadPage: onSeek called with time:', time)
                   console.log('🎥 UploadPage: playerRef available:', !!playerRef)
                   
-                  if (playerRef) {
-                    console.log('🎥 UploadPage: playerRef methods:', {
-                      seekToWithAutoplay: !!playerRef.seekToWithAutoplay,
-                      seekTo: !!playerRef.seekTo,
-                      getPlayerState: !!playerRef.getPlayerState,
-                      playVideo: !!playerRef.playVideo
-                    })
-                    
-                    // Use the enhanced seekTo function with autoplay
-                    if (playerRef.seekToWithAutoplay) {
-                      console.log('🎥 Using seekToWithAutoplay')
-                      playerRef.seekToWithAutoplay(time, true)
-                    } else if (playerRef.seekTo) {
-                      console.log('🎥 Using fallback seekTo method')
-                      // Fallback to original method
-                      playerRef.seekTo(time, true)
-                      // Auto-play if not already playing
-                      setTimeout(() => {
-                        if (playerRef.getPlayerState && playerRef.getPlayerState() !== 1 && playerRef.playVideo) {
-                          console.log('🎥 Auto-playing video after seek')
-                          playerRef.playVideo()
-                        }
-                      }, 100)
+                  const trySeek = (retryCount = 0) => {
+                    if (playerRef) {
+                      console.log('🎥 UploadPage: playerRef methods:', {
+                        seekToWithAutoplay: !!playerRef.seekToWithAutoplay,
+                        seekTo: !!playerRef.seekTo,
+                        getPlayerState: !!playerRef.getPlayerState,
+                        playVideo: !!playerRef.playVideo
+                      })
+                      
+                      // Use the enhanced seekTo function with autoplay
+                      if (playerRef.seekToWithAutoplay) {
+                        console.log('🎥 Using seekToWithAutoplay')
+                        playerRef.seekToWithAutoplay(time, true)
+                      } else if (playerRef.seekTo) {
+                        console.log('🎥 Using fallback seekTo method')
+                        // Fallback to original method
+                        playerRef.seekTo(time, true)
+                        // Auto-play if not already playing
+                        setTimeout(() => {
+                          if (playerRef.getPlayerState && playerRef.getPlayerState() !== 1 && playerRef.playVideo) {
+                            console.log('🎥 Auto-playing video after seek')
+                            playerRef.playVideo()
+                          }
+                        }, 100)
+                      } else {
+                        console.error('🚨 No seek method available on playerRef!')
+                      }
+                    } else if (retryCount < 5) {
+                      console.log(`⏳ Player not ready yet, retrying... (${retryCount + 1}/5)`)
+                      setTimeout(() => trySeek(retryCount + 1), 500)
                     } else {
-                      console.error('🚨 No seek method available on playerRef!')
+                      console.error('🚨 playerRef is not available after 5 retries!')
+                      alert('動画プレーヤーの準備ができていません。ページを再読み込みしてください。')
                     }
-                  } else {
-                    console.error('🚨 playerRef is not available!')
                   }
+                  
+                  trySeek()
                 }}
                 onQuestionClick={handleQuestionClick}
               />
