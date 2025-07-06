@@ -137,13 +137,13 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
                             target.style.display = 'none';
                             const parent = target.parentElement;
                             if (parent) {
-                              parent.className = 'h-10 w-10 rounded bg-gray-100 flex items-center justify-center';
+                              parent.className = 'h-10 w-10 rounded bg-app-background flex items-center justify-center';
                               parent.innerHTML = '<span class="text-indigo-600 text-sm">🎬</span>';
                             }
                           }}
                         />
                       ) : (
-                        <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
+                        <div className="h-10 w-10 rounded bg-app-background flex items-center justify-center">
                           <span className="text-indigo-600 text-sm">🎬</span>
                         </div>
                       )}

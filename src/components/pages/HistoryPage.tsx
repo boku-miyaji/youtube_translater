@@ -32,7 +32,7 @@ const HistoryPage: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by title or video ID..."
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
@@ -43,7 +43,7 @@ const HistoryPage: React.FC = () => {
               id="sort"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="timestamp">Date</option>
               <option value="title">Title</option>

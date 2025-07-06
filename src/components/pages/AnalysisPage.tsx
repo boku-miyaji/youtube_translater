@@ -27,20 +27,20 @@ const AnalysisPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Analysis</h1>
-        <p className="mt-2 text-gray-600">View your usage statistics and cost analysis.</p>
+        <h1 className="text-3xl font-bold text-app-primary">Analysis</h1>
+        <p className="mt-2 text-app-secondary">View your usage statistics and cost analysis.</p>
       </div>
 
       {/* Cost Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-app-info-light rounded-lg">
               <span className="text-2xl">💰</span>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Cost</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-app-secondary">Total Cost</p>
+              <p className="text-2xl font-bold text-app-primary">
                 {isLoading ? '...' : `$${totalCost.toFixed(4)}`}
               </p>
             </div>
@@ -49,12 +49,12 @@ const AnalysisPage: React.FC = () => {
 
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
+            <div className="p-2 bg-app-success-light rounded-lg">
               <span className="text-2xl">📅</span>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">This Month</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-app-secondary">This Month</p>
+              <p className="text-2xl font-bold text-app-primary">
                 {isLoading ? '...' : `$${thisMonthTotal.toFixed(4)}`}
               </p>
             </div>
@@ -63,12 +63,12 @@ const AnalysisPage: React.FC = () => {
 
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-2 bg-gray-100 rounded-lg">
+            <div className="p-2 bg-app-background rounded-lg">
               <span className="text-2xl">🔢</span>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Requests</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-app-secondary">Total Requests</p>
+              <p className="text-2xl font-bold text-app-primary">
                 {isLoading ? '...' : costs?.length || 0}
               </p>
             </div>
@@ -78,11 +78,11 @@ const AnalysisPage: React.FC = () => {
 
       {/* Cost Chart */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Cost Trends</h2>
+        <h2 className="text-lg font-medium text-app-primary mb-4">Cost Trends</h2>
         {isLoading ? (
-          <p className="text-gray-500">Loading chart...</p>
+          <p className="text-app-muted">Loading chart...</p>
         ) : error ? (
-          <p className="text-red-500">Error loading cost data</p>
+          <p className="text-app-error">Error loading cost data</p>
         ) : (
           <CostChart data={costs || []} />
         )}

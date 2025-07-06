@@ -1,0 +1,154 @@
+/* Unified Color System for YouTube Translator App */
+/* Designed for accessibility (WCAG AA compliance) and visual consistency */
+
+:root {
+  /* Primary Colors - Gray-based for professional look */
+  --color-primary-50: #f8fafc;   /* Very light background */
+  --color-primary-100: #f1f5f9;  /* Light background */
+  --color-primary-500: #64748b;  /* Standard primary */
+  --color-primary-600: #475569;  /* Buttons, interactive elements */
+  --color-primary-700: #334155;  /* Hover states */
+  --color-primary-800: #1e293b;  /* Dark text */
+  --color-primary-900: #0f172a;  /* Headers, important text */
+
+  /* Success Colors - Green for positive actions */
+  --color-success-50: #f0fdf4;   /* Light success background */
+  --color-success-100: #dcfce7;  /* Success notifications */
+  --color-success-500: #22c55e;  /* Standard success */
+  --color-success-600: #16a34a;  /* Success buttons */
+  --color-success-700: #15803d;  /* Success hover */
+  --color-success-800: #166534;  /* Success text */
+  --color-success-900: #14532d;  /* Dark success text */
+
+  /* Error Colors - Red for warnings and errors */
+  --color-error-50: #fef2f2;     /* Light error background */
+  --color-error-100: #fee2e2;    /* Error notifications */
+  --color-error-500: #ef4444;    /* Standard error */
+  --color-error-600: #dc2626;    /* Error buttons */
+  --color-error-700: #b91c1c;    /* Error hover */
+  --color-error-800: #991b1b;    /* Error text */
+  --color-error-900: #7f1d1d;    /* Dark error text */
+
+  /* Info Colors - Blue for information and hints */
+  --color-info-50: #eff6ff;      /* Light info background */
+  --color-info-100: #dbeafe;     /* Info notifications */
+  --color-info-500: #3b82f6;     /* Standard info */
+  --color-info-600: #2563eb;     /* Info buttons */
+  --color-info-700: #1d4ed8;     /* Info hover */
+  --color-info-800: #1e40af;     /* Info text */
+  --color-info-900: #1e3a8a;     /* Dark info text */
+
+  /* Neutral Colors - For text, backgrounds, and borders */
+  --color-neutral-50: #f9fafb;   /* Lightest backgrounds */
+  --color-neutral-100: #f3f4f6;  /* Light backgrounds */
+  --color-neutral-200: #e5e7eb;  /* Borders, dividers */
+  --color-neutral-300: #d1d5db;  /* Inactive borders */
+  --color-neutral-400: #9ca3af;  /* Placeholder text */
+  --color-neutral-500: #6b7280;  /* Secondary text */
+  --color-neutral-600: #4b5563;  /* Primary text */
+  --color-neutral-700: #374151;  /* Emphasized text */
+  --color-neutral-800: #1f2937;  /* Strong text */
+  --color-neutral-900: #111827;  /* Headings */
+
+  /* Semantic Color Assignments */
+  --color-background: var(--color-neutral-50);
+  --color-surface: #ffffff;
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-600);
+  --color-text-muted: var(--color-neutral-500);
+  --color-border-light: var(--color-neutral-200);
+  --color-border-medium: var(--color-neutral-300);
+
+  /* Interactive Elements */
+  --color-button-primary-bg: var(--color-primary-600);
+  --color-button-primary-hover: var(--color-primary-700);
+  --color-button-primary-text: #ffffff;
+  
+  --color-button-success-bg: var(--color-success-600);
+  --color-button-success-hover: var(--color-success-700);
+  --color-button-success-text: #ffffff;
+
+  /* Timestamp and Interactive Elements */
+  --color-timestamp-bg: var(--color-surface);
+  --color-timestamp-text: var(--color-neutral-800);
+  --color-timestamp-border: var(--color-border-medium);
+  --color-timestamp-hover-bg: var(--color-neutral-50);
+
+  /* Question References */
+  --color-question-bg: var(--color-neutral-100);
+  --color-question-text: var(--color-neutral-800);
+  --color-question-border: var(--color-border-medium);
+  --color-question-hover-bg: var(--color-neutral-200);
+
+  /* Deep Dive Hints */
+  --color-hint-bg: var(--color-info-50);
+  --color-hint-text: var(--color-info-800);
+  --color-hint-border: var(--color-info-100);
+}
+
+/* Utility Classes for Easy Application */
+.bg-app-primary { background-color: var(--color-primary-600); }
+.bg-app-primary-light { background-color: var(--color-primary-100); }
+.bg-app-success { background-color: var(--color-success-600); }
+.bg-app-success-light { background-color: var(--color-success-100); }
+.bg-app-error { background-color: var(--color-error-600); }
+.bg-app-error-light { background-color: var(--color-error-100); }
+.bg-app-info { background-color: var(--color-info-600); }
+.bg-app-info-light { background-color: var(--color-info-100); }
+.bg-app-surface { background-color: var(--color-surface); }
+.bg-app-background { background-color: var(--color-background); }
+
+.text-app-primary { color: var(--color-text-primary); }
+.text-app-secondary { color: var(--color-text-secondary); }
+.text-app-muted { color: var(--color-text-muted); }
+.text-app-success { color: var(--color-success-800); }
+.text-app-error { color: var(--color-error-800); }
+.text-app-info { color: var(--color-info-800); }
+
+.border-app-light { border-color: var(--color-border-light); }
+.border-app-medium { border-color: var(--color-border-medium); }
+
+/* Component-specific Classes */
+.timestamp-style {
+  background-color: var(--color-timestamp-bg);
+  color: var(--color-timestamp-text);
+  border-color: var(--color-timestamp-border);
+}
+
+.timestamp-style:hover {
+  background-color: var(--color-timestamp-hover-bg);
+}
+
+.question-style {
+  background-color: var(--color-question-bg);
+  color: var(--color-question-text);
+  border-color: var(--color-question-border);
+}
+
+.question-style:hover {
+  background-color: var(--color-question-hover-bg);
+}
+
+.hint-style {
+  background-color: var(--color-hint-bg);
+  color: var(--color-hint-text);
+  border-color: var(--color-hint-border);
+}
+
+.btn-primary {
+  background-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-button-primary-hover);
+}
+
+.btn-success {
+  background-color: var(--color-button-success-bg);
+  color: var(--color-button-success-text);
+}
+
+.btn-success:hover {
+  background-color: var(--color-button-success-hover);
+}

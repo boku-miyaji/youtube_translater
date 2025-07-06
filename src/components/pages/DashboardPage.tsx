@@ -108,7 +108,7 @@ const DashboardPage: React.FC = () => {
         <div className="text-center relative z-10">
           <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-full mb-6">
             <span className="text-2xl mr-3">🚀</span>
-            <span className="text-indigo-700 font-semibold">Welcome to your AI Dashboard</span>
+            <span className="text-app-info font-semibold">Welcome to your AI Dashboard</span>
           </div>
           <h1 className="text-6xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
             Analytics Hub
@@ -145,8 +145,8 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <div className="flex items-center text-sm" data-testid="spending-change">
                   <span className={`font-semibold mr-2 ${
-                    spendingChange.startsWith('+') ? 'text-green-500' : 
-                    spendingChange.startsWith('-') ? 'text-red-500' : 'text-gray-500'
+                    spendingChange.startsWith('+') ? 'text-app-success' : 
+                    spendingChange.startsWith('-') ? 'text-app-error' : 'text-app-muted'
                   }`}>
                     {spendingChange.startsWith('+') ? '↗' : spendingChange.startsWith('-') ? '↘' : '→'} {spendingChange}
                   </span>
@@ -206,7 +206,7 @@ const DashboardPage: React.FC = () => {
               <MiniChart data={processingTimes} color="#f97316" height={48} />
             </div>
             <div className="flex items-center text-xs mt-2">
-              <span className="text-red-500 font-semibold mr-1">↘ -8s</span>
+              <span className="text-app-error font-semibold mr-1">↘ -8s</span>
               <span className="text-gray-500">improved</span>
             </div>
           </div>
@@ -220,7 +220,7 @@ const DashboardPage: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-3xl blur-lg opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
           <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
             {/* Header */}
-            <div className="px-8 py-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-blue-100">
+            <div className="px-8 py-6 bg-app-info-light border-b border-app-light">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
@@ -233,7 +233,7 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <Link
                   to="/history"
-                  className="inline-flex items-center px-6 py-3 bg-white text-blue-600 font-semibold rounded-2xl hover:bg-blue-50 transition-all duration-200 shadow-md hover:shadow-lg"
+                  className="inline-flex items-center px-6 py-3 bg-app-surface text-app-info font-semibold rounded-2xl hover:bg-app-info-light transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   View All
                   <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -248,7 +248,7 @@ const DashboardPage: React.FC = () => {
               {historyError ? (
                 <div className="px-8 py-16 text-center">
                   <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl text-red-400">⚠️</span>
+                    <span className="text-4xl text-app-error">⚠️</span>
                   </div>
                   <h3 className="text-xl font-bold text-gray-700 mb-2">Error loading history</h3>
                   <p className="text-gray-500 mb-6">Failed to fetch history: {historyError.message}</p>
@@ -318,14 +318,14 @@ const DashboardPage: React.FC = () => {
                             <span className="text-white text-2xl">🎬</span>
                           </div>
                         )}
-                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
+                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-app-success rounded-full border-2 border-white flex items-center justify-center">
                           <span className="text-xs">✓</span>
                         </div>
                       </div>
                       
                       {/* Video Info */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-gray-900 truncate group-hover/item:text-blue-600 transition-colors duration-200 mb-1">
+                        <h3 className="text-lg font-bold text-app-primary truncate group-hover/item:text-app-info transition-colors duration-200 mb-1">
                           {video.title || 'Unknown Title'}
                         </h3>
                         <div className="flex items-center space-x-4 text-sm text-gray-500">
@@ -346,7 +346,7 @@ const DashboardPage: React.FC = () => {
                       
                       {/* Status Badge */}
                       <div className="flex-shrink-0">
-                        <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
+                        <div className="bg-app-success-light text-app-success px-3 py-1 rounded-full text-sm font-semibold">
                           Complete
                         </div>
                       </div>
@@ -356,7 +356,7 @@ const DashboardPage: React.FC = () => {
               ) : (
                 <div className="px-8 py-16 text-center">
                   <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl text-blue-400">📹</span>
+                    <span className="text-4xl text-app-info">📹</span>
                   </div>
                   <h3 className="text-xl font-bold text-gray-700 mb-2">No videos processed yet</h3>
                   <p className="text-gray-500 mb-6">Upload your first video to start transcribing with AI</p>
@@ -402,7 +402,7 @@ const DashboardPage: React.FC = () => {
               <div className="space-y-3">
                 <button
                   onClick={handleQuickAnalyze}
-                  className="w-full inline-flex items-center justify-center px-8 py-3 bg-gray-700 text-white font-bold rounded-2xl hover:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                  className="btn-primary w-full inline-flex items-center justify-center px-8 py-3 font-bold rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                   data-testid="quick-analyze-button"
                 >
                   <span className="mr-3 text-xl">⚡</span>
@@ -426,16 +426,16 @@ const DashboardPage: React.FC = () => {
             <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-white/50">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900">System Health</h3>
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                <div className="w-3 h-3 bg-app-success rounded-full animate-pulse"></div>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">API Status</span>
-                  <span className="text-sm font-semibold text-green-600">Online</span>
+                  <span className="text-sm font-semibold text-app-success">Online</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Processing Queue</span>
-                  <span className="text-sm font-semibold text-blue-600">0 pending</span>
+                  <span className="text-sm font-semibold text-app-info">0 pending</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Response Time</span>
@@ -444,7 +444,7 @@ const DashboardPage: React.FC = () => {
               </div>
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center text-xs text-gray-500">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                  <div className="w-2 h-2 bg-app-success rounded-full mr-2"></div>
                   All systems operational
                 </div>
               </div>

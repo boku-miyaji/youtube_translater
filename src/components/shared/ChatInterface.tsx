@@ -184,21 +184,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
             <p className="text-gray-500 text-center">Start a conversation about the video...</p>
             
             {/* Sample Deep Dive Questions */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-800 mb-3">💡 深掘り質問サンプル</h3>
+            <div className="bg-app-background rounded-lg p-4 border border-app-light">
+              <h3 className="text-sm font-semibold text-app-primary mb-3">💡 深掘り質問サンプル</h3>
               <div className="flex flex-wrap gap-2">
                 {sampleQuestions.map((question, index) => (
                   <span
                     key={index}
                     onClick={() => handleSampleQuestionClick(question)}
-                    className="px-3 py-2 bg-white border border-gray-300 text-gray-900 text-xs rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all cursor-pointer shadow-sm inline-block"
+                    className="question-style px-3 py-2 text-xs rounded-lg transition-all cursor-pointer shadow-sm inline-block border"
                     title="クリックでチャットに質問を入力"
                   >
                     {question}
                   </span>
                 ))}
               </div>
-              <p className="text-xs text-gray-600 mt-2">質問をクリックして簡単に深掘り！</p>
+              <p className="text-xs text-app-secondary mt-2">質問をクリックして簡単に深掘り！</p>
             </div>
           </div>
         ) : (
@@ -239,13 +239,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       
       {/* Sample Questions (always visible) */}
       {messages.length > 0 && (
-        <div className="mb-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
+        <div className="mb-3 bg-app-background rounded-lg p-3 border border-app-light">
           <div className="flex flex-wrap gap-1">
             {sampleQuestions.slice(0, 3).map((question, index) => (
               <span
                 key={index}
                 onClick={() => handleSampleQuestionClick(question)}
-                className="px-2 py-1 bg-white border border-gray-300 text-gray-900 text-xs rounded hover:bg-gray-100 transition-all cursor-pointer inline-block"
+                className="question-style px-2 py-1 text-xs rounded transition-all cursor-pointer inline-block border"
                 title="クリックでチャットに質問を入力"
               >
                 {question}

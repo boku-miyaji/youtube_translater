@@ -161,15 +161,15 @@ const UploadPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Upload Video</h1>
-        <p className="mt-2 text-gray-600">Process YouTube videos for transcription and analysis.</p>
+        <h1 className="text-3xl font-bold text-app-primary">Upload Video</h1>
+        <p className="mt-2 text-app-secondary">Process YouTube videos for transcription and analysis.</p>
       </div>
 
       {/* Upload Form */}
       <div className="bg-white rounded-lg shadow p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="url" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="url" className="block text-sm font-medium text-app-primary">
               YouTube URL
             </label>
             <input
@@ -178,14 +178,14 @@ const UploadPage: React.FC = () => {
               value={url}
               onChange={(e) => handleUrlChange(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..."
-              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 ${
-                urlError ? 'border-red-300' : 'border-gray-300'
+              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-2 focus:ring-offset-2 ${
+                urlError ? 'border-app-error focus:ring-red-500' : 'border-app-medium focus:ring-blue-500'
               }`}
               data-testid="url-input"
               required
             />
             {urlError && (
-              <p className="mt-2 text-sm text-red-600" data-testid="url-error">
+              <p className="mt-2 text-sm text-app-error" data-testid="url-error">
                 {urlError}
               </p>
             )}
@@ -193,14 +193,14 @@ const UploadPage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="language" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="language" className="block text-sm font-medium text-app-primary">
                 Language
               </label>
               <select
                 id="language"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+                className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="Original">Original</option>
                 <option value="Japanese">Japanese</option>
@@ -209,14 +209,14 @@ const UploadPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="model" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="model" className="block text-sm font-medium text-app-primary">
                 Model
               </label>
               <select
                 id="model"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+                className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
                 <option value="gpt-4">GPT-4</option>
@@ -228,7 +228,7 @@ const UploadPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading || !url.trim() || !!urlError}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-success w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="analyze-button"
           >
             {loading ? (

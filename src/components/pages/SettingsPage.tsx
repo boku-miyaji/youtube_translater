@@ -92,25 +92,25 @@ const SettingsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="mt-2 text-gray-600">Configure your preferences and system settings.</p>
+        <h1 className="text-3xl font-bold text-app-primary">Settings</h1>
+        <p className="mt-2 text-app-secondary">Configure your preferences and system settings.</p>
       </div>
 
       {/* Language Settings */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Language Settings</h2>
+        <h2 className="text-lg font-medium text-app-primary mb-4">Language Settings</h2>
         <div className="max-w-sm">
-          <label htmlFor="language" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="language" className="block text-sm font-medium text-app-primary">
             Default Transcription Language
           </label>
-          <p className="text-xs text-gray-500 mt-1 mb-2">
+          <p className="text-xs text-app-muted mt-1 mb-2">
             The default language for video transcription and processing
           </p>
           <select
             id="language"
             value={language || 'original'}
             onChange={(e) => setLanguage(e.target.value)}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+            className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="ja">Japanese (日本語)</option>
             <option value="en">English</option>
@@ -121,10 +121,10 @@ const SettingsPage: React.FC = () => {
 
       {/* Prompt Settings */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Prompt Settings</h2>
+        <h2 className="text-lg font-medium text-app-primary mb-4">Prompt Settings</h2>
         <div className="space-y-4">
           <div>
-            <label htmlFor="summarize" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="summarize" className="block text-sm font-medium text-app-primary">
               Summarize Prompt
             </label>
             <textarea
@@ -132,14 +132,14 @@ const SettingsPage: React.FC = () => {
               rows={4}
               value={prompts.summarize || DEFAULT_PROMPTS.summarize}
               onChange={(e) => handlePromptChange('summarize', e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder={DEFAULT_PROMPTS.summarize}
               disabled={!isLoaded}
             />
           </div>
 
           <div>
-            <label htmlFor="article" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="article" className="block text-sm font-medium text-app-primary">
               Article Generation Prompt
             </label>
             <textarea
@@ -147,14 +147,14 @@ const SettingsPage: React.FC = () => {
               rows={4}
               value={prompts.article || DEFAULT_PROMPTS.article}
               onChange={(e) => handlePromptChange('article', e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder={DEFAULT_PROMPTS.article}
               disabled={!isLoaded}
             />
           </div>
 
           <div>
-            <label htmlFor="chat" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="chat" className="block text-sm font-medium text-app-primary">
               Chat System Prompt
             </label>
             <textarea
@@ -162,7 +162,7 @@ const SettingsPage: React.FC = () => {
               rows={4}
               value={prompts.chat || DEFAULT_PROMPTS.chat}
               onChange={(e) => handlePromptChange('chat', e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder={DEFAULT_PROMPTS.chat}
               disabled={!isLoaded}
             />
@@ -173,7 +173,7 @@ const SettingsPage: React.FC = () => {
           <button
             onClick={savePrompts}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-700 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+            className="btn-primary inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -189,10 +189,10 @@ const SettingsPage: React.FC = () => {
 
       {/* Export/Import */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Data Management</h2>
+        <h2 className="text-lg font-medium text-app-primary mb-4">Data Management</h2>
         <div className="space-y-4">
           <div>
-            <p className="text-sm text-gray-600 mb-2">Export your data for backup or migration</p>
+            <p className="text-sm text-app-secondary mb-2">Export your data for backup or migration</p>
             <button
               onClick={() => window.open('/api/export', '_blank')}
               className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
