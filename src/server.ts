@@ -1352,6 +1352,12 @@ app.get('/costs', (req: Request, res: Response) => {
   res.json(costs);
 });
 
+// API version of costs endpoint
+app.get('/api/costs', (req: Request, res: Response) => {
+  const costs = loadCosts();
+  res.json(costs);
+});
+
 app.get('/session-costs', (req: Request, res: Response) => {
   console.log('TypeScript server: /session-costs called');
   res.json({

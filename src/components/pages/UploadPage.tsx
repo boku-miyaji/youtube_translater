@@ -223,6 +223,10 @@ const UploadPage: React.FC = () => {
                 summary={currentVideo.summary}
                 onSeek={(time) => {
                   if (playerRef && playerRef.seekTo) {
+                    // Check if player is playing, if not, start playing
+                    if (playerRef.getPlayerState && playerRef.getPlayerState() !== 1) {
+                      playerRef.playVideo()
+                    }
                     playerRef.seekTo(time, true)
                   }
                 }}

@@ -49,11 +49,12 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
   
   // Convert questions to clickable links (for deep dive questions)
   if (onQuestionClick) {
-    // Match questions ending with '?' and optionally followed by line breaks
-    html = html.replace(/^([^?\n]*\?)\s*$/gm, (match, question) => {
+    // Match questions ending with '?'
+    html = html.replace(/([^.!?]*\?)/g, (match, question) => {
       const trimmedQuestion = question.trim()
-      if (trimmedQuestion.length > 10) { // Only convert substantial questions
-        return `<span class="text-purple-600 hover:text-purple-800 hover:bg-purple-50 underline cursor-pointer inline-block p-2 rounded-md transition-colors question-reference" data-question="${trimmedQuestion}">${trimmedQuestion}</span>`
+      if (trimmedQuestion.length > 10 && !trimmedQuestion.includes('<')) { // Only convert substantial questions without HTML
+        const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+        return `<span class="text-purple-600 hover:text-purple-800 hover:bg-purple-50 underline cursor-pointer inline-block p-2 rounded-md transition-colors question-reference" data-question="${safeQuestion}">${trimmedQuestion}</span>`
       }
       return match
     })
@@ -204,7 +205,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   >
                     <button
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="text-indigo-700 hover:text-indigo-900 font-mono text-sm font-medium whitespace-nowrap px-3 py-1.5 rounded-md bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200"
+                      className="text-gray-500 hover:text-gray-900 font-mono text-sm whitespace-nowrap px-2 py-1 hover:underline transition-colors"
                     >
                       {formatTime(segment.start)}
                     </button>
