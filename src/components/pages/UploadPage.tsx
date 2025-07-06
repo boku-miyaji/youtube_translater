@@ -52,8 +52,8 @@ const UploadPage: React.FC = () => {
     setLoading(true)
     setUrlError('')
     try {
-      console.log('Sending request to /upload-youtube with:', { url: url.trim(), language, model })
-      const response = await fetch('/upload-youtube', {
+      console.log('Sending request to /api/upload-youtube with:', { url: url.trim(), language, model })
+      const response = await fetch('/api/upload-youtube', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
