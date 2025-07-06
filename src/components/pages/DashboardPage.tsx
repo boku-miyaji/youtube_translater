@@ -213,10 +213,57 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Quick Upload Section */}
+      <div className="flex justify-center mb-12">
+        <div className="w-full max-w-2xl group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur-lg opacity-75 group-hover:opacity-90 transition-opacity duration-300"></div>
+          <div className="relative bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                <span className="text-3xl">🚀</span>
+              </div>
+              <h3 className="text-2xl font-bold mb-2">Quick Upload</h3>
+              <p className="text-white opacity-90">Transform your videos into text instantly</p>
+            </div>
+            
+            {/* URL Input */}
+            <div className="mb-4">
+              <input
+                type="text"
+                value={quickUrl}
+                onChange={(e) => setQuickUrl(e.target.value)}
+                placeholder="Paste YouTube URL here..."
+                className="w-full px-4 py-3 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50"
+                data-testid="quick-url-input"
+              />
+            </div>
+            
+            <div className="space-y-3">
+              <button
+                onClick={handleQuickAnalyze}
+                className="btn-primary w-full inline-flex items-center justify-center px-8 py-3 font-bold rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                data-testid="quick-analyze-button"
+              >
+                <span className="mr-3 text-xl">⚡</span>
+                Analyze Now
+              </button>
+              
+              <Link
+                to="/upload"
+                className="w-full inline-flex items-center justify-center px-4 py-3 bg-white/20 text-white font-semibold rounded-xl hover:bg-white/30 transition-all duration-200 border border-white/30"
+              >
+                <span className="mr-2">📤</span>
+                Go to full upload page
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Recent Videos - Takes up 2 columns */}
-        <div className="xl:col-span-2 group relative">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+        {/* Recent Videos - Takes up 3 columns */}
+        <div className="xl:col-span-3 group relative">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-3xl blur-lg opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
           <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
             {/* Header */}
@@ -373,53 +420,8 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column - Quick Actions */}
+        {/* Right Column - System Health */}
         <div className="space-y-6">
-          {/* Quick Upload Card */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur-lg opacity-75 group-hover:opacity-90 transition-opacity duration-300"></div>
-            <div className="relative bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-2xl">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                  <span className="text-3xl">🚀</span>
-                </div>
-                <h3 className="text-2xl font-bold mb-2">Quick Upload</h3>
-                <p className="text-white opacity-90">Transform your videos into text instantly</p>
-              </div>
-              
-              {/* URL Input */}
-              <div className="mb-4">
-                <input
-                  type="text"
-                  value={quickUrl}
-                  onChange={(e) => setQuickUrl(e.target.value)}
-                  placeholder="Paste YouTube URL here..."
-                  className="w-full px-4 py-3 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50"
-                  data-testid="quick-url-input"
-                />
-              </div>
-              
-              <div className="space-y-3">
-                <button
-                  onClick={handleQuickAnalyze}
-                  className="btn-primary w-full inline-flex items-center justify-center px-8 py-3 font-bold rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                  data-testid="quick-analyze-button"
-                >
-                  <span className="mr-3 text-xl">⚡</span>
-                  Analyze Now
-                </button>
-                
-                <Link
-                  to="/upload"
-                  className="w-full inline-flex items-center justify-center px-4 py-3 bg-white/20 text-white font-semibold rounded-xl hover:bg-white/30 transition-all duration-200 border border-white/30"
-                >
-                  <span className="mr-2">📤</span>
-                  Go to full upload page
-                </Link>
-              </div>
-            </div>
-          </div>
-
           {/* System Health Card */}
           <div className="group relative">
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl blur-lg opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
