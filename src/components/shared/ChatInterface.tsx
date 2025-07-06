@@ -95,53 +95,74 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     // Extract key topics and generate contextual questions
     const smartQuestions: string[] = []
     
+    // Analyze content for specific topics and generate targeted questions
+    const contentLower = contentText.toLowerCase()
+    
+    // Extract key phrases and topics from content
+    const keyTopics = []
+    const sentences = contentText.split(/[。！？\.\!\?]/).filter(s => s.trim().length > 15)
+    
+    // Extract meaningful topics from sentences
+    for (const sentence of sentences.slice(0, 5)) {
+      const cleanSentence = sentence.trim()
+      if (cleanSentence.length > 20) {
+        // Extract potential topics (nouns, key phrases)
+        const topics = cleanSentence.match(/[一-龯ぁ-ゔァ-ヴーa-zA-Z0-9]{3,}/g)
+        if (topics) {
+          keyTopics.push(...topics.slice(0, 2))
+        }
+      }
+    }
+    
+    // Generate questions based on discovered topics
+    if (keyTopics.length > 0) {
+      smartQuestions.push(`${keyTopics[0]}について具体的な事例を教えて`)
+      if (keyTopics.length > 1) {
+        smartQuestions.push(`${keyTopics[1]}の実践方法は？`)
+      }
+    }
+    
+    // Content-specific question generation
+    if (contentLower.includes('技術') || contentLower.includes('tech') || contentLower.includes('ai') || contentLower.includes('プログラミング')) {
+      smartQuestions.push('この技術の将来性と課題は？')
+    }
+    
+    if (contentLower.includes('学習') || contentLower.includes('勉強') || contentLower.includes('教育')) {
+      smartQuestions.push('初心者が最初に取り組むべきことは？')
+    }
+    
+    if (contentLower.includes('ビジネス') || contentLower.includes('business') || contentLower.includes('起業') || contentLower.includes('経営')) {
+      smartQuestions.push('成功のための重要なポイントは？')
+    }
+    
+    if (contentLower.includes('問題') || contentLower.includes('課題') || contentLower.includes('解決')) {
+      smartQuestions.push('同様の問題に直面した時の対処法は？')
+    }
+    
+    if (contentLower.includes('方法') || contentLower.includes('やり方') || contentLower.includes('手順')) {
+      smartQuestions.push('他にどんなアプローチがありますか？')
+    }
+    
+    // Add title-based question if available
     if (title) {
-      smartQuestions.push(`「${title}」について詳しく教えて`)
+      smartQuestions.push(`「${title}」で最も重要なポイントは？`)
     }
     
-    // Check for common topics and generate relevant questions
-    if (contentText.toLowerCase().includes('技術') || contentText.toLowerCase().includes('tech')) {
-      smartQuestions.push('この技術の実用的な応用例は？')
-    }
-    
-    if (contentText.toLowerCase().includes('学習') || contentText.toLowerCase().includes('勉強')) {
-      smartQuestions.push('効率的な学習方法のポイントは？')
-    }
-    
-    if (contentText.toLowerCase().includes('ビジネス') || contentText.toLowerCase().includes('business')) {
-      smartQuestions.push('ビジネスでの活用シーンは？')
-    }
-    
-    if (contentText.toLowerCase().includes('問題') || contentText.toLowerCase().includes('課題')) {
-      smartQuestions.push('この問題の解決策について詳しく説明して')
-    }
-    
-    if (contentText.toLowerCase().includes('メリット') || contentText.toLowerCase().includes('利点')) {
-      smartQuestions.push('デメリットや注意点もあれば教えて')
-    }
-    
-    // Extract first meaningful sentence as a question
-    const sentences = contentText.split(/[。！？]/).filter(s => s.trim().length > 10)
-    if (sentences.length > 0) {
-      smartQuestions.push(`${sentences[0].slice(0, 30)}...について詳しく教えて`)
-    }
-    
-    // Add some generic fallbacks if we don't have enough smart questions
-    while (smartQuestions.length < 5) {
-      const fallbacks = [
-        'この動画の要点を3つ教えて',
-        '実践で活用できるポイントは？',
-        '初心者が注意すべきことは？',
-        'さらに深く学ぶためのリソースは？',
-        '関連する分野について教えて'
+    // Add smart fallbacks based on content analysis
+    if (smartQuestions.length < 5) {
+      const smartFallbacks = [
+        'この内容の実用的な応用例は？',
+        '初心者が注意すべきポイントは？',
+        '関連する最新トレンドは？',
+        'さらに詳しく学ぶためのリソースは？',
+        '実際に試す時のコツは？'
       ]
       
-      for (const fallback of fallbacks) {
+      for (const fallback of smartFallbacks) {
         if (!smartQuestions.includes(fallback) && smartQuestions.length < 5) {
           smartQuestions.push(fallback)
         }
       }
-      break
     }
     
     return smartQuestions.slice(0, 5)
@@ -163,21 +184,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
             <p className="text-gray-500 text-center">Start a conversation about the video...</p>
             
             {/* Sample Deep Dive Questions */}
-            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-              <h3 className="text-sm font-semibold text-purple-800 mb-3">💡 深掘り質問サンプル</h3>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-800 mb-3">💡 深掘り質問サンプル</h3>
               <div className="flex flex-wrap gap-2">
                 {sampleQuestions.map((question, index) => (
                   <button
                     key={index}
                     onClick={() => handleSampleQuestionClick(question)}
-                    className="px-3 py-2 bg-white border border-purple-300 text-purple-700 text-xs rounded-lg hover:bg-purple-100 hover:border-purple-400 transition-all cursor-pointer"
+                    className="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-xs rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all cursor-pointer shadow-sm"
                     title="クリックでチャットに質問を入力"
                   >
                     {question}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-purple-600 mt-2">質問をクリックして簡単に深掘り！</p>
+              <p className="text-xs text-gray-600 mt-2">質問をクリックして簡単に深掘り！</p>
             </div>
           </div>
         ) : (
