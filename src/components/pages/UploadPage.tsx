@@ -13,6 +13,7 @@ const UploadPage: React.FC = () => {
   const [model, setModel] = useState('gpt-4.1-mini')
   const [urlError, setUrlError] = useState('')
   const [playerRef, setPlayerRef] = useState<any>(null)
+  const [prefillQuestion, setPrefillQuestion] = useState<string>('')
 
   useEffect(() => {
     if (location.state?.url) {
@@ -107,6 +108,13 @@ const UploadPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Handle question clicks from TranscriptViewer
+  const handleQuestionClick = (question: string) => {
+    setPrefillQuestion(question)
+    // Clear the question after a brief delay to allow ChatInterface to pick it up
+    setTimeout(() => setPrefillQuestion(''), 100)
   }
 
   return (
@@ -218,13 +226,17 @@ const UploadPage: React.FC = () => {
                     playerRef.seekTo(time, true)
                   }
                 }}
+                onQuestionClick={handleQuestionClick}
               />
             </div>
           </div>
           
           {/* Chat Interface - Bottom */}
           <div className="w-full">
-            <ChatInterface videoId={currentVideo.basic?.videoId} />
+            <ChatInterface 
+              videoId={currentVideo.basic?.videoId} 
+              prefillQuestion={prefillQuestion}
+            />
           </div>
         </div>
       )}

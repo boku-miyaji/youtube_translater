@@ -10,6 +10,7 @@ export interface VideoMetadata {
     publishDate?: string;
     category?: string;
     description?: string;
+    thumbnail?: string;
   };
   chapters: Chapter[];
   captions: Caption[];
@@ -63,6 +64,7 @@ export interface HistoryEntry {
   mainTags: string[];
   article: string | null;
   timestamp: string;
+  thumbnail?: string;
 }
 
 export interface SessionCosts {

@@ -262,6 +262,7 @@ function addToHistory(
     tags, // サブタグ情報
     mainTags, // メインタグ情報
     article, // 生成された記事コンテンツ
+    thumbnail: metadata?.basic?.thumbnail || undefined, // Extract thumbnail from metadata
     timestamp: new Date().toISOString()
   };
   
@@ -312,6 +313,16 @@ async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
     // Caption information
     const captions = (info as any).player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
     
+    // Extract thumbnail URL (preferably maxresdefault, then hqdefault, then mqdefault)
+    let thumbnailUrl = '';
+    if (videoDetails.thumbnails && videoDetails.thumbnails.length > 0) {
+      // Sort thumbnails by width in descending order and pick the best quality
+      const sortedThumbnails = [...videoDetails.thumbnails].sort((a: any, b: any) => 
+        (b.width || 0) - (a.width || 0)
+      );
+      thumbnailUrl = sortedThumbnails[0]?.url || '';
+    }
+    
     const metadata = {
       basic: {
         title: videoDetails.title || 'Unknown Title',
@@ -323,7 +334,8 @@ async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
         uploadDate: videoDetails.uploadDate || videoDetails.publishDate || '',
         publishDate: videoDetails.publishDate || videoDetails.uploadDate || '',
         category: videoDetails.category || 'Unknown Category',
-        description: (videoDetails.description || '').slice(0, 2000) // Limit description length
+        description: (videoDetails.description || '').slice(0, 2000), // Limit description length
+        thumbnail: thumbnailUrl
       },
       chapters: chapters,
       captions: captions.map((cap: any) => ({

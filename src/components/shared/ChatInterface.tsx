@@ -8,9 +8,10 @@ interface ChatMessage {
 
 interface ChatInterfaceProps {
   videoId?: string
+  prefillQuestion?: string
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,6 +24,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId }) => {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Handle prefilled questions
+  useEffect(() => {
+    if (prefillQuestion && prefillQuestion.trim()) {
+      setInput(prefillQuestion.trim())
+    }
+  }, [prefillQuestion])
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()

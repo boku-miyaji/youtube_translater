@@ -9,12 +9,13 @@ interface TranscriptViewerProps {
   }>
   summary?: string
   onSeek?: (time: number) => void
+  onQuestionClick?: (question: string) => void
 }
 
 type TabType = 'transcript' | 'summary' | 'article'
 
-// Simple markdown to HTML converter
-const markdownToHtml = (markdown: string): string => {
+// Markdown to HTML converter with time reference linking and question detection
+const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQuestionClick?: (question: string) => void): string => {
   if (!markdown) return ''
   
   let html = markdown
@@ -36,12 +37,41 @@ const markdownToHtml = (markdown: string): string => {
     return `<ul class="list-none mb-4">${match}</ul>`
   })
   
-  // Paragraphs
-  html = html.replace(/\n\n/g, '</p><p class="mb-4">')
+  // Convert time references to clickable links (e.g., 1:23, 01:23, 1:23:45)
+  if (onSeek) {
+    html = html.replace(/\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b/g, (match, minutes, seconds, hours) => {
+      const totalSeconds = hours 
+        ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
+        : parseInt(minutes) * 60 + parseInt(seconds)
+      return `<a href="#" onclick="window.transcriptSeek && window.transcriptSeek(${totalSeconds}); return false;" class="text-blue-600 hover:text-blue-800 underline font-mono text-sm">${match}</a>`
+    })
+  }
+  
+  // Convert questions to clickable links (for deep dive questions)
+  if (onQuestionClick) {
+    // Match questions ending with '?' and optionally followed by line breaks
+    html = html.replace(/^([^?\n]*\?)\s*$/gm, (match, question) => {
+      const trimmedQuestion = question.trim()
+      if (trimmedQuestion.length > 10) { // Only convert substantial questions
+        const encodedQuestion = encodeURIComponent(trimmedQuestion)
+        return `<a href="#" onclick="window.transcriptQuestionClick && window.transcriptQuestionClick('${encodedQuestion}'); return false;" class="text-purple-600 hover:text-purple-800 hover:bg-purple-50 underline cursor-pointer inline-block p-2 rounded-md transition-colors">${trimmedQuestion}</a>`
+      }
+      return match
+    })
+  }
+  
+  // Preserve single line breaks
+  html = html.replace(/\n/g, '<br />')
+  
+  // Paragraphs (double line breaks)
+  html = html.replace(/<br \/><br \/>/g, '</p><p class="mb-4">')
   html = '<p class="mb-4">' + html + '</p>'
   
   // Clean up empty paragraphs
   html = html.replace(/<p class="mb-4">\s*<\/p>/g, '')
+  
+  // Fix line breaks in list items
+  html = html.replace(/<li class="ml-4 mb-1">(.*?)<br \/><\/li>/g, '<li class="ml-4 mb-1">$1</li>')
   
   return html
 }
@@ -53,12 +83,29 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, onSeek }) => {
+const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, onSeek, onQuestionClick }) => {
   const [activeTab, setActiveTab] = useState<TabType>('transcript')
   const [summary, setSummary] = useState(initialSummary || '')
   const [article, setArticle] = useState('')
   const [loadingSummary, setLoadingSummary] = useState(false)
   const [loadingArticle, setLoadingArticle] = useState(false)
+
+  // Set up global functions for time references and question clicks
+  React.useEffect(() => {
+    if (onSeek) {
+      (window as any).transcriptSeek = onSeek
+    }
+    if (onQuestionClick) {
+      (window as any).transcriptQuestionClick = (encodedQuestion: string) => {
+        const question = decodeURIComponent(encodedQuestion)
+        onQuestionClick(question)
+      }
+    }
+    return () => {
+      delete (window as any).transcriptSeek
+      delete (window as any).transcriptQuestionClick
+    }
+  }, [onSeek, onQuestionClick])
 
   const generateSummary = async () => {
     if (!transcript) return
@@ -146,7 +193,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   >
                     <button
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="text-gray-600 hover:text-gray-800 font-mono text-sm whitespace-nowrap px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+                      className="text-indigo-700 hover:text-indigo-900 font-mono text-sm font-medium whitespace-nowrap px-3 py-1.5 rounded-md bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200"
                     >
                       {formatTime(segment.start)}
                     </button>
@@ -196,7 +243,15 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 </button>
               </div>
               <div className="prose max-w-none text-gray-700">
-                <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary) }} />
+                <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary, onSeek, onQuestionClick) }} />
+                {/* Deep dive questions section */}
+                {(summary.includes('深掘り質問') || summary.includes('?')) && (
+                  <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <p className="text-sm text-purple-800 mb-2">
+                      <strong>💡 ヒント:</strong> 上記の質問をクリックすると、チャットで自動的に質問できます
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )
@@ -240,7 +295,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 </button>
               </div>
               <div className="prose max-w-none text-gray-700">
-                <div dangerouslySetInnerHTML={{ __html: markdownToHtml(article) }} />
+                <div dangerouslySetInnerHTML={{ __html: markdownToHtml(article, onSeek, onQuestionClick) }} />
               </div>
             </div>
           )

@@ -371,7 +371,7 @@ const DashboardPage: React.FC = () => {
               <div className="space-y-3">
                 <button
                   onClick={handleQuickAnalyze}
-                  className="w-full inline-flex items-center justify-center px-8 py-3 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                  className="w-full inline-flex items-center justify-center px-8 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                   data-testid="quick-analyze-button"
                 >
                   <span className="mr-3 text-xl">⚡</span>
