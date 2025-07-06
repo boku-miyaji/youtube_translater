@@ -234,13 +234,13 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                     key={index}
                     className="flex gap-4 p-2 hover:bg-gray-50 rounded-lg transition-colors"
                   >
-                    <button
+                    <span
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 font-mono text-sm font-medium cursor-pointer transition-all px-2 py-1 rounded border border-gray-300 hover:border-gray-400 shadow-sm"
+                      className="text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 font-mono text-sm font-medium cursor-pointer transition-all px-2 py-1 rounded border border-gray-300 hover:border-gray-400 shadow-sm inline-block"
                       title={`${formatTime(segment.start)}にジャンプして再生`}
                     >
                       {formatTime(segment.start)}
-                    </button>
+                    </span>
                     <p className="text-sm text-gray-700 leading-relaxed flex-1">
                       {segment.text}
                     </p>
