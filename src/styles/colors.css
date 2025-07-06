@@ -38,6 +38,21 @@
   --color-info-800: #1e40af;     /* Info text */
   --color-info-900: #1e3a8a;     /* Dark info text */
 
+  /* Modern Accent Colors */
+  --color-accent-purple-50: #faf5ff;
+  --color-accent-purple-100: #f3e8ff;
+  --color-accent-purple-500: #8b5cf6;
+  --color-accent-purple-600: #7c3aed;
+  --color-accent-purple-700: #6d28d9;
+  --color-accent-purple-800: #5b21b6;
+
+  --color-accent-indigo-50: #eef2ff;
+  --color-accent-indigo-100: #e0e7ff;
+  --color-accent-indigo-500: #6366f1;
+  --color-accent-indigo-600: #4f46e5;
+  --color-accent-indigo-700: #4338ca;
+  --color-accent-indigo-800: #3730a3;
+
   /* Neutral Colors - For text, backgrounds, and borders */
   --color-neutral-50: #f9fafb;   /* Lightest backgrounds */
   --color-neutral-100: #f3f4f6;  /* Light backgrounds */
@@ -84,6 +99,23 @@
   --color-hint-bg: var(--color-info-50);
   --color-hint-text: var(--color-info-800);
   --color-hint-border: var(--color-info-100);
+
+  /* Tab and Content Styling */
+  --color-tab-active-bg: var(--color-accent-indigo-600);
+  --color-tab-active-text: #ffffff;
+  --color-tab-inactive-text: var(--color-neutral-600);
+  --color-tab-hover-bg: var(--color-accent-indigo-50);
+  --color-tab-hover-text: var(--color-accent-indigo-700);
+
+  /* Empty State Styling */
+  --color-empty-text: var(--color-neutral-500);
+  --color-empty-bg: var(--color-neutral-50);
+
+  /* Action Button Variants */
+  --color-button-generate-bg: var(--color-accent-purple-600);
+  --color-button-generate-hover: var(--color-accent-purple-700);
+  --color-button-regenerate-bg: var(--color-accent-indigo-600);
+  --color-button-regenerate-hover: var(--color-accent-indigo-700);
 }
 
 /* Utility Classes for Easy Application */
@@ -151,4 +183,45 @@
 
 .btn-success:hover {
   background-color: var(--color-button-success-hover);
+}
+
+/* Modern Tab Styles */
+.tab-active {
+  background-color: var(--color-tab-active-bg);
+  color: var(--color-tab-active-text);
+  border-bottom-color: var(--color-tab-active-bg);
+}
+
+.tab-inactive {
+  color: var(--color-tab-inactive-text);
+}
+
+.tab-inactive:hover {
+  background-color: var(--color-tab-hover-bg);
+  color: var(--color-tab-hover-text);
+}
+
+/* Empty State Styles */
+.empty-state {
+  color: var(--color-empty-text);
+  background-color: var(--color-empty-bg);
+}
+
+/* Action Button Variants */
+.btn-generate {
+  background-color: var(--color-button-generate-bg);
+  color: #ffffff;
+}
+
+.btn-generate:hover {
+  background-color: var(--color-button-generate-hover);
+}
+
+.btn-regenerate {
+  background-color: var(--color-button-regenerate-bg);
+  color: #ffffff;
+}
+
+.btn-regenerate:hover {
+  background-color: var(--color-button-regenerate-hover);
 }

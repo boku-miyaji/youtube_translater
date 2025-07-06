@@ -266,9 +266,10 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             </div>
           </div>
         ) : (
-          <div className="text-center py-8">
-            <span className="text-4xl mb-4 block">📝</span>
-            <p className="text-gray-500">文字起こしがありません</p>
+          <div className="empty-state text-center py-12 rounded-lg">
+            <span className="text-5xl mb-6 block opacity-60">📝</span>
+            <h3 className="text-lg font-medium mb-2">文字起こしがありません</h3>
+            <p className="text-sm opacity-75">動画をアップロードして文字起こしを開始しましょう</p>
           </div>
         )
 
@@ -280,7 +281,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 <button
                   onClick={generateSummary}
                   disabled={loadingSummary}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-regenerate inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="mr-2">🔄</span>
                   {loadingSummary ? '生成中...' : '再生成'}
@@ -301,22 +302,25 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
           )
         }
         return (
-          <div className="text-center py-8">
-            <span className="text-4xl mb-4 block">📋</span>
-            <p className="text-gray-500 mb-4">
+          <div className="empty-state text-center py-12 rounded-lg">
+            <span className="text-5xl mb-6 block opacity-60">📋</span>
+            <h3 className="text-lg font-medium mb-2">
               {loadingSummary ? '要約を生成中...' : '要約がまだ生成されていません'}
-            </p>
+            </h3>
+            {!loadingSummary && (
+              <p className="text-sm opacity-75 mb-6">文字起こしから自動で要約を作成します</p>
+            )}
             {transcript && !loadingSummary && (
               <button
                 onClick={generateSummary}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="btn-generate inline-flex items-center px-6 py-3 font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 <span className="mr-2 text-lg">✨</span>
                 要約を生成
               </button>
             )}
             {loadingSummary && (
-              <div className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md">
+              <div className="inline-flex items-center px-4 py-2 bg-app-primary text-white rounded-lg">
                 <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
                 生成中...
               </div>
@@ -332,7 +336,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 <button
                   onClick={generateArticle}
                   disabled={loadingArticle}
-                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-regenerate inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="mr-2">🔄</span>
                   {loadingArticle ? '生成中...' : '再生成'}
@@ -345,22 +349,25 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
           )
         }
         return (
-          <div className="text-center py-8">
-            <span className="text-4xl mb-4 block">📄</span>
-            <p className="text-gray-500 mb-4">
+          <div className="empty-state text-center py-12 rounded-lg">
+            <span className="text-5xl mb-6 block opacity-60">📄</span>
+            <h3 className="text-lg font-medium mb-2">
               {loadingArticle ? '解説記事を生成中...' : '解説記事がまだ生成されていません'}
-            </p>
+            </h3>
+            {!loadingArticle && (
+              <p className="text-sm opacity-75 mb-6">内容を分かりやすく解説した記事を作成します</p>
+            )}
             {transcript && !loadingArticle && (
               <button
                 onClick={generateArticle}
-                className="inline-flex items-center px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="btn-generate inline-flex items-center px-6 py-3 font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 <span className="mr-2 text-lg">📄</span>
                 記事を生成
               </button>
             )}
             {loadingArticle && (
-              <div className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md">
+              <div className="inline-flex items-center px-4 py-2 bg-app-primary text-white rounded-lg">
                 <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
                 生成中...
               </div>
@@ -382,20 +389,20 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
-              className={`relative px-6 py-4 text-sm font-semibold transition-all duration-200 ${
+              className={`relative px-6 py-4 text-sm font-semibold transition-all duration-200 border-b-2 ${
                 activeTab === tab.id
-                  ? 'text-white bg-gray-800 border-b-2 border-gray-800'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100 border-b-2 border-transparent'
+                  ? 'tab-active'
+                  : 'tab-inactive border-transparent'
               }`}
             >
               <div className="flex items-center">
                 <span className="mr-2">{tab.icon}</span>
                 {tab.label}
                 {tab.id === 'summary' && loadingSummary && (
-                  <div className="ml-2 w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 )}
                 {tab.id === 'article' && loadingArticle && (
-                  <div className="ml-2 w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 )}
               </div>
             </button>
