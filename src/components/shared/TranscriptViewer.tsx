@@ -43,7 +43,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
       const totalSeconds = hours 
         ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
         : parseInt(minutes) * 60 + parseInt(seconds)
-      return `<a href="#" onclick="window.transcriptSeek && window.transcriptSeek(${totalSeconds}); return false;" class="text-blue-600 hover:text-blue-800 underline font-mono text-sm">${match}</a>`
+      return `<span class="text-blue-600 hover:text-blue-800 underline font-mono text-sm cursor-pointer time-reference" data-time="${totalSeconds}">${match}</span>`
     })
   }
   
@@ -53,8 +53,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
     html = html.replace(/^([^?\n]*\?)\s*$/gm, (match, question) => {
       const trimmedQuestion = question.trim()
       if (trimmedQuestion.length > 10) { // Only convert substantial questions
-        const encodedQuestion = encodeURIComponent(trimmedQuestion)
-        return `<a href="#" onclick="window.transcriptQuestionClick && window.transcriptQuestionClick('${encodedQuestion}'); return false;" class="text-purple-600 hover:text-purple-800 hover:bg-purple-50 underline cursor-pointer inline-block p-2 rounded-md transition-colors">${trimmedQuestion}</a>`
+        return `<span class="text-purple-600 hover:text-purple-800 hover:bg-purple-50 underline cursor-pointer inline-block p-2 rounded-md transition-colors question-reference" data-question="${trimmedQuestion}">${trimmedQuestion}</span>`
       }
       return match
     })
@@ -90,20 +89,32 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
   const [loadingSummary, setLoadingSummary] = useState(false)
   const [loadingArticle, setLoadingArticle] = useState(false)
 
-  // Set up global functions for time references and question clicks
+  // Set up click event handlers for time references and questions
   React.useEffect(() => {
-    if (onSeek) {
-      (window as any).transcriptSeek = onSeek
-    }
-    if (onQuestionClick) {
-      (window as any).transcriptQuestionClick = (encodedQuestion: string) => {
-        const question = decodeURIComponent(encodedQuestion)
-        onQuestionClick(question)
+    const handleClick = (e: Event) => {
+      const target = e.target as HTMLElement
+      
+      if (target.classList.contains('time-reference')) {
+        e.preventDefault()
+        const time = parseInt(target.getAttribute('data-time') || '0')
+        if (onSeek) {
+          onSeek(time)
+        }
+      }
+      
+      if (target.classList.contains('question-reference')) {
+        e.preventDefault()
+        const question = target.getAttribute('data-question') || ''
+        if (onQuestionClick && question) {
+          onQuestionClick(question)
+        }
       }
     }
+
+    document.addEventListener('click', handleClick)
+    
     return () => {
-      delete (window as any).transcriptSeek
-      delete (window as any).transcriptQuestionClick
+      document.removeEventListener('click', handleClick)
     }
   }, [onSeek, onQuestionClick])
 

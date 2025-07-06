@@ -1230,6 +1230,15 @@ app.get('/history', (req: Request, res: Response) => {
   });
 });
 
+// API version of history endpoint
+app.get('/api/history', (req: Request, res: Response) => {
+  const history = loadHistory();
+  res.json({
+    success: true,
+    history: history
+  });
+});
+
 app.get('/costs', (req: Request, res: Response) => {
   const costs = loadCosts();
   res.json(costs);

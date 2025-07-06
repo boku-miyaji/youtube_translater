@@ -67,7 +67,8 @@ const DashboardPage: React.FC = () => {
         uploadDate: video.metadata?.basic?.uploadDate || '',
         publishDate: video.metadata?.basic?.publishDate || '',
         category: video.metadata?.basic?.category || '',
-        description: video.metadata?.basic?.description || ''
+        description: video.metadata?.basic?.description || '',
+        thumbnail: video.metadata?.basic?.thumbnail || video.thumbnail
       },
       chapters: video.metadata?.chapters || [],
       captions: video.metadata?.captions || [],
@@ -76,7 +77,8 @@ const DashboardPage: React.FC = () => {
         hasSubtitles: false,
         keywords: []
       },
-      transcript: video.transcript
+      transcript: video.transcript,
+      timestampedSegments: video.timestampedSegments || []
     })
     
     // Navigate to upload page to show the historical video
@@ -265,14 +267,27 @@ const DashboardPage: React.FC = () => {
                     <div className="flex items-center space-x-6">
                       {/* Video Thumbnail */}
                       <div className="relative">
-                        {video.videoId || video.id ? (
+                        {(video.thumbnail || video.metadata?.basic?.thumbnail || video.videoId || video.id) ? (
                           <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg group-hover/item:scale-105 transition-transform duration-200">
                             <img
-                              src={`https://img.youtube.com/vi/${video.videoId || video.id}/mqdefault.jpg`}
+                              src={video.thumbnail || video.metadata?.basic?.thumbnail || `https://img.youtube.com/vi/${video.videoId || video.id}/mqdefault.jpg`}
                               alt={video.title || 'Video thumbnail'}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
+                                const currentSrc = target.src;
+                                
+                                // Try higher quality YouTube thumbnail first
+                                if (currentSrc.includes('mqdefault')) {
+                                  target.src = `https://img.youtube.com/vi/${video.videoId || video.id}/hqdefault.jpg`;
+                                  return;
+                                }
+                                if (currentSrc.includes('hqdefault')) {
+                                  target.src = `https://img.youtube.com/vi/${video.videoId || video.id}/maxresdefault.jpg`;
+                                  return;
+                                }
+                                
+                                // Final fallback to icon
                                 target.style.display = 'none';
                                 const parent = target.parentElement;
                                 if (parent) {
