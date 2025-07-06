@@ -18,6 +18,16 @@ const UploadPage: React.FC = () => {
   useEffect(() => {
     if (location.state?.url) {
       setUrl(location.state.url)
+      // Auto-submit if autoAnalyze flag is set
+      if (location.state.autoAnalyze) {
+        // Small delay to allow state to settle
+        setTimeout(() => {
+          const form = document.querySelector('form')
+          if (form) {
+            form.requestSubmit()
+          }
+        }, 100)
+      }
     }
   }, [location.state])
 
@@ -222,12 +232,20 @@ const UploadPage: React.FC = () => {
                 timestampedSegments={currentVideo.timestampedSegments}
                 summary={currentVideo.summary}
                 onSeek={(time) => {
-                  if (playerRef && playerRef.seekTo) {
-                    // Check if player is playing, if not, start playing
-                    if (playerRef.getPlayerState && playerRef.getPlayerState() !== 1) {
-                      playerRef.playVideo()
+                  if (playerRef) {
+                    // Use the enhanced seekTo function with autoplay
+                    if (playerRef.seekToWithAutoplay) {
+                      playerRef.seekToWithAutoplay(time, true)
+                    } else if (playerRef.seekTo) {
+                      // Fallback to original method
+                      playerRef.seekTo(time, true)
+                      // Auto-play if not already playing
+                      setTimeout(() => {
+                        if (playerRef.getPlayerState && playerRef.getPlayerState() !== 1 && playerRef.playVideo) {
+                          playerRef.playVideo()
+                        }
+                      }, 100)
                     }
-                    playerRef.seekTo(time, true)
                   }
                 }}
                 onQuestionClick={handleQuestionClick}

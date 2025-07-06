@@ -39,25 +39,40 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
   
   // Convert time references to clickable links (e.g., 1:23, 01:23, 1:23:45)
   if (onSeek) {
+    // More comprehensive time pattern matching
     html = html.replace(/\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b/g, (match, minutes, seconds, hours) => {
       const totalSeconds = hours 
         ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
         : parseInt(minutes) * 60 + parseInt(seconds)
-      return `<span class="text-blue-600 hover:text-blue-800 underline font-mono text-sm cursor-pointer time-reference" data-time="${totalSeconds}">${match}</span>`
+      return `<span class="text-blue-600 hover:text-blue-800 underline font-mono text-sm cursor-pointer bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md transition-all time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
     })
   }
   
   // Convert questions to clickable links (for deep dive questions)
   if (onQuestionClick) {
-    // Match questions - be more specific about what constitutes a question
-    html = html.replace(/((?:どのような|なぜ|どうやって|いつ|どこで|誰が|何を|どう)[^?]*\?|[^。！]*\?)/g, (match, question) => {
-      const trimmedQuestion = question.trim()
-      // More lenient criteria for questions
-      if (trimmedQuestion.length > 5 && !trimmedQuestion.includes('<') && !trimmedQuestion.includes('&')) {
-        const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ')
-        return `<span class="text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 underline cursor-pointer inline-block px-3 py-1 rounded-md transition-all question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
-      }
-      return match
+    // Enhanced question detection patterns
+    const questionPatterns = [
+      // Japanese question patterns
+      /((?:どのような|なぜ|どうやって|いつ|どこで|誰が|何を|どう|どんな)[^?。！]*\?)/g,
+      // General question patterns ending with ?
+      /([^。！]*\?)/g,
+      // Questions that start with question words
+      /((?:What|How|Why|When|Where|Who)[^?]*\?)/gi
+    ]
+    
+    questionPatterns.forEach(pattern => {
+      html = html.replace(pattern, (match, question) => {
+        const trimmedQuestion = question.trim()
+        // Check if it's a valid question and not already processed
+        if (trimmedQuestion.length > 3 && 
+            !trimmedQuestion.includes('<') && 
+            !trimmedQuestion.includes('&') &&
+            !trimmedQuestion.includes('question-reference')) {
+          const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ')
+          return `<span class="text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 underline cursor-pointer inline-block px-3 py-1 rounded-md transition-all question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
+        }
+        return match
+      })
     })
   }
   
@@ -206,7 +221,8 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   >
                     <button
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="text-gray-400 hover:text-blue-600 font-mono text-xs cursor-pointer transition-colors"
+                      className="text-indigo-700 hover:text-indigo-900 bg-indigo-100 hover:bg-indigo-200 font-mono text-xs cursor-pointer transition-all px-2 py-1 rounded-md border border-indigo-200 font-semibold"
+                      title={`${formatTime(segment.start)}にジャンプして再生`}
                     >
                       {formatTime(segment.start)}
                     </button>

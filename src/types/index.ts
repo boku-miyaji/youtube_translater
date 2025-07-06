@@ -20,6 +20,7 @@ export interface VideoMetadata {
     keywords: string[];
   };
   transcript?: string;
+  summary?: string;
   timestampedSegments?: TimestampedSegment[];
 }
 

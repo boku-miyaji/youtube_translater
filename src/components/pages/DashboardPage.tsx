@@ -50,12 +50,12 @@ const DashboardPage: React.FC = () => {
 
   const handleQuickAnalyze = () => {
     if (quickUrl.trim()) {
-      navigate('/upload', { state: { url: quickUrl.trim() } })
+      navigate('/upload', { state: { url: quickUrl.trim(), autoAnalyze: true } })
     }
   }
 
   const handleVideoClick = (video: any) => {
-    // Set the current video in the app store
+    // Set the current video in the app store with complete data including summary
     setCurrentVideo({
       basic: {
         title: video.title,
@@ -78,10 +78,11 @@ const DashboardPage: React.FC = () => {
         keywords: []
       },
       transcript: video.transcript,
+      summary: video.summary, // Include existing summary
       timestampedSegments: video.timestampedSegments || []
     })
     
-    // Navigate to upload page to show the historical video
+    // Navigate to upload page to show the historical video with all content
     navigate('/upload')
   }
 

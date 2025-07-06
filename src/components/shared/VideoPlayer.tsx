@@ -4,9 +4,10 @@ import { VideoMetadata } from '../../types'
 interface VideoPlayerProps {
   video: VideoMetadata
   onPlayerReady?: (player: any) => void
+  onSeek?: (time: number) => void
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady, onSeek }) => {
   const playerRef = useRef<any>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -34,6 +35,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady }) => {
     return `${count.toLocaleString()} views`
   }
 
+  // Expose seek function
+  const seekTo = (time: number, autoplay: boolean = true) => {
+    if (playerRef.current && playerRef.current.seekTo) {
+      playerRef.current.seekTo(time, true)
+      if (autoplay && playerRef.current.getPlayerState() !== 1) {
+        playerRef.current.playVideo()
+      }
+    }
+  }
+
   useEffect(() => {
     // YouTube Player API initialization
     const tag = document.createElement('script')
@@ -49,6 +60,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady }) => {
           events: {
             onReady: () => {
               if (onPlayerReady && playerRef.current) {
+                // Add seekTo method to the player reference
+                playerRef.current.seekToWithAutoplay = seekTo
                 onPlayerReady(playerRef.current)
               }
             }

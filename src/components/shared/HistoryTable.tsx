@@ -22,8 +22,33 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
   })
 
   const handleViewVideo = (video: any) => {
-    setCurrentVideo(video)
-    // Navigate to upload page or show in modal
+    // Set current video with complete data including summary
+    setCurrentVideo({
+      basic: {
+        title: video.title || video.metadata?.basic?.title,
+        videoId: video.videoId || video.id || video.metadata?.basic?.videoId,
+        duration: video.metadata?.basic?.duration || video.duration || 0,
+        channel: video.metadata?.basic?.channel || 'Unknown',
+        viewCount: video.metadata?.basic?.viewCount || 0,
+        likes: video.metadata?.basic?.likes || 0,
+        uploadDate: video.metadata?.basic?.uploadDate || '',
+        publishDate: video.metadata?.basic?.publishDate || '',
+        category: video.metadata?.basic?.category || '',
+        description: video.metadata?.basic?.description || '',
+        thumbnail: video.thumbnail || video.metadata?.basic?.thumbnail
+      },
+      chapters: video.metadata?.chapters || [],
+      captions: video.metadata?.captions || [],
+      stats: video.metadata?.stats || {
+        formatCount: 0,
+        hasSubtitles: false,
+        keywords: []
+      },
+      transcript: video.transcript,
+      summary: video.summary, // Include existing summary
+      timestampedSegments: video.timestampedSegments || []
+    })
+    // Navigate to upload page to show the historical video with all content
     window.location.hash = '/upload'
   }
 
@@ -59,15 +84,37 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
-                      {(item.thumbnail || item.metadata?.basic?.thumbnail) ? (
+                      {(item.thumbnail || item.metadata?.basic?.thumbnail || item.videoId || item.id || item.metadata?.basic?.videoId) ? (
                         <img
                           className="h-10 w-10 rounded object-cover"
-                          src={item.thumbnail || item.metadata?.basic?.thumbnail}
-                          alt=""
+                          src={item.thumbnail || item.metadata?.basic?.thumbnail || `https://img.youtube.com/vi/${item.videoId || item.id || item.metadata?.basic?.videoId}/mqdefault.jpg`}
+                          alt={item.title || 'Video thumbnail'}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            const currentSrc = target.src;
+                            const videoId = item.videoId || item.id || item.metadata?.basic?.videoId;
+                            
+                            if (videoId && currentSrc.includes('mqdefault')) {
+                              target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+                              return;
+                            }
+                            if (videoId && currentSrc.includes('hqdefault')) {
+                              target.src = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+                              return;
+                            }
+                            
+                            // Final fallback to icon
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) {
+                              parent.className = 'h-10 w-10 rounded bg-indigo-100 flex items-center justify-center';
+                              parent.innerHTML = '<span class="text-indigo-600 text-sm">🎬</span>';
+                            }
+                          }}
                         />
                       ) : (
-                        <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center">
-                          <span className="text-gray-500 text-xs">📹</span>
+                        <div className="h-10 w-10 rounded bg-indigo-100 flex items-center justify-center">
+                          <span className="text-indigo-600 text-sm">🎬</span>
                         </div>
                       )}
                     </div>
