@@ -44,7 +44,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
       const totalSeconds = hours 
         ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
         : parseInt(minutes) * 60 + parseInt(seconds)
-      return `<span class="text-gray-700 hover:text-gray-900 font-mono text-sm font-medium cursor-pointer bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-300 hover:border-gray-400 transition-all shadow-sm time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
+      return `<span class="text-gray-800 hover:text-black font-mono text-sm font-medium cursor-pointer bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-300 hover:border-gray-400 transition-all shadow-sm time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
     })
   }
   
@@ -69,7 +69,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
             !trimmedQuestion.includes('&') &&
             !trimmedQuestion.includes('question-reference')) {
           const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ')
-          return `<span class="text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 cursor-pointer inline-block px-3 py-1 rounded-md transition-all border border-gray-300 hover:border-gray-400 shadow-sm question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
+          return `<span class="text-gray-800 hover:text-black bg-gray-50 hover:bg-gray-100 cursor-pointer inline-block px-3 py-1 rounded-md transition-all border border-gray-300 hover:border-gray-400 shadow-sm question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
         }
         return match
       })
@@ -236,7 +236,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   >
                     <span
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 font-mono text-sm font-medium cursor-pointer transition-all px-2 py-1 rounded border border-gray-300 hover:border-gray-400 shadow-sm inline-block"
+                      className="text-gray-800 hover:text-black bg-white hover:bg-gray-50 font-mono text-sm font-medium cursor-pointer transition-all px-2 py-1 rounded border border-gray-300 hover:border-gray-400 shadow-sm inline-block"
                       title={`${formatTime(segment.start)}にジャンプして再生`}
                     >
                       {formatTime(segment.start)}
@@ -290,8 +290,8 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary, onSeek, onQuestionClick) }} />
                 {/* Deep dive questions section */}
                 {(summary.includes('深掘り質問') || summary.includes('?')) && (
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm text-gray-700 mb-2">
+                  <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-800 mb-2">
                       <strong>💡 ヒント:</strong> 上記の質問をクリックすると、チャットで自動的に質問できます
                     </p>
                   </div>
