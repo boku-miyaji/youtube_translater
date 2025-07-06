@@ -52,6 +52,7 @@ const UploadPage: React.FC = () => {
     setLoading(true)
     setUrlError('')
     try {
+      console.log('Sending request to /upload-youtube with:', { url: url.trim(), language, model })
       const response = await fetch('/upload-youtube', {
         method: 'POST',
         headers: {
@@ -65,7 +66,9 @@ const UploadPage: React.FC = () => {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to process video')
+        const errorText = await response.text()
+        console.error('Video processing failed:', response.status, response.statusText, errorText)
+        throw new Error(`Failed to process video: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
@@ -99,7 +102,8 @@ const UploadPage: React.FC = () => {
       setCurrentVideo(videoMetadata)
     } catch (error) {
       console.error('Error processing video:', error)
-      alert('Failed to process video. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Failed to process video: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
