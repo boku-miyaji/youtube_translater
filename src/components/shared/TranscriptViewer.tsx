@@ -49,12 +49,13 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
   
   // Convert questions to clickable links (for deep dive questions)
   if (onQuestionClick) {
-    // Match questions ending with '?'
-    html = html.replace(/([^.!?]*\?)/g, (match, question) => {
+    // Match questions - be more specific about what constitutes a question
+    html = html.replace(/((?:どのような|なぜ|どうやって|いつ|どこで|誰が|何を|どう)[^?]*\?|[^。！]*\?)/g, (match, question) => {
       const trimmedQuestion = question.trim()
-      if (trimmedQuestion.length > 10 && !trimmedQuestion.includes('<')) { // Only convert substantial questions without HTML
-        const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-        return `<span class="text-purple-600 hover:text-purple-800 hover:bg-purple-50 underline cursor-pointer inline-block p-2 rounded-md transition-colors question-reference" data-question="${safeQuestion}">${trimmedQuestion}</span>`
+      // More lenient criteria for questions
+      if (trimmedQuestion.length > 5 && !trimmedQuestion.includes('<') && !trimmedQuestion.includes('&')) {
+        const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ')
+        return `<span class="text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 underline cursor-pointer inline-block px-3 py-1 rounded-md transition-all question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
       }
       return match
     })
@@ -205,7 +206,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   >
                     <button
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="text-gray-500 hover:text-gray-900 font-mono text-sm whitespace-nowrap px-2 py-1 hover:underline transition-colors"
+                      className="text-gray-400 hover:text-blue-600 font-mono text-xs cursor-pointer transition-colors"
                     >
                       {formatTime(segment.start)}
                     </button>
