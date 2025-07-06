@@ -24,8 +24,10 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
   })
 
   const handleViewVideo = (video: any) => {
+    console.log('HistoryTable: Clicked video data:', video)
+    
     // Set current video with complete data including summary
-    setCurrentVideo({
+    const videoData = {
       basic: {
         title: video.title || video.metadata?.basic?.title,
         videoId: video.videoId || video.id || video.metadata?.basic?.videoId,
@@ -49,7 +51,14 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
       transcript: video.transcript,
       summary: video.summary, // Include existing summary
       timestampedSegments: video.timestampedSegments || []
-    })
+    }
+    
+    console.log('HistoryTable: Setting video data:', videoData)
+    console.log('HistoryTable: Has transcript:', !!video.transcript)
+    console.log('HistoryTable: Has summary:', !!video.summary)
+    
+    setCurrentVideo(videoData)
+    
     // Navigate to upload page to show the historical video with all content
     navigate('/upload')
   }

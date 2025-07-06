@@ -127,6 +127,18 @@ const UploadPage: React.FC = () => {
     setTimeout(() => setPrefillQuestion(''), 100)
   }
 
+  // Debug current video data
+  useEffect(() => {
+    if (currentVideo) {
+      console.log('UploadPage: Current video updated:', currentVideo)
+      console.log('UploadPage: Has transcript:', !!currentVideo.transcript)
+      console.log('UploadPage: Has summary:', !!currentVideo.summary)
+      console.log('UploadPage: Has timestampedSegments:', !!currentVideo.timestampedSegments?.length)
+    } else {
+      console.log('UploadPage: No current video')
+    }
+  }, [currentVideo])
+
   return (
     <div className="space-y-6">
       <div>
@@ -258,6 +270,7 @@ const UploadPage: React.FC = () => {
             <ChatInterface 
               videoId={currentVideo.basic?.videoId} 
               prefillQuestion={prefillQuestion}
+              videoTitle={currentVideo.basic?.title}
             />
           </div>
         </div>

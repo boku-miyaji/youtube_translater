@@ -55,8 +55,10 @@ const DashboardPage: React.FC = () => {
   }
 
   const handleVideoClick = (video: any) => {
+    console.log('Dashboard: Clicked video data:', video)
+    
     // Set the current video in the app store with complete data including summary
-    setCurrentVideo({
+    const videoData = {
       basic: {
         title: video.title,
         videoId: video.videoId || video.id,
@@ -80,7 +82,13 @@ const DashboardPage: React.FC = () => {
       transcript: video.transcript,
       summary: video.summary, // Include existing summary
       timestampedSegments: video.timestampedSegments || []
-    })
+    }
+    
+    console.log('Dashboard: Setting video data:', videoData)
+    console.log('Dashboard: Has transcript:', !!video.transcript)
+    console.log('Dashboard: Has summary:', !!video.summary)
+    
+    setCurrentVideo(videoData)
     
     // Navigate to upload page to show the historical video with all content
     navigate('/upload')
