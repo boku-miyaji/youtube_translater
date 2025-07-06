@@ -188,14 +188,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
               <h3 className="text-sm font-semibold text-gray-800 mb-3">💡 深掘り質問サンプル</h3>
               <div className="flex flex-wrap gap-2">
                 {sampleQuestions.map((question, index) => (
-                  <button
+                  <span
                     key={index}
                     onClick={() => handleSampleQuestionClick(question)}
-                    className="px-3 py-2 bg-white border border-gray-300 text-gray-900 text-xs rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all cursor-pointer shadow-sm"
+                    className="px-3 py-2 bg-white border border-gray-300 text-gray-900 text-xs rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all cursor-pointer shadow-sm inline-block"
                     title="クリックでチャットに質問を入力"
                   >
                     {question}
-                  </button>
+                  </span>
                 ))}
               </div>
               <p className="text-xs text-gray-600 mt-2">質問をクリックして簡単に深掘り！</p>
@@ -242,14 +242,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         <div className="mb-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
           <div className="flex flex-wrap gap-1">
             {sampleQuestions.slice(0, 3).map((question, index) => (
-              <button
+              <span
                 key={index}
                 onClick={() => handleSampleQuestionClick(question)}
-                className="px-2 py-1 bg-white border border-gray-300 text-gray-900 text-xs rounded hover:bg-gray-100 transition-all"
+                className="px-2 py-1 bg-white border border-gray-300 text-gray-900 text-xs rounded hover:bg-gray-100 transition-all cursor-pointer inline-block"
                 title="クリックでチャットに質問を入力"
               >
                 {question}
-              </button>
+              </span>
             ))}
           </div>
         </div>
