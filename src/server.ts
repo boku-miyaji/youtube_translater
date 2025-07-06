@@ -1245,7 +1245,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
 
 app.post('/chat', async (req: Request, res: Response) => {
   try {
-    const { message, gptModel = 'gpt-4o-mini' } = req.body;
+    const { message, videoId, history, gptModel = 'gpt-4o-mini' } = req.body;
     
     if (!message) {
       return res.status(400).json({ 
@@ -1258,10 +1258,29 @@ app.post('/chat', async (req: Request, res: Response) => {
       });
     }
 
-    if (!currentTranscript) {
+    // Check for transcript availability - be more flexible
+    let transcriptContent = currentTranscript;
+    
+    // If no current transcript but we have a videoId, try to get it from history
+    if (!transcriptContent && videoId) {
+      // For now, we'll work with what we have or provide a helpful message
+      if (!currentVideo?.transcript) {
+        return res.status(400).json({ 
+          success: false,
+          response: '動画の文字起こしが見つかりません。まず動画をアップロードしてから質問してください。',
+          model: gptModel,
+          cost: 0,
+          costs: sessionCosts,
+          tokens: { input: 0, output: 0 }
+        });
+      }
+      transcriptContent = currentVideo.transcript;
+    }
+    
+    if (!transcriptContent) {
       return res.status(400).json({ 
         success: false,
-        response: 'No transcript available. Please upload a YouTube video first.',
+        response: '動画の文字起こしがありません。動画をアップロードして文字起こしを生成してから質問してください。',
         model: gptModel,
         cost: 0,
         costs: sessionCosts,
@@ -1273,25 +1292,45 @@ app.post('/chat', async (req: Request, res: Response) => {
     const needsArticleContext = await analyzeNeedForArticleContext(message);
     
     // Prepare system message
-    let systemContent = `以下はYouTube動画の文字起こしです。この内容に基づいて質問に答えてください。\n\n${currentTranscript}`;
+    let systemContent = `以下はYouTube動画の文字起こしです。この内容に基づいて質問に答えてください。\n\n${transcriptContent}`;
     
     // Add article context if needed and available
     if (needsArticleContext && currentArticle) {
       systemContent += `\n\n以下は既存の解説記事です:\n\n${currentArticle}`;
     }
+    
+    // Include conversation history for context if provided
+    const messages = []
+    
+    // Add system message
+    messages.push({
+      role: 'system',
+      content: systemContent
+    })
+    
+    // Add conversation history if provided
+    if (history && Array.isArray(history) && history.length > 0) {
+      // Add previous messages (limit to last 10 for token efficiency)
+      const recentHistory = history.slice(-10)
+      for (const msg of recentHistory) {
+        if (msg.role && msg.content) {
+          messages.push({
+            role: msg.role,
+            content: msg.content
+          })
+        }
+      }
+    }
+    
+    // Add current user message
+    messages.push({
+      role: 'user',
+      content: message
+    })
 
     const response = await openai.chat.completions.create({
       model: gptModel,
-      messages: [
-        {
-          role: 'system',
-          content: systemContent
-        },
-        {
-          role: 'user',
-          content: message
-        }
-      ],
+      messages: messages as any,
       max_tokens: 2000,
       temperature: 0.7
     });

@@ -50,7 +50,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     setLoading(true)
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,9 +76,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('Error sending message:', error)
+      
+      // Enhanced error handling with specific messages
+      let errorContent = 'Sorry, I encountered an error. Please try again.'
+      
+      if (error instanceof Error) {
+        // Check for specific error types
+        if (error.message.includes('Failed to send message')) {
+          // Try to get more specific error info from response
+          try {
+            const errorResponse = await fetch('/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: input.trim(), videoId, history: messages })
+            })
+            
+            if (!errorResponse.ok) {
+              const errorData = await errorResponse.json()
+              errorContent = errorData.response || 'チャット機能でエラーが発生しました。動画をアップロードしてから質問してください。'
+            }
+          } catch (fetchError) {
+            errorContent = 'ネットワークエラーが発生しました。接続を確認してください。'
+          }
+        }
+      }
+      
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorContent,
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, errorMessage])
