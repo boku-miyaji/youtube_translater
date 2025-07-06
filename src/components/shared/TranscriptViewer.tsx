@@ -44,7 +44,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
       const totalSeconds = hours 
         ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
         : parseInt(minutes) * 60 + parseInt(seconds)
-      return `<span class="text-gray-900 hover:text-black font-mono text-sm font-medium cursor-pointer bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded border border-gray-300 hover:border-gray-400 transition-all time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
+      return `<span class="text-gray-700 hover:text-gray-900 font-mono text-sm font-medium cursor-pointer bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-300 hover:border-gray-400 transition-all shadow-sm time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
     })
   }
   
@@ -236,7 +236,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   >
                     <button
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="text-gray-900 hover:text-black bg-gray-100 hover:bg-gray-200 font-mono text-sm font-medium cursor-pointer transition-all px-2 py-1 rounded border border-gray-300 hover:border-gray-400"
+                      className="text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 font-mono text-sm font-medium cursor-pointer transition-all px-2 py-1 rounded border border-gray-300 hover:border-gray-400 shadow-sm"
                       title={`${formatTime(segment.start)}にジャンプして再生`}
                     >
                       {formatTime(segment.start)}
