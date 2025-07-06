@@ -41,7 +41,7 @@ const CostChart: React.FC<CostChartProps> = ({ data }) => {
           {chartData.map((item, index) => (
             <div key={index} className="flex-1 flex flex-col items-center">
               <div
-                className="w-full bg-indigo-500 rounded-t hover:bg-indigo-600 transition-colors"
+                className="w-full bg-gray-500 rounded-t hover:bg-gray-600 transition-colors"
                 style={{
                   height: `${(item.cost / maxCost) * 180}px`,
                   minHeight: '2px'
