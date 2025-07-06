@@ -110,7 +110,11 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
             </tr>
           ) : (
             sortedData.map((item, index) => (
-              <tr key={index} className="hover:bg-gray-50">
+              <tr 
+                key={index} 
+                className="hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => handleViewVideo(item)}
+              >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
@@ -138,13 +142,13 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
                             const parent = target.parentElement;
                             if (parent) {
                               parent.className = 'h-10 w-10 rounded bg-app-background flex items-center justify-center';
-                              parent.innerHTML = '<span class="text-indigo-600 text-sm">🎬</span>';
+                              parent.innerHTML = '<span class="text-app-primary text-sm">🎬</span>';
                             }
                           }}
                         />
                       ) : (
                         <div className="h-10 w-10 rounded bg-app-background flex items-center justify-center">
-                          <span className="text-indigo-600 text-sm">🎬</span>
+                          <span className="text-app-primary text-sm">🎬</span>
                         </div>
                       )}
                     </div>
@@ -165,12 +169,9 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
                   {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Unknown'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleViewVideo(item)}
-                    className="text-indigo-600 hover:text-indigo-900"
-                  >
-                    View
-                  </button>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-app-background text-app-primary">
+                    👁️ View Results
+                  </span>
                 </td>
               </tr>
             ))
