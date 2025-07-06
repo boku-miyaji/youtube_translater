@@ -100,22 +100,22 @@
   --color-hint-text: var(--color-info-800);
   --color-hint-border: var(--color-info-100);
 
-  /* Tab and Content Styling */
-  --color-tab-active-bg: var(--color-accent-indigo-600);
+  /* Tab and Content Styling - Simple Grayscale */
+  --color-tab-active-bg: var(--color-neutral-800);
   --color-tab-active-text: #ffffff;
-  --color-tab-inactive-text: var(--color-neutral-600);
-  --color-tab-hover-bg: var(--color-accent-indigo-50);
-  --color-tab-hover-text: var(--color-accent-indigo-700);
+  --color-tab-inactive-text: var(--color-neutral-700);
+  --color-tab-hover-bg: var(--color-neutral-100);
+  --color-tab-hover-text: var(--color-neutral-900);
 
   /* Empty State Styling */
-  --color-empty-text: var(--color-neutral-500);
+  --color-empty-text: var(--color-neutral-600);
   --color-empty-bg: var(--color-neutral-50);
 
-  /* Action Button Variants */
-  --color-button-generate-bg: var(--color-accent-purple-600);
-  --color-button-generate-hover: var(--color-accent-purple-700);
-  --color-button-regenerate-bg: var(--color-accent-indigo-600);
-  --color-button-regenerate-hover: var(--color-accent-indigo-700);
+  /* Action Button Variants - Minimal Color */
+  --color-button-generate-bg: var(--color-neutral-700);
+  --color-button-generate-hover: var(--color-neutral-800);
+  --color-button-regenerate-bg: var(--color-neutral-600);
+  --color-button-regenerate-hover: var(--color-neutral-700);
 }
 
 /* Utility Classes for Easy Application */
@@ -185,7 +185,7 @@
   background-color: var(--color-button-success-hover);
 }
 
-/* Modern Tab Styles */
+/* Simple Tab Styles */
 .tab-active {
   background-color: var(--color-tab-active-bg);
   color: var(--color-tab-active-text);
@@ -194,6 +194,7 @@
 
 .tab-inactive {
   color: var(--color-tab-inactive-text);
+  background-color: transparent;
 }
 
 .tab-inactive:hover {
@@ -205,6 +206,14 @@
 .empty-state {
   color: var(--color-empty-text);
   background-color: var(--color-empty-bg);
+}
+
+.empty-state h3 {
+  color: var(--color-neutral-800);
+}
+
+.empty-state p {
+  color: var(--color-neutral-600);
 }
 
 /* Action Button Variants */

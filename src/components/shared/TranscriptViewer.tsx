@@ -222,7 +222,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
               <div className="flex justify-end mb-4">
                 <button
                   onClick={() => alert('文字起こしの再生成機能は実装予定です')}
-                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                  className="btn-regenerate inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors"
                 >
                   <span className="mr-2">🔄</span>
                   再生成
@@ -255,7 +255,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             <div className="flex justify-end mb-4">
               <button
                 onClick={() => alert('文字起こしの再生成機能は実装予定です')}
-                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                className="btn-regenerate inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors"
               >
                 <span className="mr-2">🔄</span>
                 再生成
