@@ -960,11 +960,16 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     let summaryResult = null;
     try {
       console.log('Generating summary...');
-      summaryResult = await generateSummary(transcript, metadata, model, []);
+      summaryResult = await generateSummary(transcript, metadata, model, timestampedSegments);
       console.log('Summary generation successful');
     } catch (summaryError) {
       console.warn('Summary generation failed:', summaryError);
     }
+
+    // Update current state
+    currentTranscript = transcript;
+    currentMetadata = metadata;
+    currentTimestampedSegments = timestampedSegments;
 
     // Add to history
     const historyEntry = addToHistory(
