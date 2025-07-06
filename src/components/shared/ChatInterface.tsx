@@ -210,7 +210,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
               <div
                 className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                   message.role === 'user'
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-gray-700 text-white'
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
@@ -261,13 +261,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about the video..."
-          className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+          className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500"
           disabled={loading}
         />
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
         >
           Send
         </button>
