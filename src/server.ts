@@ -890,6 +890,114 @@ async function analyzeNeedForArticleContext(message: string): Promise<boolean> {
 
 // API Endpoints
 
+// API version of upload endpoint
+app.post('/api/upload-youtube', async (req: Request, res: Response) => {
+  try {
+    console.log('API server: /api/upload-youtube called');
+    const { url, language = 'original', model = 'gpt-4o-mini' } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    console.log('Processing video:', { url, language, model });
+
+    // Get video metadata
+    const metadata = await getYouTubeMetadata(url);
+    if (!metadata) {
+      return res.status(500).json({ error: 'Failed to retrieve video metadata' });
+    }
+    const videoId = metadata.basic.videoId;
+
+    // Process transcript
+    let transcript = '';
+    let timestampedSegments: TimestampedSegment[] = [];
+    let method: 'subtitle' | 'whisper' = 'subtitle';
+    let detectedLanguage = language;
+
+    // Try subtitle first
+    console.log('Attempting subtitle extraction...');
+    const subtitleResult = await getYouTubeSubtitles(videoId, language);
+    
+    if (subtitleResult) {
+      transcript = subtitleResult.text;
+      timestampedSegments = subtitleResult.timestampedSegments;
+      detectedLanguage = subtitleResult.detectedLanguage;
+      method = 'subtitle';
+      console.log('Subtitle extraction successful');
+    } else {
+      console.log('Subtitle extraction failed, trying Whisper...');
+      try {
+        // Download audio and transcribe
+        const audioPath = path.join('uploads', `${Date.now()}_audio.mp3`);
+        await downloadYouTubeAudio(url, audioPath);
+        
+        const transcriptionResult = await transcribeAudio(audioPath, language);
+        transcript = transcriptionResult.text;
+        timestampedSegments = transcriptionResult.timestampedSegments;
+        method = 'whisper';
+        console.log('Whisper transcription successful');
+        
+        // Clean up audio file
+        if (fs.existsSync(audioPath)) {
+          fs.unlinkSync(audioPath);
+        }
+      } catch (whisperError) {
+        console.error('Whisper transcription failed:', whisperError);
+        throw new Error('Failed to extract transcript using both methods');
+      }
+    }
+
+    // Generate summary
+    let summaryResult = null;
+    try {
+      console.log('Generating summary...');
+      summaryResult = await generateSummary(transcript, metadata, model, []);
+      console.log('Summary generation successful');
+    } catch (summaryError) {
+      console.warn('Summary generation failed:', summaryError);
+    }
+
+    // Add to history
+    const historyEntry = addToHistory(
+      videoId,
+      metadata.basic.title,
+      url,
+      transcript,
+      method,
+      summaryResult?.cost || 0,
+      metadata,
+      summaryResult,
+      language,
+      model,
+      timestampedSegments,
+      [],
+      [],
+      null
+    );
+
+    res.json({
+      success: true,
+      videoId,
+      title: metadata.basic.title,
+      transcript,
+      timestampedSegments,
+      metadata,
+      summary: summaryResult?.content,
+      method,
+      language: detectedLanguage,
+      detectedLanguage,
+      gptModel: model,
+      cost: summaryResult?.cost || 0,
+      message: 'Video transcribed and analyzed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error in /api/upload-youtube:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
 app.post('/upload-youtube', async (req: Request, res: Response) => {
   try {
     console.log('TypeScript server: /upload-youtube called');
