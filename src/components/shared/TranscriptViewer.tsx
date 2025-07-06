@@ -69,7 +69,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
             !trimmedQuestion.includes('&') &&
             !trimmedQuestion.includes('question-reference')) {
           const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ')
-          return `<span class="text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 cursor-pointer inline-block px-3 py-1 rounded-md transition-all question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
+          return `<span class="text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 cursor-pointer inline-block px-3 py-1 rounded-md transition-all border border-gray-300 hover:border-gray-400 shadow-sm question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
         }
         return match
       })
