@@ -89,83 +89,155 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
 
   // Generate smart deep dive questions based on video content
   const generateSmartQuestions = () => {
-    const contentText = summary || transcript || ''
+    // Prioritize summary over transcript for better question generation
+    const primaryContent = summary || ''
+    const secondaryContent = transcript || ''
     const title = videoTitle || ''
     
-    // Extract key topics and generate contextual questions
     const smartQuestions: string[] = []
     
-    // Analyze content for specific topics and generate targeted questions
-    const contentLower = contentText.toLowerCase()
+    // Advanced content analysis
+    const analyzedContent = analyzeContentForQuestions(primaryContent, secondaryContent, title)
     
-    // Extract key phrases and topics from content
-    const keyTopics = []
-    const sentences = contentText.split(/[。！？\.\!\?]/).filter(s => s.trim().length > 15)
+    // Generate questions based on extracted insights
+    smartQuestions.push(...analyzedContent.specificQuestions)
+    smartQuestions.push(...analyzedContent.contextualQuestions)
+    smartQuestions.push(...analyzedContent.deepDiveQuestions)
     
-    // Extract meaningful topics from sentences
-    for (const sentence of sentences.slice(0, 5)) {
-      const cleanSentence = sentence.trim()
-      if (cleanSentence.length > 20) {
-        // Extract potential topics (nouns, key phrases)
-        const topics = cleanSentence.match(/[一-龯ぁ-ゔァ-ヴーa-zA-Z0-9]{3,}/g)
-        if (topics) {
-          keyTopics.push(...topics.slice(0, 2))
-        }
-      }
-    }
+    // Remove duplicates and limit to 5 questions
+    const uniqueQuestions = [...new Set(smartQuestions)]
+    return uniqueQuestions.slice(0, 5)
+  }
+
+  // Advanced content analysis function
+  const analyzeContentForQuestions = (summary: string, transcript: string, title: string) => {
+    const specificQuestions: string[] = []
+    const contextualQuestions: string[] = []
+    const deepDiveQuestions: string[] = []
     
-    // Generate questions based on discovered topics
-    if (keyTopics.length > 0) {
-      smartQuestions.push(`${keyTopics[0]}について具体的な事例を教えて`)
-      if (keyTopics.length > 1) {
-        smartQuestions.push(`${keyTopics[1]}の実践方法は？`)
-      }
-    }
-    
-    // Content-specific question generation
-    if (contentLower.includes('技術') || contentLower.includes('tech') || contentLower.includes('ai') || contentLower.includes('プログラミング')) {
-      smartQuestions.push('この技術の将来性と課題は？')
-    }
-    
-    if (contentLower.includes('学習') || contentLower.includes('勉強') || contentLower.includes('教育')) {
-      smartQuestions.push('初心者が最初に取り組むべきことは？')
-    }
-    
-    if (contentLower.includes('ビジネス') || contentLower.includes('business') || contentLower.includes('起業') || contentLower.includes('経営')) {
-      smartQuestions.push('成功のための重要なポイントは？')
-    }
-    
-    if (contentLower.includes('問題') || contentLower.includes('課題') || contentLower.includes('解決')) {
-      smartQuestions.push('同様の問題に直面した時の対処法は？')
-    }
-    
-    if (contentLower.includes('方法') || contentLower.includes('やり方') || contentLower.includes('手順')) {
-      smartQuestions.push('他にどんなアプローチがありますか？')
-    }
-    
-    // Add title-based question if available
-    if (title) {
-      smartQuestions.push(`「${title}」で最も重要なポイントは？`)
-    }
-    
-    // Add smart fallbacks based on content analysis
-    if (smartQuestions.length < 5) {
-      const smartFallbacks = [
-        'この内容の実用的な応用例は？',
-        '初心者が注意すべきポイントは？',
-        '関連する最新トレンドは？',
-        'さらに詳しく学ぶためのリソースは？',
-        '実際に試す時のコツは？'
-      ]
+    // Extract key entities and concepts from summary (most important)
+    if (summary) {
+      const summaryAnalysis = extractKeyEntities(summary)
       
-      for (const fallback of smartFallbacks) {
-        if (!smartQuestions.includes(fallback) && smartQuestions.length < 5) {
-          smartQuestions.push(fallback)
+      // Generate specific questions based on summary content
+      summaryAnalysis.concepts.forEach(concept => {
+        if (concept.length > 2 && concept.length < 20) {
+          specificQuestions.push(`${concept}について詳しく説明してもらえますか？`)
         }
+      })
+      
+      summaryAnalysis.numbers.forEach(number => {
+        specificQuestions.push(`${number}という数字の根拠や意味は？`)
+      })
+      
+      summaryAnalysis.methods.forEach(method => {
+        specificQuestions.push(`${method}の具体的な手順を教えて`)
+      })
+      
+      // Generate contextual questions based on summary themes
+      if (summaryAnalysis.hasResults) {
+        contextualQuestions.push('この結果を実際に活用するにはどうすれば？')
+      }
+      
+      if (summaryAnalysis.hasComparison) {
+        contextualQuestions.push('比較されている選択肢の違いをもっと詳しく')
+      }
+      
+      if (summaryAnalysis.hasProcess) {
+        contextualQuestions.push('このプロセスで最も重要なステップは？')
       }
     }
     
-    return smartQuestions.slice(0, 5)
+    // Extract additional insights from transcript
+    if (transcript && transcript !== summary) {
+      const transcriptAnalysis = extractKeyEntities(transcript)
+      
+      // Find mentions not in summary for deeper exploration
+      transcriptAnalysis.specificMentions.forEach(mention => {
+        if (!summary.includes(mention) && mention.length > 3) {
+          deepDiveQuestions.push(`動画で触れられていた「${mention}」について詳しく`)
+        }
+      })
+    }
+    
+    // Generate title-based questions
+    if (title && !specificQuestions.some(q => q.includes(title))) {
+      contextualQuestions.push(`「${title}」に関連する他の事例はありますか？`)
+    }
+    
+    return { specificQuestions, contextualQuestions, deepDiveQuestions }
+  }
+
+  // Extract key entities and patterns from content
+  const extractKeyEntities = (content: string) => {
+    const concepts: string[] = []
+    const numbers: string[] = []
+    const methods: string[] = []
+    const specificMentions: string[] = []
+    
+    // Extract numbers and percentages
+    const numberMatches = content.match(/\d+([.,]\d+)?[%％個分円年月日時間秒分]/g)
+    if (numberMatches) {
+      numbers.push(...numberMatches.slice(0, 3))
+    }
+    
+    // Extract method-related phrases
+    const methodPatterns = [
+      /([ァ-ヴー一-龯a-zA-Z0-9]{3,})(方法|手法|やり方|アプローチ|技術|テクニック)/g,
+      /(方法|手法|やり方|アプローチ|技術|テクニック)([ァ-ヴー一-龯a-zA-Z0-9]{3,})/g
+    ]
+    
+    methodPatterns.forEach(pattern => {
+      const matches = content.match(pattern)
+      if (matches) {
+        methods.push(...matches.slice(0, 2))
+      }
+    })
+    
+    // Extract key concepts (nouns, technical terms)
+    const conceptPatterns = [
+      /([ァ-ヴー一-龯]{3,8})(について|に関して|とは|である|です)/g,
+      /重要な([ァ-ヴー一-龯]{3,8})/g,
+      /([ァ-ヴー一-龯]{3,8})(を|が)(説明|解説|紹介|実装|導入)/g
+    ]
+    
+    conceptPatterns.forEach(pattern => {
+      const matches = content.match(pattern)
+      if (matches) {
+        matches.forEach(match => {
+          const concept = match.replace(/(について|に関して|とは|である|です|を|が|説明|解説|紹介|実装|導入|重要な)/g, '')
+          if (concept.length > 2 && concept.length < 15) {
+            concepts.push(concept)
+          }
+        })
+      }
+    })
+    
+    // Extract specific mentions and quotes
+    const quotedContent = content.match(/「([^」]+)」/g)
+    if (quotedContent) {
+      quotedContent.forEach(quote => {
+        const cleaned = quote.replace(/[「」]/g, '')
+        if (cleaned.length > 3 && cleaned.length < 30) {
+          specificMentions.push(cleaned)
+        }
+      })
+    }
+    
+    // Analyze content patterns
+    const hasResults = /結果|成果|効果|データ|統計/.test(content)
+    const hasComparison = /比較|違い|対比|vs|と比べて|に対して/.test(content)
+    const hasProcess = /手順|ステップ|プロセス|流れ|段階/.test(content)
+    
+    return {
+      concepts: [...new Set(concepts)],
+      numbers: [...new Set(numbers)],
+      methods: [...new Set(methods)],
+      specificMentions: [...new Set(specificMentions)],
+      hasResults,
+      hasComparison,
+      hasProcess
+    }
   }
 
   const sampleQuestions = generateSmartQuestions()
