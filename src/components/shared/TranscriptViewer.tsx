@@ -44,7 +44,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
       const totalSeconds = hours 
         ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
         : parseInt(minutes) * 60 + parseInt(seconds)
-      return `<span class="text-blue-600 hover:text-blue-800 underline font-mono text-sm cursor-pointer bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md transition-all time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
+      return `<span class="text-blue-600 hover:text-blue-800 underline font-mono text-sm cursor-pointer bg-white hover:bg-gray-50 px-2 py-1 rounded border border-gray-300 hover:border-gray-400 transition-all time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
     })
   }
   
@@ -111,9 +111,16 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
     const handleClick = (e: Event) => {
       const target = e.target as HTMLElement
       
+      // Prevent clicks on summary content from bubbling up and causing issues
+      if (target.closest('.prose')) {
+        e.stopPropagation()
+      }
+      
       if (target.classList.contains('time-reference')) {
         e.preventDefault()
+        e.stopPropagation()
         const time = parseInt(target.getAttribute('data-time') || '0')
+        console.log('Time reference clicked:', time)
         if (onSeek) {
           onSeek(time)
         }
@@ -121,17 +128,20 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
       
       if (target.classList.contains('question-reference')) {
         e.preventDefault()
+        e.stopPropagation()
         const question = target.getAttribute('data-question') || ''
+        console.log('Question reference clicked:', question)
         if (onQuestionClick && question) {
           onQuestionClick(question)
         }
       }
     }
 
-    document.addEventListener('click', handleClick)
+    // Use capturing phase to ensure we catch events before other handlers
+    document.addEventListener('click', handleClick, true)
     
     return () => {
-      document.removeEventListener('click', handleClick)
+      document.removeEventListener('click', handleClick, true)
     }
   }, [onSeek, onQuestionClick])
 
@@ -221,7 +231,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   >
                     <button
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="text-indigo-700 hover:text-indigo-900 bg-indigo-100 hover:bg-indigo-200 font-mono text-xs cursor-pointer transition-all px-2 py-1 rounded-md border border-indigo-200 font-semibold"
+                      className="text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-50 font-mono text-xs cursor-pointer transition-all px-2 py-1 rounded border border-gray-300 hover:border-gray-400"
                       title={`${formatTime(segment.start)}にジャンプして再生`}
                     >
                       {formatTime(segment.start)}

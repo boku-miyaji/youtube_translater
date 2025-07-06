@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 
 interface HistoryTableProps {
@@ -8,6 +9,7 @@ interface HistoryTableProps {
 
 const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
   const { setCurrentVideo } = useAppStore()
+  const navigate = useNavigate()
 
   const sortedData = [...data].sort((a, b) => {
     switch (sortBy) {
@@ -49,7 +51,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
       timestampedSegments: video.timestampedSegments || []
     })
     // Navigate to upload page to show the historical video with all content
-    window.location.hash = '/upload'
+    navigate('/upload')
   }
 
   return (
