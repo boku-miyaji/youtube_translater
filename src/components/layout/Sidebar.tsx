@@ -46,14 +46,6 @@ const Sidebar: React.FC = () => {
           </button>
         </div>
         
-        {/* Navigation header */}
-        {!sidebarCollapsed && (
-          <div className="mb-8 pb-6 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-700 mb-2">Navigation</h2>
-            <p className="text-sm text-gray-500">Choose your workspace</p>
-          </div>
-        )}
-        
         <div className="space-y-4">
           {navigation.map((item, index) => (
             <NavLink
@@ -105,17 +97,6 @@ const Sidebar: React.FC = () => {
             </NavLink>
           ))}
         </div>
-        
-        {/* Bottom section */}
-        {!sidebarCollapsed && (
-          <div className="absolute bottom-6 left-6 right-6">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-4 text-white text-center shadow-lg">
-              <div className="text-2xl mb-2">🚀</div>
-              <div className="text-sm font-semibold">Pro Tips</div>
-              <div className="text-xs opacity-90 mt-1">Use keyboard shortcuts for faster navigation</div>
-            </div>
-          </div>
-        )}
       </nav>
     </div>
   )
