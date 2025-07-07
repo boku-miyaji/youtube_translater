@@ -20,21 +20,25 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
   
   let html = markdown
   
-  // Headers with minimal spacing for compact display
-  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-3 mb-1">$1</h3>')
-  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-4 mb-1">$1</h2>')
-  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-5 mb-1">$1</h1>')
+  // Headers with ultra-minimal spacing for extremely compact display
+  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-1 mb-0">$1</h3>')
+  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-1.5 mb-0">$1</h2>')
+  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-2 mb-0">$1</h1>')
   
   // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
   
-  // Lists
-  html = html.replace(/^\* (.+)/gim, '<li class="ml-4 mb-1">• $1</li>')
-  html = html.replace(/^\d+\. (.+)/gim, '<li class="ml-4 mb-1">$1</li>')
+  // Convert list items that look like headers to actual headers
+  html = html.replace(/^\* \*\*([^:]+):\*\*(.*)$/gim, '<h4 class="text-base font-semibold mt-1 mb-0">$1</h4><p class="mb-0.5">$2</p>')
+  html = html.replace(/^\* ([^:]+):(.+)$/gim, '<h4 class="text-base font-semibold mt-1 mb-0">$1</h4><p class="mb-0.5">$2</p>')
   
-  // Wrap consecutive list items
-  html = html.replace(/(<li class="ml-4 mb-1">.*<\/li>\n?)+/g, (match) => {
-    return `<ul class="list-none mb-4">${match}</ul>`
+  // Regular lists with no indentation and minimal spacing
+  html = html.replace(/^\* (.+)/gim, '<li class="ml-0 mb-0">• $1</li>')
+  html = html.replace(/^\d+\. (.+)/gim, '<li class="ml-0 mb-0">$1</li>')
+  
+  // Wrap consecutive list items with minimal margin
+  html = html.replace(/(<li class="ml-0 mb-0">.*<\/li>\n?)+/g, (match) => {
+    return `<ul class="list-none mb-0.5">${match}</ul>`
   })
   
   // Convert time references to clickable links (e.g., 1:23, 01:23, 1:23:45)
@@ -76,29 +80,36 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
     })
   }
   
-  // Aggressive line break cleanup for compact display
-  html = html.replace(/\n\n\n+/g, '\n\n') // Normalize excessive line breaks to max 2
+  // Ultra-aggressive line break cleanup for maximum compactness
+  html = html.replace(/\n\n\n+/g, '\n') // Remove all excessive line breaks
+  html = html.replace(/\n\n/g, '\n') // Convert double line breaks to single
   html = html.replace(/\n/g, '<br />')
   
-  // Remove line breaks immediately after headings
+  // Remove ALL line breaks around headings for zero spacing
   html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)\s*<br \/>/g, '$1')
-  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)\s*<br \/><br \/>/g, '$1')
+  html = html.replace(/<br \/>\s*(<h[1-6][^>]*>)/g, '$1')
+  html = html.replace(/(<\/h[1-6]>)\s*<br \/><br \/>/g, '$1')
   
-  // Convert double line breaks to paragraphs with minimal spacing
-  html = html.replace(/<br \/><br \/>/g, '</p><p class="mb-2">')
-  html = '<p class="mb-2">' + html + '</p>'
+  // Convert remaining line breaks to paragraphs with zero margin
+  html = html.replace(/<br \/>/g, '</p><p class="mb-0">')
+  html = '<p class="mb-0">' + html + '</p>'
   
   // Aggressive cleanup of empty and problematic elements
-  html = html.replace(/<p class="mb-2">\s*<\/p>/g, '')
-  html = html.replace(/(<\/h[1-6]>)<p class="mb-2">\s*<\/p>/g, '$1')
-  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)<p class="mb-2">/g, '$1<p class="mb-2 mt-1">')
-  
-  // Remove any remaining isolated <br /> tags near headings
-  html = html.replace(/(<\/h[1-6]>)\s*<br \/>/g, '$1')
-  html = html.replace(/<br \/>\s*(<h[1-6][^>]*>)/g, '$1')
+  html = html.replace(/<p class="mb-0">\s*<\/p>/g, '')
+  html = html.replace(/(<\/h[1-6]>)<p class="mb-0">\s*<\/p>/g, '$1')
+  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)<p class="mb-0">/g, '$1<p class="mb-0">')
   
   // Fix line breaks in list items
-  html = html.replace(/<li class="ml-4 mb-1">(.*?)<br \/><\/li>/g, '<li class="ml-4 mb-1">$1</li>')
+  html = html.replace(/<li class="ml-0 mb-0">(.*?)<\/p><p class="mb-0"><\/li>/g, '<li class="ml-0 mb-0">$1</li>')
+  
+  // Remove empty paragraphs between lists and headers
+  html = html.replace(/(<\/ul>)<p class="mb-0">\s*<\/p>(<h[1-6])/g, '$1$2')
+  html = html.replace(/(<\/h[1-6]>)<p class="mb-0">\s*<\/p>(<ul)/g, '$1$2')
+  
+  // Final aggressive cleanup pass
+  html = html.replace(/<p class="mb-0"><\/p>/g, '') // Remove all empty paragraphs
+  html = html.replace(/(<\/[^>]+>)\s*(<h[1-6])/g, '$1$2') // Remove spaces between elements and headers
+  html = html.replace(/(<\/h[1-6]>)\s*(<[^>]+>)/g, '$1$2') // Remove spaces after headers
   
   return html
 }
@@ -308,8 +319,8 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
             </div>
           </div>
         ) : (
-          <div className="empty-state text-center py-12 rounded-lg">
-            <span className="text-5xl mb-6 block opacity-60">📝</span>
+          <div className="empty-state text-center py-6 rounded-lg">
+            <span className="text-5xl mb-2 block opacity-60">📝</span>
             <h3 className="text-lg font-medium mb-2">文字起こしがありません</h3>
             <p className="text-sm opacity-75">動画をアップロードして文字起こしを開始しましょう</p>
           </div>
@@ -329,12 +340,12 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   {loadingSummary ? '生成中...' : '再生成'}
                 </button>
               </div>
-              <div className="prose max-w-none text-gray-700">
+              <div className="prose prose-sm max-w-none text-gray-700 prose-p:mb-0 prose-headings:mt-1 prose-headings:mb-0 prose-ul:mb-0.5 prose-li:mb-0 prose-li:ml-0">
                 <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary, onSeek, onQuestionClick) }} />
                 {/* Deep dive questions section */}
                 {(summary.includes('深掘り質問') || summary.includes('?')) && (
-                  <div className="hint-style mt-6 p-4 rounded-lg border">
-                    <p className="text-sm mb-2">
+                  <div className="hint-style mt-2 p-2 rounded-lg border">
+                    <p className="text-sm mb-0">
                       <strong>💡 ヒント:</strong> 上記の質問をクリックすると、チャットで自動的に質問できます
                     </p>
                   </div>
@@ -344,13 +355,13 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
           )
         }
         return (
-          <div className="empty-state text-center py-12 rounded-lg">
-            <span className="text-5xl mb-6 block opacity-60">📋</span>
+          <div className="empty-state text-center py-6 rounded-lg">
+            <span className="text-5xl mb-2 block opacity-60">📋</span>
             <h3 className="text-lg font-medium mb-2">
               {loadingSummary ? '要約を生成中...' : '要約がまだ生成されていません'}
             </h3>
             {!loadingSummary && (
-              <p className="text-sm opacity-75 mb-6">文字起こしから自動で要約を作成します</p>
+              <p className="text-sm opacity-75 mb-1">文字起こしから自動で要約を作成します</p>
             )}
             {transcript && !loadingSummary && (
               <button
@@ -384,20 +395,20 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   {loadingArticle ? '生成中...' : '再生成'}
                 </button>
               </div>
-              <div className="prose max-w-none text-gray-700">
+              <div className="prose prose-sm max-w-none text-gray-700 prose-p:mb-0 prose-headings:mt-1 prose-headings:mb-0 prose-ul:mb-0.5 prose-li:mb-0 prose-li:ml-0">
                 <div dangerouslySetInnerHTML={{ __html: markdownToHtml(article, onSeek, onQuestionClick) }} />
               </div>
             </div>
           )
         }
         return (
-          <div className="empty-state text-center py-12 rounded-lg">
-            <span className="text-5xl mb-6 block opacity-60">📄</span>
+          <div className="empty-state text-center py-6 rounded-lg">
+            <span className="text-5xl mb-2 block opacity-60">📄</span>
             <h3 className="text-lg font-medium mb-2">
               {loadingArticle ? '解説記事を生成中...' : '解説記事がまだ生成されていません'}
             </h3>
             {!loadingArticle && (
-              <p className="text-sm opacity-75 mb-6">内容を分かりやすく解説した記事を作成します</p>
+              <p className="text-sm opacity-75 mb-1">内容を分かりやすく解説した記事を作成します</p>
             )}
             {transcript && !loadingArticle && (
               <button
