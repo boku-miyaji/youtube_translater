@@ -167,10 +167,9 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-        {/* Recent Videos - Takes up 3 columns */}
-        <div className="xl:col-span-3 group relative">
+      {/* Recent Transcriptions Section */}
+      <div className="mb-12">
+        <div className="group relative">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-3xl blur-lg opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
           <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
             {/* Header */}
@@ -327,39 +326,6 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column - System Health */}
-        <div className="space-y-6">
-          {/* System Health Card */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl blur-lg opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-white/50">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">System Health</h3>
-                <div className="w-3 h-3 bg-app-success rounded-full animate-pulse"></div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">API Status</span>
-                  <span className="text-sm font-semibold text-app-success">Online</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Processing Queue</span>
-                  <span className="text-sm font-semibold text-app-info">0 pending</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Response Time</span>
-                  <span className="text-sm font-semibold text-orange-600">1.2s avg</span>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center text-xs text-gray-500">
-                  <div className="w-2 h-2 bg-app-success rounded-full mr-2"></div>
-                  All systems operational
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Stats Grid */}
@@ -451,6 +417,39 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center text-xs mt-2">
               <span className="text-app-error font-semibold mr-1">↘ -8s</span>
               <span className="text-gray-500">improved</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* System Health Section */}
+      <div className="mt-12 flex justify-center">
+        <div className="w-full max-w-2xl group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl blur-lg opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
+          <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-white/50">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">System Health</h3>
+              <div className="w-3 h-3 bg-app-success rounded-full animate-pulse"></div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">API Status</span>
+                <span className="text-sm font-semibold text-app-success">Online</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Processing Queue</span>
+                <span className="text-sm font-semibold text-app-info">0 pending</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Response Time</span>
+                <span className="text-sm font-semibold text-orange-600">1.2s avg</span>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center text-xs text-gray-500">
+                <div className="w-2 h-2 bg-app-success rounded-full mr-2"></div>
+                All systems operational
+              </div>
             </div>
           </div>
         </div>
