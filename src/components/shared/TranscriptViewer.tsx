@@ -259,11 +259,11 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   再生成
                 </button>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {timestampedSegments.map((segment, index) => (
                   <div
                     key={index}
-                    className="flex gap-4 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                    className="flex gap-4 py-1 px-2 hover:bg-gray-50 rounded-lg transition-colors"
                   >
                     <span
                       onClick={() => onSeek && onSeek(segment.start)}
@@ -272,7 +272,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                     >
                       {formatTime(segment.start)}
                     </span>
-                    <p className="text-sm text-gray-700 leading-relaxed flex-1">
+                    <p className="text-sm text-gray-700 leading-normal flex-1"
                       {segment.text}
                     </p>
                   </div>
@@ -292,7 +292,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 再生成
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-normal"
               {transcript}
             </div>
           </div>
