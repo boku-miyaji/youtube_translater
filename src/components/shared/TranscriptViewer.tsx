@@ -272,7 +272,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                     >
                       {formatTime(segment.start)}
                     </span>
-                    <p className="text-sm text-gray-700 leading-normal flex-1"
+                    <p className="text-sm text-gray-700 leading-normal flex-1">
                       {segment.text}
                     </p>
                   </div>
