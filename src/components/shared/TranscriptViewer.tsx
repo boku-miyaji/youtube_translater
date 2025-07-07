@@ -20,10 +20,10 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
   
   let html = markdown
   
-  // Headers with optimized spacing
-  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-4 mb-1">$1</h3>')
-  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-5 mb-2">$1</h2>')
-  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-6 mb-2">$1</h1>')
+  // Headers with minimal spacing for compact display
+  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-3 mb-1">$1</h3>')
+  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-4 mb-1">$1</h2>')
+  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-5 mb-1">$1</h1>')
   
   // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
@@ -76,21 +76,26 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
     })
   }
   
-  // Clean up heading-related line breaks first
-  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)\s*<br \/>/g, '$1')
-  
-  // Preserve single line breaks but avoid excessive spacing
-  html = html.replace(/\n\n+/g, '\n\n') // Normalize multiple line breaks
+  // Aggressive line break cleanup for compact display
+  html = html.replace(/\n\n\n+/g, '\n\n') // Normalize excessive line breaks to max 2
   html = html.replace(/\n/g, '<br />')
   
-  // Paragraphs (double line breaks)
-  html = html.replace(/<br \/><br \/>/g, '</p><p class="mb-3">')
-  html = '<p class="mb-3">' + html + '</p>'
+  // Remove line breaks immediately after headings
+  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)\s*<br \/>/g, '$1')
+  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)\s*<br \/><br \/>/g, '$1')
   
-  // Clean up empty paragraphs and heading-adjacent breaks
-  html = html.replace(/<p class="mb-3">\s*<\/p>/g, '')
-  html = html.replace(/(<\/h[1-6]>)<p class="mb-3">\s*<\/p>/g, '$1')
-  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)<p class="mb-3">/g, '$1<p class="mb-3 mt-2">')
+  // Convert double line breaks to paragraphs with minimal spacing
+  html = html.replace(/<br \/><br \/>/g, '</p><p class="mb-2">')
+  html = '<p class="mb-2">' + html + '</p>'
+  
+  // Aggressive cleanup of empty and problematic elements
+  html = html.replace(/<p class="mb-2">\s*<\/p>/g, '')
+  html = html.replace(/(<\/h[1-6]>)<p class="mb-2">\s*<\/p>/g, '$1')
+  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)<p class="mb-2">/g, '$1<p class="mb-2 mt-1">')
+  
+  // Remove any remaining isolated <br /> tags near headings
+  html = html.replace(/(<\/h[1-6]>)\s*<br \/>/g, '$1')
+  html = html.replace(/<br \/>\s*(<h[1-6][^>]*>)/g, '$1')
   
   // Fix line breaks in list items
   html = html.replace(/<li class="ml-4 mb-1">(.*?)<br \/><\/li>/g, '<li class="ml-4 mb-1">$1</li>')
