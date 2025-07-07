@@ -11,6 +11,20 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
   const { setCurrentVideo } = useAppStore()
   const navigate = useNavigate()
 
+  // Format duration from seconds to HH:MM:SS or MM:SS
+  const formatDuration = (seconds: number): string => {
+    if (!seconds || isNaN(seconds)) return 'Unknown'
+    
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`
+  }
+
   const sortedData = [...data].sort((a, b) => {
     switch (sortBy) {
       case 'title':
@@ -157,13 +171,13 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
                         {item.title || item.metadata?.basic?.title || 'Unknown Title'}
                       </div>
                       <div className="text-sm text-gray-500">
-                        ID: {item.metadata?.basic?.videoId || 'Unknown'}
+                        {item.metadata?.basic?.channel || 'Unknown Channel'}
                       </div>
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {item.duration || 'Unknown'}
+                  {formatDuration(item.metadata?.basic?.duration || item.duration)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Unknown'}

@@ -14,6 +14,20 @@ const DashboardPage: React.FC = () => {
 
   const recentVideos = history ? history.slice(0, 5) : []
   
+  // Format duration from seconds to HH:MM:SS or MM:SS
+  const formatDuration = (seconds: number): string => {
+    if (!seconds || isNaN(seconds)) return 'Unknown'
+    
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`
+  }
+  
   // Calculate today's and yesterday's costs
   const today = new Date()
   const yesterday = new Date(today)
@@ -283,8 +297,12 @@ const DashboardPage: React.FC = () => {
                         </h3>
                         <div className="flex items-center space-x-4 text-sm text-gray-500">
                           <div className="flex items-center">
-                            <span className="mr-2">🆔</span>
-                            <span className="font-mono">{video.videoId || video.id || 'No ID'}</span>
+                            <span className="mr-2">👤</span>
+                            <span>{video.metadata?.basic?.channel || 'Unknown Channel'}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="mr-2">⏱️</span>
+                            <span>{formatDuration(video.metadata?.basic?.duration || video.duration)}</span>
                           </div>
                           <div className="flex items-center">
                             <span className="mr-2">📅</span>
