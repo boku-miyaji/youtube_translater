@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 interface TranscriptViewerProps {
   transcript?: string
@@ -14,122 +15,6 @@ interface TranscriptViewerProps {
 
 type TabType = 'transcript' | 'summary' | 'article'
 
-// Markdown to HTML converter with time reference linking and question detection
-const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQuestionClick?: (question: string) => void): string => {
-  if (!markdown) return ''
-  
-  let html = markdown
-  
-  // Headers with ultra-minimal spacing for extremely compact display
-  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-1 mb-0">$1</h3>')
-  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-1.5 mb-0">$1</h2>')
-  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-2 mb-0">$1</h1>')
-  
-  // Bold
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-  
-  // Convert list items that look like headers to actual headers
-  html = html.replace(/^\* \*\*([^:]+):\*\*(.*)$/gim, '<h4 class="text-base font-semibold mt-1 mb-0">$1</h4><p class="mb-0.5">$2</p>')
-  html = html.replace(/^\* ([^:]+):(.+)$/gim, '<h4 class="text-base font-semibold mt-1 mb-0">$1</h4><p class="mb-0.5">$2</p>')
-  
-  // Regular lists with no indentation and minimal spacing
-  html = html.replace(/^\* (.+)/gim, '<li class="ml-0 mb-0">• $1</li>')
-  html = html.replace(/^\d+\. (.+)/gim, '<li class="ml-0 mb-0">$1</li>')
-  
-  // Wrap consecutive list items with minimal margin
-  html = html.replace(/(<li class="ml-0 mb-0">.*<\/li>\n?)+/g, (match) => {
-    return `<ul class="list-none mb-0.5">${match}</ul>`
-  })
-  
-  // Convert time references to clickable links (e.g., 1:23, 01:23, 1:23:45)
-  if (onSeek) {
-    // More comprehensive time pattern matching
-    html = html.replace(/\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b/g, (match, minutes, seconds, hours) => {
-      const totalSeconds = hours 
-        ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
-        : parseInt(minutes) * 60 + parseInt(seconds)
-      return `<span class="timestamp-style font-mono text-sm font-medium cursor-pointer transition-all time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
-    })
-  }
-  
-  // Convert questions to clickable links (for deep dive questions)
-  if (onQuestionClick) {
-    // Enhanced question detection patterns
-    const questionPatterns = [
-      // Japanese question patterns
-      /((?:どのような|なぜ|どうやって|いつ|どこで|誰が|何を|どう|どんな)[^?。！]*\?)/g,
-      // General question patterns ending with ?
-      /([^。！]*\?)/g,
-      // Questions that start with question words
-      /((?:What|How|Why|When|Where|Who)[^?]*\?)/gi
-    ]
-    
-    questionPatterns.forEach(pattern => {
-      html = html.replace(pattern, (match, question) => {
-        const trimmedQuestion = question.trim()
-        // Check if it's a valid question and not already processed
-        if (trimmedQuestion.length > 3 && 
-            !trimmedQuestion.includes('<') && 
-            !trimmedQuestion.includes('&') &&
-            !trimmedQuestion.includes('question-reference')) {
-          const safeQuestion = trimmedQuestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ')
-          return `<span class="question-style cursor-pointer inline-block px-3 py-1 rounded-md transition-all border shadow-sm question-reference" data-question="${safeQuestion}" title="クリックでチャットに質問を送る">${trimmedQuestion}</span>`
-        }
-        return match
-      })
-    })
-  }
-  
-  // Ultra-aggressive line break cleanup for maximum compactness
-  html = html.replace(/\n\n\n+/g, '\n') // Remove all excessive line breaks
-  html = html.replace(/\n\n/g, '\n') // Convert double line breaks to single
-  html = html.replace(/\n/g, '<br />')
-  
-  // Remove ALL line breaks around headings for zero spacing
-  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)\s*<br \/>/g, '$1')
-  html = html.replace(/<br \/>\s*(<h[1-6][^>]*>)/g, '$1')
-  html = html.replace(/(<\/h[1-6]>)\s*<br \/><br \/>/g, '$1')
-  
-  // Convert remaining line breaks to paragraphs with minimal margin
-  html = html.replace(/<br \/>/g, '</p><p class="mb-1">')
-  html = '<p class="mb-1">' + html + '</p>'
-  
-  // Aggressive cleanup of empty and problematic elements
-  html = html.replace(/<p class="mb-1">\s*<\/p>/g, '')
-  html = html.replace(/(<\/h[1-6]>)<p class="mb-1">\s*<\/p>/g, '$1')
-  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)<p class="mb-1">/g, '$1<p class="mb-1">')
-  
-  // Fix line breaks in list items
-  html = html.replace(/<li class="ml-0 mb-0">(.*?)<\/p><p class="mb-1"><\/li>/g, '<li class="ml-0 mb-0">$1</li>')
-  
-  // Remove empty paragraphs between lists and headers
-  html = html.replace(/(<\/ul>)<p class="mb-1">\s*<\/p>(<h[1-6])/g, '$1$2')
-  html = html.replace(/(<\/h[1-6]>)<p class="mb-1">\s*<\/p>(<ul)/g, '$1$2')
-  
-  // Final aggressive cleanup pass
-  html = html.replace(/<p class="mb-1"><\/p>/g, '') // Remove all empty paragraphs
-  html = html.replace(/(<\/[^>]+>)\s*(<h[1-6])/g, '$1$2') // Remove spaces between elements and headers
-  html = html.replace(/(<\/h[1-6]>)\s*(<[^>]+>)/g, '$1$2') // Remove spaces after headers
-  
-  // Add block separation: increase margin before headings for visual grouping
-  // Change paragraphs that precede headings to have larger bottom margin
-  html = html.replace(/(<p class="mb-1"[^>]*>.*?<\/p>)(<h[1-6])/g, (match, p1, p2) => {
-    return p1.replace('mb-1', 'mb-3') + p2
-  })
-  
-  // Change lists that precede headings to have larger bottom margin
-  html = html.replace(/(<ul class="list-none mb-0\.5"[^>]*>.*?<\/ul>)(<h[1-6])/g, (match, p1, p2) => {
-    return p1.replace('mb-0\\.5', 'mb-3') + p2
-  })
-  
-  // Change h4 headers that precede main headings to have larger bottom margin
-  html = html.replace(/(<h4 class="text-base font-semibold mt-1 mb-0"[^>]*>.*?<\/h4>)(<h[1-3])/g, (match, p1, p2) => {
-    return p1.replace('mb-0', 'mb-3') + p2
-  })
-  
-  return html
-}
-
 // Format time from seconds to mm:ss
 const formatTime = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60)
@@ -144,49 +29,6 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
   const [loadingSummary, setLoadingSummary] = useState(false)
   const [loadingArticle, setLoadingArticle] = useState(false)
 
-  // Set up click event handlers for time references and questions
-  React.useEffect(() => {
-    const handleClick = (e: Event) => {
-      const target = e.target as HTMLElement
-      
-      // Handle time reference clicks (transcript and summary)
-      if (target.classList.contains('time-reference')) {
-        e.preventDefault()
-        e.stopPropagation()
-        const time = parseInt(target.getAttribute('data-time') || '0')
-        console.log('🎯 Time reference clicked:', time, 'from element:', target)
-        if (onSeek) {
-          console.log('🎯 Calling onSeek with time:', time)
-          onSeek(time)
-        } else {
-          console.error('🚨 onSeek callback is not available!')
-        }
-        return
-      }
-      
-      // Handle question reference clicks
-      if (target.classList.contains('question-reference')) {
-        e.preventDefault()
-        e.stopPropagation()
-        const question = target.getAttribute('data-question') || ''
-        console.log('💬 Question reference clicked:', question)
-        if (onQuestionClick && question) {
-          console.log('💬 Calling onQuestionClick with:', question)
-          onQuestionClick(question)
-        } else {
-          console.error('🚨 onQuestionClick callback is not available!')
-        }
-        return
-      }
-    }
-
-    // Use capturing phase to ensure we catch events before other handlers
-    document.addEventListener('click', handleClick, true)
-    
-    return () => {
-      document.removeEventListener('click', handleClick, true)
-    }
-  }, [onSeek, onQuestionClick])
 
   const generateSummary = async () => {
     if (!transcript) return
@@ -356,17 +198,20 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   {loadingSummary ? '生成中...' : '再生成'}
                 </button>
               </div>
-              <div className="prose prose-sm max-w-none text-gray-700 prose-p:mb-0 prose-headings:mt-1 prose-headings:mb-0 prose-ul:mb-0.5 prose-li:mb-0 prose-li:ml-0">
-                <div dangerouslySetInnerHTML={{ __html: markdownToHtml(summary, onSeek, onQuestionClick) }} />
-                {/* Deep dive questions section */}
-                {(summary.includes('深掘り質問') || summary.includes('?')) && (
-                  <div className="hint-style mt-2 p-2 rounded-lg border">
-                    <p className="text-sm mb-0">
-                      <strong>💡 ヒント:</strong> 上記の質問をクリックすると、チャットで自動的に質問できます
-                    </p>
-                  </div>
-                )}
-              </div>
+              <MarkdownRenderer 
+                content={summary} 
+                onSeek={onSeek} 
+                onQuestionClick={onQuestionClick}
+                className="prose-p:mb-1 prose-headings:mt-1 prose-headings:mb-0 prose-ul:mb-0.5 prose-li:mb-0 prose-li:ml-0"
+              />
+              {/* Deep dive questions section */}
+              {(summary.includes('深掘り質問') || summary.includes('?')) && (
+                <div className="hint-style mt-2 p-2 rounded-lg border">
+                  <p className="text-sm mb-0">
+                    <strong>💡 ヒント:</strong> 上記の質問をクリックすると、チャットで自動的に質問できます
+                  </p>
+                </div>
+              )}
             </div>
           )
         }
@@ -411,9 +256,12 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   {loadingArticle ? '生成中...' : '再生成'}
                 </button>
               </div>
-              <div className="prose prose-sm max-w-none text-gray-700 prose-p:mb-0 prose-headings:mt-1 prose-headings:mb-0 prose-ul:mb-0.5 prose-li:mb-0 prose-li:ml-0">
-                <div dangerouslySetInnerHTML={{ __html: markdownToHtml(article, onSeek, onQuestionClick) }} />
-              </div>
+              <MarkdownRenderer 
+                content={article} 
+                onSeek={onSeek} 
+                onQuestionClick={onQuestionClick}
+                className="prose-p:mb-1 prose-headings:mt-1 prose-headings:mb-0 prose-ul:mb-0.5 prose-li:mb-0 prose-li:ml-0"
+              />
             </div>
           )
         }
