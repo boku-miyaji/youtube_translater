@@ -71,17 +71,28 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     h3: ({ children }) => <h3 className="text-lg font-semibold mt-3 mb-0 first:mt-1">{children}</h3>,
     h4: ({ children }) => <h4 className="text-base font-semibold mt-3 mb-0 first:mt-1">{children}</h4>,
 
-    // Handle lists with no indentation and minimal spacing
+    // Handle lists with no indentation and minimal spacing - only add bullets for actual list content
     ul: ({ children }) => <ul className="list-none mb-0.5">{children}</ul>,
     ol: ({ children }) => <ol className="list-none mb-0.5">{children}</ol>,
-    li: ({ children }) => <li className="ml-0 mb-0">• {children}</li>,
+    li: ({ children }) => {
+      const content = children?.toString() || ''
+      // Don't add bullets if the content looks like it should be a heading or is already formatted
+      const shouldAddBullet = content.length > 0 && !content.includes(':') && content.length < 100
+      return (
+        <li className="ml-0 mb-0">
+          {shouldAddBullet ? '• ' : ''}{children}
+        </li>
+      )
+    },
 
     // Handle strong/bold text
     strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
 
     // Custom text processing for timestamps
-    text: ({ value }) => {
-      const timeMatch = value.match(/\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b/)
+    text: ({ children }) => {
+      const textValue = children?.toString() || ''
+      const timeMatch = textValue.match(/\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b/)
+      
       if (timeMatch && onSeek) {
         const [fullMatch, minutes, seconds, hours] = timeMatch
         const totalSeconds = hours 
@@ -89,8 +100,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           : parseInt(minutes) * 60 + parseInt(seconds)
         
         // Replace timestamp in text with clickable component
-        const beforeTimestamp = value.substring(0, timeMatch.index)
-        const afterTimestamp = value.substring((timeMatch.index || 0) + fullMatch.length)
+        const beforeTimestamp = textValue.substring(0, timeMatch.index)
+        const afterTimestamp = textValue.substring((timeMatch.index || 0) + fullMatch.length)
         
         return (
           <>
@@ -107,7 +118,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         )
       }
       
-      return <>{value}</>
+      return <>{children}</>
     },
 
     // Handle code elements (inline)
