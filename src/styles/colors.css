@@ -142,13 +142,14 @@
 
 /* Component-specific Classes */
 .timestamp-style {
-  background-color: var(--color-timestamp-bg);
-  color: var(--color-timestamp-text);
-  border-color: var(--color-timestamp-border);
+  color: var(--color-info-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .timestamp-style:hover {
-  background-color: var(--color-timestamp-hover-bg);
+  color: var(--color-info-800);
+  text-decoration: underline;
 }
 
 .question-style {

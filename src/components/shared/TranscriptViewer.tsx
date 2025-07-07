@@ -44,7 +44,7 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
       const totalSeconds = hours 
         ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
         : parseInt(minutes) * 60 + parseInt(seconds)
-      return `<span class="timestamp-style font-mono text-sm font-medium cursor-pointer px-2 py-1 rounded border transition-all shadow-sm time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
+      return `<span class="timestamp-style font-mono text-sm font-medium cursor-pointer transition-all time-reference" data-time="${totalSeconds}" title="クリックで動画の${match}にジャンプ">${match}</span>`
     })
   }
   
@@ -259,15 +259,15 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                   再生成
                 </button>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0">
                 {timestampedSegments.map((segment, index) => (
                   <div
                     key={index}
-                    className="flex gap-4 py-1 px-2 hover:bg-gray-50 rounded-lg transition-colors"
+                    className="flex gap-4 py-0.5 px-2 hover:bg-gray-50 rounded-lg transition-colors"
                   >
                     <span
                       onClick={() => onSeek && onSeek(segment.start)}
-                      className="timestamp-style font-mono text-sm font-medium cursor-pointer transition-all px-2 py-1 rounded border shadow-sm inline-block"
+                      className="timestamp-style font-mono text-sm font-medium cursor-pointer transition-all inline-block"
                       title={`${formatTime(segment.start)}にジャンプして再生`}
                     >
                       {formatTime(segment.start)}
