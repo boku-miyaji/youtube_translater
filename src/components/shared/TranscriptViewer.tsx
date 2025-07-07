@@ -292,7 +292,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 再生成
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-normal"
+            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-normal">
               {transcript}
             </div>
           </div>
