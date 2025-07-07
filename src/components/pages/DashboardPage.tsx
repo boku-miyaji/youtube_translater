@@ -64,7 +64,7 @@ const DashboardPage: React.FC = () => {
 
   const handleQuickAnalyze = () => {
     if (quickUrl.trim()) {
-      navigate('/upload', { state: { url: quickUrl.trim(), autoAnalyze: true } })
+      navigate('/analyze', { state: { url: quickUrl.trim(), autoAnalyze: true } })
     }
   }
 
@@ -111,8 +111,8 @@ const DashboardPage: React.FC = () => {
     
     setCurrentVideo(videoData)
     
-    // Navigate to upload page to show the historical video with all content
-    navigate('/upload')
+    // Navigate to analyze page to show the historical video with all content
+    navigate('/analyze')
   }
 
   return (
@@ -143,7 +143,7 @@ const DashboardPage: React.FC = () => {
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
                 <span className="text-3xl">🚀</span>
               </div>
-              <h3 className="text-2xl font-bold mb-2">Quick Upload</h3>
+              <h3 className="text-2xl font-bold mb-2">Quick Analyze</h3>
               <p className="text-white opacity-90">Transform your videos into text instantly</p>
             </div>
             
@@ -170,11 +170,11 @@ const DashboardPage: React.FC = () => {
               </button>
               
               <Link
-                to="/upload"
+                to="/analyze"
                 className="w-full inline-flex items-center justify-center px-4 py-3 bg-white/20 text-white font-semibold rounded-xl hover:bg-white/30 transition-all duration-200 border border-white/30"
               >
-                <span className="mr-2">📤</span>
-                Go to full upload page
+                <span className="mr-2">🔍</span>
+                Go to full analyze page
               </Link>
             </div>
           </div>

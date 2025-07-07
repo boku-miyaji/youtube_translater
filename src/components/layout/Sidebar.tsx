@@ -4,7 +4,7 @@ import { useAppStore } from '../../store/appStore'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: '🏠', color: 'from-blue-500 to-indigo-600' },
-  { name: 'Upload', href: '/upload', icon: '📤', color: 'from-green-500 to-emerald-600' },
+  { name: 'Analyze', href: '/analyze', icon: '🔍', color: 'from-green-500 to-emerald-600' },
   { name: 'History', href: '/history', icon: '📚', color: 'from-purple-500 to-violet-600' },
   { name: 'Analysis', href: '/analysis', icon: '📊', color: 'from-orange-500 to-red-600' },
   { name: 'Settings', href: '/settings', icon: '⚙️', color: 'from-gray-500 to-slate-600' },
@@ -62,7 +62,7 @@ const Sidebar: React.FC = () => {
                     <span className="truncate font-bold text-base">{item.name}</span>
                     <div className="text-xs opacity-75 mt-0.5">
                       {item.name === 'Dashboard' && 'Overview & Analytics'}
-                      {item.name === 'Upload' && 'Add New Content'}
+                      {item.name === 'Analyze' && 'Analyze Content'}
                       {item.name === 'History' && 'Past Transcriptions'}
                       {item.name === 'Analysis' && 'Data Insights'}
                       {item.name === 'Settings' && 'Configuration'}

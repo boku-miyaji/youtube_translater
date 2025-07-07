@@ -5,7 +5,7 @@ import VideoPlayer from '../shared/VideoPlayer'
 import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
 
-const UploadPage: React.FC = () => {
+const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
   const [url, setUrl] = useState('')
@@ -161,8 +161,8 @@ const UploadPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-app-primary">Upload Video</h1>
-        <p className="mt-2 text-app-secondary">Process YouTube videos for transcription and analysis.</p>
+        <h1 className="text-3xl font-bold text-app-primary">Analyze Video</h1>
+        <p className="mt-2 text-app-secondary">Analyze YouTube videos for transcription and insights.</p>
       </div>
 
       {/* Upload Form */}
@@ -237,7 +237,7 @@ const UploadPage: React.FC = () => {
                 Processing...
               </>
             ) : (
-              'Process Video'
+              'Analyze Video'
             )}
           </button>
         </form>
@@ -325,4 +325,4 @@ const UploadPage: React.FC = () => {
   )
 }
 
-export default UploadPage
+export default AnalyzePage

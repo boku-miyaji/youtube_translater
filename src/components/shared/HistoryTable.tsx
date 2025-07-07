@@ -90,8 +90,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
     console.log('🏛️ HistoryTable: Calling setCurrentVideo...')
     setCurrentVideo(videoData)
     
-    console.log('🏛️ HistoryTable: Navigating to /upload...')
-    navigate('/upload')
+    console.log('🏛️ HistoryTable: Navigating to /analyze...')
+    navigate('/analyze')
     
     console.log('🏛️ HistoryTable: CLICK EVENT COMPLETE')
   }
