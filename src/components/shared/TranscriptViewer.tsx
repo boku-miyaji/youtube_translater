@@ -20,10 +20,10 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
   
   let html = markdown
   
-  // Headers
-  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
-  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
-  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>')
+  // Headers with optimized spacing
+  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-4 mb-1">$1</h3>')
+  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-5 mb-2">$1</h2>')
+  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-6 mb-2">$1</h1>')
   
   // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
@@ -76,15 +76,21 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
     })
   }
   
-  // Preserve single line breaks
+  // Clean up heading-related line breaks first
+  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)\s*<br \/>/g, '$1')
+  
+  // Preserve single line breaks but avoid excessive spacing
+  html = html.replace(/\n\n+/g, '\n\n') // Normalize multiple line breaks
   html = html.replace(/\n/g, '<br />')
   
   // Paragraphs (double line breaks)
-  html = html.replace(/<br \/><br \/>/g, '</p><p class="mb-4">')
-  html = '<p class="mb-4">' + html + '</p>'
+  html = html.replace(/<br \/><br \/>/g, '</p><p class="mb-3">')
+  html = '<p class="mb-3">' + html + '</p>'
   
-  // Clean up empty paragraphs
-  html = html.replace(/<p class="mb-4">\s*<\/p>/g, '')
+  // Clean up empty paragraphs and heading-adjacent breaks
+  html = html.replace(/<p class="mb-3">\s*<\/p>/g, '')
+  html = html.replace(/(<\/h[1-6]>)<p class="mb-3">\s*<\/p>/g, '$1')
+  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)<p class="mb-3">/g, '$1<p class="mb-3 mt-2">')
   
   // Fix line breaks in list items
   html = html.replace(/<li class="ml-4 mb-1">(.*?)<br \/><\/li>/g, '<li class="ml-4 mb-1">$1</li>')
