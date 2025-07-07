@@ -181,27 +181,58 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
   }
 
   const generateArticle = async () => {
-    if (!transcript) return
+    if (!transcript) {
+      alert('文字起こしが利用できません。まず動画をアップロードしてください。')
+      return
+    }
     
     setLoadingArticle(true)
     try {
+      console.log('Generating article with transcript length:', transcript.length)
+      
       const response = await fetch('/api/generate-article', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ transcript }),
+        body: JSON.stringify({ 
+          transcript,
+          gptModel: 'gpt-4o-mini'
+        }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate article')
+        const errorText = await response.text()
+        console.error('Article generation failed:', response.status, response.statusText, errorText)
+        
+        let errorMessage = '記事の生成に失敗しました。'
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // テキストレスポンスの場合はそのまま使用
+          errorMessage = errorText || errorMessage
+        }
+        
+        throw new Error(`${errorMessage} (Status: ${response.status})`)
       }
 
       const data = await response.json()
+      console.log('Article generation response:', { 
+        hasArticle: !!data.article, 
+        articleLength: data.article?.length || 0,
+        success: data.success
+      })
+      
+      if (!data.article) {
+        throw new Error('サーバーから記事コンテンツが返されませんでした。')
+      }
+      
       setArticle(data.article)
     } catch (error) {
       console.error('Error generating article:', error)
-      alert('Failed to generate article. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : '不明なエラーが発生しました。'
+      alert(`記事の生成に失敗しました: ${errorMessage}`)
     } finally {
       setLoadingArticle(false)
     }

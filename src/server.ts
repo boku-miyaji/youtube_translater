@@ -1554,146 +1554,17 @@ app.delete('/article-history/:videoId/:entryId', (req: Request, res: Response) =
   }
 });
 
-// Article generation endpoint
+// Deprecated: Old article generation endpoint - replaced by /api/generate-article
+// This endpoint is kept for backward compatibility but should not be used
+/*
 app.post('/generate-article', async (req: Request, res: Response) => {
-  try {
-    const { gptModel = 'gpt-4o-mini' } = req.body;
-    
-    if (!currentTranscript) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'No transcript available. Please upload a video first.' 
-      });
-    }
-    
-    if (!currentMetadata) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'No metadata available. Please upload a video first.' 
-      });
-    }
-    
-    // Load article prompt template
-    const prompts = loadPrompts();
-    const articlePrompt = prompts.article?.template || `
-以下のYouTube動画の内容から、詳細な解説記事を日本語で作成してください。
-
-動画タイトル: {title}
-チャンネル: {channel}
-再生時間: {duration}分
-
-記事の構成：
-1. 導入部（動画の概要と重要性）
-2. 主要なポイントの詳細解説
-3. 具体例や実践的なアドバイス
-4. まとめと行動提案
-
-要件：
-- 読者にとって価値のある内容に
-- 適切な見出し構造を使用
-- 箇条書きや番号リストを効果的に活用
-- 2000-3000文字程度
-
-トランスクリプト:
-{transcript}
-`;
-    
-    // Prepare formatted prompt based on template type
-    let formattedPrompt: string;
-    if (prompts.article?.template) {
-      formattedPrompt = `
-以下のYouTube動画の内容をもとに記事を作成してください。
-
-動画情報:
-- タイトル: ${currentMetadata.basic.title}
-- チャンネル: ${currentMetadata.basic.channel}
-- 再生時間: ${Math.round(currentMetadata.basic.duration / 60)}分
-
-文字起こし内容:
-${currentTranscript}
-
-${prompts.article.template}
-`;
-    } else {
-      // Replace placeholders in default prompt
-      formattedPrompt = articlePrompt
-        .replace('{title}', currentMetadata.basic.title)
-        .replace('{channel}', currentMetadata.basic.channel)
-        .replace('{duration}', Math.round(currentMetadata.basic.duration / 60).toString())
-        .replace('{transcript}', currentTranscript);
-    }
-    
-    console.log(`Generating article with ${gptModel}...`);
-    console.log('Current metadata title:', currentMetadata.basic.title);
-    console.log('Transcript length:', currentTranscript.length);
-    console.log('First 200 chars of transcript:', currentTranscript.substring(0, 200));
-    console.log('Article prompt preview (first 500 chars):', formattedPrompt.substring(0, 500));
-    
-    const response = await openai.chat.completions.create({
-      model: gptModel,
-      messages: [
-        { role: 'user', content: formattedPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 4000
-    });
-    
-    const article = response.choices[0].message.content;
-    const usage = response.usage;
-    
-    if (!article) {
-      return res.status(500).json({ 
-        success: false,
-        error: 'Failed to generate article content' 
-      });
-    }
-    
-    // Calculate cost
-    const modelPricing = pricing.models[gptModel];
-    let cost = 0;
-    if (modelPricing && usage) {
-      cost = (usage.prompt_tokens * modelPricing.input) + 
-             (usage.completion_tokens * modelPricing.output);
-      sessionCosts.gpt += cost;
-      sessionCosts.total += cost;
-    }
-    
-    // Update current article
-    currentArticle = article;
-    
-    // Save to history if we have a video ID
-    if (currentMetadata?.basic.videoId) {
-      addArticleToHistory(currentMetadata.basic.videoId, article, 'generated');
-      
-      // Update history entry with article
-      const history = loadHistory();
-      const existingIndex = history.findIndex(item => item.id === currentMetadata!.basic.videoId);
-      if (existingIndex !== -1) {
-        history[existingIndex].article = article;
-        saveHistory(history);
-      }
-    }
-    
-    res.json({
-      success: true,
-      article: article,
-      model: gptModel,
-      cost: cost,
-      costs: sessionCosts,
-      tokens: {
-        input: usage?.prompt_tokens || 0,
-        output: usage?.completion_tokens || 0
-      }
-    });
-    
-  } catch (error) {
-    console.error('Error generating article:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to generate article' 
-    });
-  }
+  console.log('⚠️ WARNING: Using deprecated /generate-article endpoint. Use /api/generate-article instead.');
+  return res.status(410).json({ 
+    success: false,
+    error: 'This endpoint is deprecated. Please use /api/generate-article instead.' 
+  });
 });
+*/
 
 // Article retrieval endpoint
 app.get('/article/:videoId', (req: Request, res: Response) => {
@@ -1728,7 +1599,7 @@ app.get('/article/:videoId', (req: Request, res: Response) => {
 });
 
 // Prompts configuration endpoints
-app.get('/prompts', (req: Request, res: Response) => {
+app.get('/prompts', (_req: Request, res: Response) => {
   const prompts = loadPrompts();
   res.json(prompts);
 });
@@ -1768,7 +1639,7 @@ app.post('/prompts/save', (req: Request, res: Response) => {
 });
 
 // Settings endpoints for frontend compatibility
-app.get('/api/settings', (req: Request, res: Response) => {
+app.get('/api/settings', (_req: Request, res: Response) => {
   const DEFAULT_PROMPT = `Please provide a clear and concise transcription of the video content.
 Focus on accuracy and readability while maintaining the original meaning.`;
   
@@ -1793,7 +1664,7 @@ app.post('/api/settings', (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/prompts', (req: Request, res: Response) => {
+app.get('/api/prompts', (_req: Request, res: Response) => {
   const prompts = loadPrompts();
   // Convert the server format to frontend format
   const frontendPrompts = {};
@@ -1863,10 +1734,29 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
 // Generate article endpoint for TranscriptViewer
 app.post('/api/generate-article', async (req: Request, res: Response) => {
   try {
+    console.log('🔄 /api/generate-article endpoint called');
     const { transcript, gptModel = 'gpt-4o-mini' } = req.body;
     
+    console.log('Request data:', {
+      hasTranscript: !!transcript,
+      transcriptLength: transcript?.length || 0,
+      gptModel
+    });
+    
     if (!transcript) {
-      return res.status(400).json({ error: 'Transcript is required' });
+      console.error('❌ No transcript provided in request');
+      return res.status(400).json({ 
+        success: false,
+        error: 'Transcript is required' 
+      });
+    }
+
+    if (transcript.length < 10) {
+      console.error('❌ Transcript too short:', transcript.length);
+      return res.status(400).json({ 
+        success: false,
+        error: 'Transcript is too short to generate a meaningful article' 
+      });
     }
 
     // Load article prompt template
@@ -1887,7 +1777,10 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
     // Replace template variables
     const finalPrompt = articlePrompt.replace('{transcript}', transcript);
 
-    console.log('Generating article with OpenAI...');
+    console.log('🤖 Generating article with OpenAI...');
+    console.log('Model:', gptModel);
+    console.log('Prompt length:', finalPrompt.length);
+    
     const completion = await openai.chat.completions.create({
       model: gptModel,
       messages: [
@@ -1897,9 +1790,24 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
         }
       ],
       temperature: 0.7,
+      max_tokens: 4000
     });
 
     const article = completion.choices[0]?.message?.content || '';
+    
+    console.log('📄 Article generated:', {
+      hasArticle: !!article,
+      articleLength: article.length,
+      tokensUsed: completion.usage
+    });
+    
+    if (!article) {
+      console.error('❌ OpenAI returned empty article');
+      return res.status(500).json({ 
+        success: false,
+        error: 'OpenAI returned empty article content' 
+      });
+    }
     
     // Calculate cost
     const inputTokens = completion.usage?.prompt_tokens || 0;
@@ -1911,20 +1819,29 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
     sessionCosts.gpt += cost;
     sessionCosts.total += cost;
 
+    console.log('✅ Article generation successful');
     res.json({
       success: true,
       article: article,
-      cost: cost
+      cost: cost,
+      tokens: {
+        input: inputTokens,
+        output: outputTokens
+      }
     });
 
   } catch (error) {
-    console.error('Error generating article:', error);
-    res.status(500).json({ error: 'Failed to generate article' });
+    console.error('❌ Error generating article:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ 
+      success: false,
+      error: `Failed to generate article: ${errorMessage}` 
+    });
   }
 });
 
 // Reset session costs endpoint
-app.post('/reset-session-costs', (req: Request, res: Response) => {
+app.post('/reset-session-costs', (_req: Request, res: Response) => {
   sessionCosts = {
     whisper: 0,
     gpt: 0,
