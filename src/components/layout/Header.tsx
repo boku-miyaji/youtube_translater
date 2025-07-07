@@ -1,29 +1,11 @@
 import React from 'react'
-import { useAppStore } from '../../store/appStore'
 
 const Header: React.FC = () => {
-  const { sidebarCollapsed, setSidebarCollapsed } = useAppStore()
 
   return (
     <header className="bg-white/90 backdrop-blur-xl shadow-lg border-b border-white/20 px-6 py-4 relative z-50">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-3 rounded-2xl bg-indigo-100/80 text-indigo-600 hover:text-white hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300 shadow-md hover:shadow-lg z-50 relative border border-indigo-200 hover:border-indigo-600"
-            data-testid="sidebar-toggle"
-            title={sidebarCollapsed ? "サイドバーを開く" : "サイドバーを閉じる"}
-          >
-            {sidebarCollapsed ? (
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-testid="menu-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            ) : (
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-testid="close-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            )}
-          </button>
           <div className="flex items-center space-x-4">
             <div className="relative">
               <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">

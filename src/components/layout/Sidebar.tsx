@@ -11,7 +11,7 @@ const navigation = [
 ]
 
 const Sidebar: React.FC = () => {
-  const { sidebarCollapsed } = useAppStore()
+  const { sidebarCollapsed, setSidebarCollapsed } = useAppStore()
 
   return (
     <div 
@@ -26,6 +26,26 @@ const Sidebar: React.FC = () => {
       <nav className={`relative h-full py-8 ${
         sidebarCollapsed ? 'px-2' : 'px-6'
       }`}>
+        {/* Toggle button */}
+        <div className={`mb-6 ${sidebarCollapsed ? 'flex justify-center' : 'flex justify-end'}`}>
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2.5 rounded-xl bg-indigo-100/80 text-indigo-600 hover:text-white hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300 shadow-md hover:shadow-lg border border-indigo-200 hover:border-indigo-600"
+            data-testid="sidebar-toggle"
+            title={sidebarCollapsed ? "サイドバーを開く" : "サイドバーを閉じる"}
+          >
+            {sidebarCollapsed ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-testid="menu-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-testid="close-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M19 19l-7-7 7-7" />
+              </svg>
+            )}
+          </button>
+        </div>
+        
         {/* Navigation header */}
         {!sidebarCollapsed && (
           <div className="mb-8 pb-6 border-b border-gray-200">
