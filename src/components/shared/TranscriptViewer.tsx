@@ -90,26 +90,42 @@ const markdownToHtml = (markdown: string, onSeek?: (time: number) => void, onQue
   html = html.replace(/<br \/>\s*(<h[1-6][^>]*>)/g, '$1')
   html = html.replace(/(<\/h[1-6]>)\s*<br \/><br \/>/g, '$1')
   
-  // Convert remaining line breaks to paragraphs with zero margin
-  html = html.replace(/<br \/>/g, '</p><p class="mb-0">')
-  html = '<p class="mb-0">' + html + '</p>'
+  // Convert remaining line breaks to paragraphs with minimal margin
+  html = html.replace(/<br \/>/g, '</p><p class="mb-1">')
+  html = '<p class="mb-1">' + html + '</p>'
   
   // Aggressive cleanup of empty and problematic elements
-  html = html.replace(/<p class="mb-0">\s*<\/p>/g, '')
-  html = html.replace(/(<\/h[1-6]>)<p class="mb-0">\s*<\/p>/g, '$1')
-  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)<p class="mb-0">/g, '$1<p class="mb-0">')
+  html = html.replace(/<p class="mb-1">\s*<\/p>/g, '')
+  html = html.replace(/(<\/h[1-6]>)<p class="mb-1">\s*<\/p>/g, '$1')
+  html = html.replace(/(<h[1-6][^>]*>[^<]*<\/h[1-6]>)<p class="mb-1">/g, '$1<p class="mb-1">')
   
   // Fix line breaks in list items
-  html = html.replace(/<li class="ml-0 mb-0">(.*?)<\/p><p class="mb-0"><\/li>/g, '<li class="ml-0 mb-0">$1</li>')
+  html = html.replace(/<li class="ml-0 mb-0">(.*?)<\/p><p class="mb-1"><\/li>/g, '<li class="ml-0 mb-0">$1</li>')
   
   // Remove empty paragraphs between lists and headers
-  html = html.replace(/(<\/ul>)<p class="mb-0">\s*<\/p>(<h[1-6])/g, '$1$2')
-  html = html.replace(/(<\/h[1-6]>)<p class="mb-0">\s*<\/p>(<ul)/g, '$1$2')
+  html = html.replace(/(<\/ul>)<p class="mb-1">\s*<\/p>(<h[1-6])/g, '$1$2')
+  html = html.replace(/(<\/h[1-6]>)<p class="mb-1">\s*<\/p>(<ul)/g, '$1$2')
   
   // Final aggressive cleanup pass
-  html = html.replace(/<p class="mb-0"><\/p>/g, '') // Remove all empty paragraphs
+  html = html.replace(/<p class="mb-1"><\/p>/g, '') // Remove all empty paragraphs
   html = html.replace(/(<\/[^>]+>)\s*(<h[1-6])/g, '$1$2') // Remove spaces between elements and headers
   html = html.replace(/(<\/h[1-6]>)\s*(<[^>]+>)/g, '$1$2') // Remove spaces after headers
+  
+  // Add block separation: increase margin before headings for visual grouping
+  // Change paragraphs that precede headings to have larger bottom margin
+  html = html.replace(/(<p class="mb-1"[^>]*>.*?<\/p>)(<h[1-6])/g, (match, p1, p2) => {
+    return p1.replace('mb-1', 'mb-3') + p2
+  })
+  
+  // Change lists that precede headings to have larger bottom margin
+  html = html.replace(/(<ul class="list-none mb-0\.5"[^>]*>.*?<\/ul>)(<h[1-6])/g, (match, p1, p2) => {
+    return p1.replace('mb-0\\.5', 'mb-3') + p2
+  })
+  
+  // Change h4 headers that precede main headings to have larger bottom margin
+  html = html.replace(/(<h4 class="text-base font-semibold mt-1 mb-0"[^>]*>.*?<\/h4>)(<h[1-3])/g, (match, p1, p2) => {
+    return p1.replace('mb-0', 'mb-3') + p2
+  })
   
   return html
 }
