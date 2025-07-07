@@ -25,6 +25,23 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
     return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Format analysis date with detailed timestamp
+  const formatAnalysisDate = (timestamp: string): string => {
+    if (!timestamp) return 'Unknown'
+    
+    const date = new Date(timestamp)
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }
+    
+    return date.toLocaleString('ja-JP', options)
+  }
+
   const sortedData = [...data].sort((a, b) => {
     switch (sortBy) {
       case 'title':
@@ -108,7 +125,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
               Duration
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Date
+              Analysis Date
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
@@ -180,7 +197,12 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
                   {formatDuration(item.metadata?.basic?.duration || item.duration)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Unknown'}
+                  <div className="flex flex-col">
+                    <span className="font-medium">{formatAnalysisDate(item.timestamp)}</span>
+                    <span className="text-xs text-gray-500">
+                      {item.timestamp ? `(${new Date(item.timestamp).toLocaleDateString()})` : ''}
+                    </span>
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-app-background text-app-primary">

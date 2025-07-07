@@ -28,6 +28,22 @@ const DashboardPage: React.FC = () => {
     return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
   
+  // Format analysis date with detailed timestamp
+  const formatAnalysisDate = (timestamp: string): string => {
+    if (!timestamp) return 'Unknown date'
+    
+    const date = new Date(timestamp)
+    const options: Intl.DateTimeFormatOptions = {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }
+    
+    return date.toLocaleString('ja-JP', options)
+  }
+  
   // Calculate today's and yesterday's costs
   const today = new Date()
   const yesterday = new Date(today)
@@ -306,7 +322,7 @@ const DashboardPage: React.FC = () => {
                           </div>
                           <div className="flex items-center">
                             <span className="mr-2">📅</span>
-                            <span>{video.timestamp ? new Date(video.timestamp).toLocaleDateString() : 'Unknown date'}</span>
+                            <span className="font-medium">{formatAnalysisDate(video.timestamp)}</span>
                           </div>
                         </div>
                         {/* Progress bar */}
@@ -332,7 +348,7 @@ const DashboardPage: React.FC = () => {
                   <h3 className="text-xl font-bold text-gray-700 mb-2">No videos processed yet</h3>
                   <p className="text-gray-500 mb-6">Upload your first video to start transcribing with AI</p>
                   <Link 
-                    to="/upload"
+                    to="/analyze"
                     className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold rounded-2xl hover:shadow-lg transition-all duration-200"
                   >
                     <span className="mr-2">🚀</span>
