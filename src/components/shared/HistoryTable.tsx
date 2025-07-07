@@ -183,12 +183,22 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
                         </div>
                       )}
                     </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">
+                    <div className="ml-4 min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-900 truncate">
                         {item.title || item.metadata?.basic?.title || 'Unknown Title'}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {item.metadata?.basic?.channel || 'Unknown Channel'}
+                      <div className="text-sm text-gray-500 mt-1">
+                        📺 {item.metadata?.basic?.channel || 'Unknown Channel'}
+                      </div>
+                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                        <div className="flex items-center">
+                          <span className="mr-1">⏱️</span>
+                          <span className="font-medium">{formatDuration(item.metadata?.basic?.duration || item.duration)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="mr-1">📅</span>
+                          <span className="font-medium">{formatAnalysisDate(item.timestamp)}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
