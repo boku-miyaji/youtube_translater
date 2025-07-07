@@ -119,99 +119,6 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Today's Cost Card */}
-        <div className="lg:col-span-2 group relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
-          <div className="relative bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 hover:shadow-indigo-500/25 transition-all duration-500">
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <div className="flex items-center mb-2">
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-                    <span className="text-2xl">💰</span>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800">Daily Spending</h3>
-                    <p className="text-sm text-gray-500">API Costs & Usage</p>
-                  </div>
-                </div>
-                <div className="text-4xl font-bold text-gray-900 mb-2">
-                  {costsLoading ? (
-                    <div className="animate-pulse bg-gray-200 h-10 w-32 rounded-lg"></div>
-                  ) : (
-                    `$${totalTodaysCost.toFixed(4)}`
-                  )}
-                </div>
-                <div className="flex items-center text-sm" data-testid="spending-change">
-                  <span className={`font-semibold mr-2 ${
-                    spendingChange.startsWith('+') ? 'text-app-success' : 
-                    spendingChange.startsWith('-') ? 'text-app-error' : 'text-app-muted'
-                  }`}>
-                    {spendingChange.startsWith('+') ? '↗' : spendingChange.startsWith('-') ? '↘' : '→'} {spendingChange}
-                  </span>
-                  <span className="text-gray-500">vs yesterday</span>
-                </div>
-              </div>
-            </div>
-            <div className="h-16 -mx-2">
-              <MiniChart data={costTrend} color="#6366f1" height={64} />
-            </div>
-          </div>
-        </div>
-
-        {/* Video Count Card */}
-        <div className="group relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
-          <div className="relative bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-white/50 hover:shadow-emerald-500/25 transition-all duration-500">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-xl">📹</span>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">
-                  {historyLoading ? (
-                    <div className="animate-pulse bg-gray-200 h-6 w-8 rounded"></div>
-                  ) : (
-                    history?.length || 0
-                  )}
-                </div>
-                <div className="text-xs text-gray-500">Total Videos (All Time)</div>
-              </div>
-            </div>
-            <div className="h-12 -mx-2">
-              <MiniChart data={videoTrend} color="#10b981" height={48} />
-            </div>
-            <div className="flex items-center text-xs mt-2">
-              <span className="text-emerald-500 font-semibold mr-1">↗ +3</span>
-              <span className="text-gray-500">this week</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Processing Time Card */}
-        <div className="group relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-600 rounded-3xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
-          <div className="relative bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-white/50 hover:shadow-orange-500/25 transition-all duration-500">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-xl">⚡</span>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">47s</div>
-                <div className="text-xs text-gray-500">Avg Process</div>
-              </div>
-            </div>
-            <div className="h-12 -mx-2">
-              <MiniChart data={processingTimes} color="#f97316" height={48} />
-            </div>
-            <div className="flex items-center text-xs mt-2">
-              <span className="text-app-error font-semibold mr-1">↘ -8s</span>
-              <span className="text-gray-500">improved</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Quick Upload Section */}
       <div className="flex justify-center mb-12">
@@ -450,6 +357,100 @@ const DashboardPage: React.FC = () => {
                   All systems operational
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-12">
+        {/* Today's Cost Card */}
+        <div className="lg:col-span-2 group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+          <div className="relative bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 hover:shadow-indigo-500/25 transition-all duration-500">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <div className="flex items-center mb-2">
+                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+                    <span className="text-2xl">💰</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800">Daily Spending</h3>
+                    <p className="text-sm text-gray-500">API Costs & Usage</p>
+                  </div>
+                </div>
+                <div className="text-4xl font-bold text-gray-900 mb-2">
+                  {costsLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-10 w-32 rounded-lg"></div>
+                  ) : (
+                    `$${totalTodaysCost.toFixed(4)}`
+                  )}
+                </div>
+                <div className="flex items-center text-sm" data-testid="spending-change">
+                  <span className={`font-semibold mr-2 ${
+                    spendingChange.startsWith('+') ? 'text-app-success' : 
+                    spendingChange.startsWith('-') ? 'text-app-error' : 'text-app-muted'
+                  }`}>
+                    {spendingChange.startsWith('+') ? '↗' : spendingChange.startsWith('-') ? '↘' : '→'} {spendingChange}
+                  </span>
+                  <span className="text-gray-500">vs yesterday</span>
+                </div>
+              </div>
+            </div>
+            <div className="h-16 -mx-2">
+              <MiniChart data={costTrend} color="#6366f1" height={64} />
+            </div>
+          </div>
+        </div>
+
+        {/* Video Count Card */}
+        <div className="group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+          <div className="relative bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-white/50 hover:shadow-emerald-500/25 transition-all duration-500">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-xl">📹</span>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900">
+                  {historyLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-6 w-8 rounded"></div>
+                  ) : (
+                    history?.length || 0
+                  )}
+                </div>
+                <div className="text-xs text-gray-500">Total Videos (All Time)</div>
+              </div>
+            </div>
+            <div className="h-12 -mx-2">
+              <MiniChart data={videoTrend} color="#10b981" height={48} />
+            </div>
+            <div className="flex items-center text-xs mt-2">
+              <span className="text-emerald-500 font-semibold mr-1">↗ +3</span>
+              <span className="text-gray-500">this week</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Processing Time Card */}
+        <div className="group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-600 rounded-3xl blur-lg opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+          <div className="relative bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-white/50 hover:shadow-orange-500/25 transition-all duration-500">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-xl">⚡</span>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900">47s</div>
+                <div className="text-xs text-gray-500">Avg Process</div>
+              </div>
+            </div>
+            <div className="h-12 -mx-2">
+              <MiniChart data={processingTimes} color="#f97316" height={48} />
+            </div>
+            <div className="flex items-center text-xs mt-2">
+              <span className="text-app-error font-semibold mr-1">↘ -8s</span>
+              <span className="text-gray-500">improved</span>
             </div>
           </div>
         </div>
