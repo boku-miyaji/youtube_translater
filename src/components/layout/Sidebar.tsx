@@ -16,14 +16,16 @@ const Sidebar: React.FC = () => {
   return (
     <div 
       className={`bg-white/95 backdrop-blur-xl shadow-2xl border-r border-white/30 transition-all duration-300 relative z-40 ${
-        sidebarCollapsed ? 'w-20' : 'w-80'
+        sidebarCollapsed ? 'w-16' : 'w-80'
       }`}
       data-testid="sidebar"
     >
       {/* Sidebar background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-gray-50/40 to-white/60 backdrop-blur-sm"></div>
       
-      <nav className="relative h-full px-6 py-8">
+      <nav className={`relative h-full py-8 ${
+        sidebarCollapsed ? 'px-2' : 'px-6'
+      }`}>
         {/* Navigation header */}
         {!sidebarCollapsed && (
           <div className="mb-8 pb-6 border-b border-gray-200">
@@ -38,22 +40,27 @@ const Sidebar: React.FC = () => {
               key={item.name}
               to={item.href}
               className={({ isActive }) =>
-                `group flex items-center px-5 py-4 text-sm font-semibold rounded-3xl transition-all duration-300 relative overflow-hidden ${
+                `group flex items-center text-sm font-semibold rounded-3xl transition-all duration-300 relative overflow-hidden ${
+                  sidebarCollapsed ? 'px-2 py-3 mx-auto w-12 justify-center' : 'px-5 py-4'
+                } ${
                   isActive
                     ? `bg-gradient-to-r ${item.color} text-white shadow-2xl transform scale-105 shadow-indigo-500/25`
                     : 'text-gray-600 hover:bg-white/80 hover:text-gray-900 hover:shadow-xl hover:scale-102 hover:shadow-gray-300/50'
                 }`
               }
+              title={sidebarCollapsed ? item.name : undefined}
             >
               {/* Active indicator */}
               <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${item.color} transition-all duration-300 ${
                 sidebarCollapsed ? 'opacity-0' : 'opacity-100'
               }`}></div>
               
-              <div className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-2xl transition-all duration-300 ${
-                sidebarCollapsed ? 'mr-0' : 'mr-5'
+              <div className={`flex-shrink-0 flex items-center justify-center rounded-2xl transition-all duration-300 ${
+                sidebarCollapsed ? 'w-12 h-12 mx-auto' : 'w-10 h-10 mr-5'
               }`}>
-                <span className="text-xl">{item.icon}</span>
+                <span className={`transition-all duration-300 ${
+                  sidebarCollapsed ? 'text-2xl' : 'text-xl'
+                }`}>{item.icon}</span>
               </div>
               
               {!sidebarCollapsed && (

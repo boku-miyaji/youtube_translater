@@ -10,8 +10,9 @@ const Header: React.FC = () => {
         <div className="flex items-center space-x-4">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-3 rounded-2xl text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300 shadow-sm hover:shadow-md z-50 relative"
+            className="p-3 rounded-2xl bg-indigo-100/80 text-indigo-600 hover:text-white hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300 shadow-md hover:shadow-lg z-50 relative border border-indigo-200 hover:border-indigo-600"
             data-testid="sidebar-toggle"
+            title={sidebarCollapsed ? "サイドバーを開く" : "サイドバーを閉じる"}
           >
             {sidebarCollapsed ? (
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-testid="menu-icon">
