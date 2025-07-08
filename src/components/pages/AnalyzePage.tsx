@@ -217,7 +217,7 @@ const AnalyzePage: React.FC = () => {
       </div>
 
       {/* Control Bar - Collapsible Form */}
-      <div className={`${currentVideo ? 'sticky top-4 z-40' : ''} transition-all duration-300 ease-in-out`}>
+      <div className="transition-all duration-300 ease-in-out">
         <div className="card-modern overflow-hidden">
           {/* Collapsed State - Minimal Display with Editable URL */}
           {formCollapsed && currentVideo && (
