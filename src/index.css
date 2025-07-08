@@ -129,3 +129,42 @@ button:disabled {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Custom prose styling for improved readability */
+.prose-tx {
+  @apply prose prose-gray max-w-none;
+}
+
+.prose-tx p {
+  @apply mb-4;
+}
+
+.prose-tx h1, .prose-tx h2 {
+  @apply mt-8 mb-3 first:mt-0;
+}
+
+.prose-tx h3, .prose-tx h4 {
+  @apply mt-6 mb-2 first:mt-0;
+}
+
+.prose-tx ul, .prose-tx ol {
+  @apply mb-6 mt-2;
+}
+
+.prose-tx li {
+  @apply mb-1;
+}
+
+.prose-tx li > p {
+  @apply mb-1;
+}
+
+/* Timestamp link styling */
+.prose-tx .timestamp-link {
+  @apply text-indigo-600 hover:text-indigo-800 underline cursor-pointer font-mono text-sm transition-colors;
+}
+
+/* Question button styling */
+.prose-tx .question-button {
+  @apply inline-block px-2 py-1 ml-2 rounded transition-all border shadow-sm bg-gray-50 hover:bg-gray-100 cursor-pointer text-sm;
+}
