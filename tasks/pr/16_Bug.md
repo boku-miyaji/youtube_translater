@@ -1,6 +1,80 @@
 # PR: UI/UX改善: 細かな機能修正 - ULTRATHINK完全実装 (Issue #16)
 
-## 📝 最新の更新内容 (2025年7月7日) - 人間フィードバック重要修正 🚨✅
+## 📝 最新の更新内容 (2025年7月8日) - 包括的UI/UX改善 🚀✅
+
+### 🚀 **最新3つの重要機能追加** (コミット: e633b15, 1aae47a, 6ba4047)
+
+人間フィードバックに基づく3つの重要なUI/UX改善を実装:
+
+#### 1. ✅ **転写ソース表示機能** (コミット: 6ba4047)
+- **要求**: "文字起こし時に公開キャプションで生成したのか、Whisperで生成したのかわかるようにしてください"
+- **実装**:
+  - **Green badge** (📺 YouTube キャプション) - 無料の公開キャプション使用時
+  - **Blue badge** (🤖 Whisper AI 生成) - 有料のAI転写使用時
+  - VideoMetadata型に `transcriptSource` フィールド追加
+  - TranscriptViewerで視覚的なソース表示
+
+#### 2. ✅ **最小化状態でのURL編集機能** (コミット: 1aae47a)  
+- **要求**: "analyze videoでcurrent urlをminimizeした状態でも変更できるようにしたい"
+- **実装**:
+  - 読み取り専用URL表示 → 編集可能inputフィールドに変更
+  - collapsed状態から直接フォーム送信可能
+  - "Advanced"ボタン（展開用）+ "Analyze"ボタン（送信用）の分離
+  - URLバリデーションとプレビュー機能をcollapsed状態でも利用
+
+#### 3. ✅ **Sticky Positioning削除** (コミット: e633b15)
+- **要求**: "analyze画面のurlが下にスクロールされても常に表示されているのは邪魔です"
+- **実装**:
+  - `sticky top-4 z-40` クラスを削除
+  - フォームが自然なスクロール動作に従う
+  - スクロール時の視覚的邪魔を完全解消
+  - アニメーション効果は維持
+
+### 🔧 **技術的実装詳細**
+
+#### TranscriptViewer.tsx の大幅強化
+```typescript
+// 新機能: ソース表示バッジ
+{transcriptSource && (
+  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+    transcriptSource === 'subtitle' 
+      ? 'bg-green-100 text-green-800 border border-green-200' 
+      : 'bg-blue-100 text-blue-800 border border-blue-200'
+  }`}>
+    {transcriptSource === 'subtitle' ? (
+      <>📺 YouTube キャプション</>
+    ) : (
+      <>🤖 Whisper AI 生成</>
+    )}
+  </span>
+)}
+```
+
+#### AnalyzePage.tsx の包括的改良
+```typescript
+// 新機能: Collapsed状態での完全なフォーム機能
+{formCollapsed && currentVideo && (
+  <div className="p-4">
+    <form onSubmit={handleSubmit} className="space-y-3">
+      // 編集可能URL入力 + バリデーション + プレビュー + 送信ボタン
+    </form>
+  </div>
+)}
+
+// 修正: Sticky positioning削除
+- className={`${currentVideo ? 'sticky top-4 z-40' : ''} transition-all duration-300 ease-in-out`}
++ className="transition-all duration-300 ease-in-out"
+```
+
+### 📊 **変更統計**
+- **修正ファイル数**: 4ファイル
+- **追加行数**: +132行
+- **削除行数**: -27行  
+- **正味変更**: +105行
+
+---
+
+## 📝 以前の更新内容 (2025年7月7日) - 人間フィードバック重要修正 🚨✅
 
 ### 🚨 **人間レビュー指摘事項の完全解決** (コミット: d695c1f)
 
