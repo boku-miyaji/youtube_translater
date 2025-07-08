@@ -14,6 +14,8 @@ const AnalyzePage: React.FC = () => {
   const [urlError, setUrlError] = useState('')
   const [playerRef, setPlayerRef] = useState<any>(null)
   const [prefillQuestion, setPrefillQuestion] = useState<string>('')
+  const [videoPreview, setVideoPreview] = useState<{title: string, thumbnail: string} | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -41,12 +43,46 @@ const AnalyzePage: React.FC = () => {
     return patterns.some(pattern => pattern.test(url))
   }
 
+  // Extract YouTube video ID
+  const extractVideoId = (url: string): string | null => {
+    const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/
+    const match = url.match(regex)
+    return match ? match[1] : null
+  }
+
+  // Generate instant preview
+  const generateVideoPreview = (url: string) => {
+    const videoId = extractVideoId(url)
+    if (videoId) {
+      setVideoPreview({
+        title: 'YouTube Video',
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+      })
+    } else {
+      setVideoPreview(null)
+    }
+  }
+
   const handleUrlChange = (value: string) => {
     setUrl(value)
     setUrlError('')
+    setVideoPreview(null)
     
-    if (value.trim() && !validateYouTubeUrl(value.trim())) {
-      setUrlError('Please enter a valid YouTube URL')
+    if (value.trim()) {
+      if (validateYouTubeUrl(value.trim())) {
+        // Generate instant preview for valid URLs
+        generateVideoPreview(value.trim())
+      } else {
+        setUrlError('Please enter a valid YouTube URL')
+      }
+    }
+  }
+
+  // Handle paste event for instant preview
+  const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    if (pastedText && validateYouTubeUrl(pastedText)) {
+      setTimeout(() => generateVideoPreview(pastedText), 100)
     }
   }
 
@@ -159,116 +195,179 @@ const AnalyzePage: React.FC = () => {
   }, [currentVideo])
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-app-primary">Analyze Video</h1>
-        <p className="mt-2 text-app-secondary">Analyze YouTube videos for transcription and insights.</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      {/* Header Section */}
+      <div className="text-center lg:text-left">
+        <h1 className="text-display text-app-primary flex items-center justify-center lg:justify-start gap-3">
+          🎥 Analyze Video
+        </h1>
+        <p className="mt-3 text-body text-app-secondary max-w-2xl">
+          Transform YouTube videos into insights with AI-powered transcription, summaries, and interactive chat.
+        </p>
       </div>
 
-      {/* Upload Form */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="url" className="block text-sm font-medium text-app-primary">
-              YouTube URL
-            </label>
-            <input
-              type="url"
-              id="url"
-              value={url}
-              onChange={(e) => handleUrlChange(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
-              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-2 focus:ring-offset-2 ${
-                urlError ? 'border-app-error focus:ring-red-500' : 'border-app-medium focus:ring-blue-500'
-              }`}
-              data-testid="url-input"
-              required
-            />
-            {urlError && (
-              <p className="mt-2 text-sm text-app-error" data-testid="url-error">
-                {urlError}
-              </p>
-            )}
-          </div>
+      {/* Control Bar - Sticky Form */}
+      <div className={`${currentVideo ? 'sticky top-4 z-40' : ''}`}>
+        <div className="card-modern p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* URL Input with Preview */}
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
+                  <span className="flex items-center gap-2">
+                    🔗 YouTube URL
+                  </span>
+                </label>
+                <input
+                  type="url"
+                  id="url"
+                  value={url}
+                  onChange={(e) => handleUrlChange(e.target.value)}
+                  onPaste={handleUrlPaste}
+                  placeholder="https://www.youtube.com/watch?v=... or paste a YouTube link"
+                  className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
+                    urlError 
+                      ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
+                      : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
+                  }`}
+                  data-testid="url-input"
+                  required
+                />
+                {urlError && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                    ⚠️ {urlError}
+                  </div>
+                )}
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="language" className="block text-sm font-medium text-app-primary">
-                Language
-              </label>
-              <select
-                id="language"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="Original">Original</option>
-                <option value="Japanese">Japanese</option>
-                <option value="English">English</option>
-              </select>
+              {/* URL Preview Card */}
+              {videoPreview && !urlError && (
+                <div className="url-preview-card">
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src={videoPreview.thumbnail} 
+                      alt="Video thumbnail"
+                      className="w-20 h-15 object-cover rounded-lg shadow-sm"
+                      onError={(e) => {
+                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="60" fill="%23e5e7eb"%3E%3Crect width="80" height="60"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%236b7280"%3E📹%3C/text%3E%3C/svg%3E'
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 text-sm text-blue-800">
+                        ✅ Valid YouTube URL detected
+                      </div>
+                      <p className="text-xs text-blue-600 mt-1 opacity-75">
+                        Ready to analyze
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div>
-              <label htmlFor="model" className="block text-sm font-medium text-app-primary">
-                Model
-              </label>
-              <select
-                id="model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
-                <option value="gpt-4">GPT-4</option>
-                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-              </select>
-            </div>
-          </div>
+            {/* Settings Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2">
+                  🌐 Language
+                </label>
+                <select
+                  id="language"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                >
+                  <option value="original">Original</option>
+                  <option value="ja">Japanese</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading || !url.trim() || !!urlError}
-            className="btn-success w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            data-testid="analyze-button"
-          >
-            {loading ? (
-              <>
-                <div className="loading mr-2" />
-                Processing...
-              </>
-            ) : (
-              'Analyze Video'
-            )}
-          </button>
-        </form>
+              <div>
+                <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2">
+                  🤖 AI Model
+                </label>
+                <select
+                  id="model"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                >
+                  <option value="gpt-4.1-mini">GPT-4.1 Mini (Fast)</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini (Balanced)</option>
+                  <option value="gpt-4">GPT-4 (Premium)</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2 lg:col-span-1 flex items-end">
+                <button
+                  type="submit"
+                  disabled={loading || !url.trim() || !!urlError}
+                  className="btn-modern btn-success w-full h-10 text-white font-semibold shadow-elevation-hover"
+                  data-testid="analyze-button"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span className="text-tabular">Analyzing...</span>
+                    </div>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      ⚡ Analyze Video
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
+
+      {/* Loading State with Skeleton */}
+      {loading && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <div className="skeleton h-64 w-full rounded-xl"></div>
+            </div>
+            <div className="lg:col-span-2 space-y-4">
+              <div className="skeleton h-12 w-full rounded-lg"></div>
+              <div className="skeleton h-6 w-3/4 rounded"></div>
+              <div className="skeleton h-6 w-1/2 rounded"></div>
+              <div className="skeleton h-40 w-full rounded-lg"></div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Video Content */}
-      {currentVideo && (
-        <div className="space-y-6">
+      {currentVideo && !loading && (
+        <div className="space-y-8">
           {/* Main Content Area */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
             {/* Video Player - Left Side */}
-            <div className="lg:col-span-1">
-              <VideoPlayer 
-                video={currentVideo} 
-                onPlayerReady={(player) => setPlayerRef(player)}
-              />
+            <div className="xl:col-span-4">
+              <div className="card-modern p-4">
+                <VideoPlayer 
+                  video={currentVideo} 
+                  onPlayerReady={(player) => setPlayerRef(player)}
+                />
+              </div>
             </div>
             
-            {/* Transcript Viewer - Right Side (Takes 2 columns) */}
-            <div className="lg:col-span-2">
+            {/* Transcript Viewer - Right Side */}
+            <div className="xl:col-span-8">
               <TranscriptViewer 
                 transcript={currentVideo.transcript}
                 timestampedSegments={currentVideo.timestampedSegments}
                 summary={currentVideo.summary}
                 onSeek={(time) => {
-                  console.log('🎥 UploadPage: onSeek called with time:', time)
-                  console.log('🎥 UploadPage: playerRef available:', !!playerRef)
+                  console.log('🎥 AnalyzePage: onSeek called with time:', time)
+                  console.log('🎥 AnalyzePage: playerRef available:', !!playerRef)
                   
                   const trySeek = (retryCount = 0) => {
                     if (playerRef) {
-                      console.log('🎥 UploadPage: playerRef methods:', {
+                      console.log('🎥 AnalyzePage: playerRef methods:', {
                         seekToWithAutoplay: !!playerRef.seekToWithAutoplay,
                         seekTo: !!playerRef.seekTo,
                         getPlayerState: !!playerRef.getPlayerState,
@@ -309,15 +408,30 @@ const AnalyzePage: React.FC = () => {
             </div>
           </div>
           
-          {/* Chat Interface - Bottom */}
+          {/* Chat Interface - Full Width at Bottom */}
           <div className="w-full">
-            <ChatInterface 
-              videoId={currentVideo.basic?.videoId} 
-              prefillQuestion={prefillQuestion}
-              videoTitle={currentVideo.basic?.title}
-              transcript={currentVideo.transcript}
-              summary={currentVideo.summary}
-            />
+            <div className="card-modern">
+              <ChatInterface 
+                videoId={currentVideo.basic?.videoId} 
+                prefillQuestion={prefillQuestion}
+                videoTitle={currentVideo.basic?.title}
+                transcript={currentVideo.transcript}
+                summary={currentVideo.summary}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!currentVideo && !loading && (
+        <div className="text-center py-12">
+          <div className="empty-state card-modern p-12 max-w-md mx-auto">
+            <div className="text-6xl mb-4 opacity-60">🎬</div>
+            <h3 className="text-heading mb-2">Ready to Analyze</h3>
+            <p className="text-body opacity-75">
+              Paste a YouTube URL above to get started with AI-powered video analysis.
+            </p>
           </div>
         </div>
       )}
