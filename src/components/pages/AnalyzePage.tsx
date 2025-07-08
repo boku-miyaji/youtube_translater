@@ -403,75 +403,74 @@ const AnalyzePage: React.FC = () => {
         </div>
       )}
 
-      {/* Video Content */}
+      {/* Video Content - 3-Tier Layout */}
       {currentVideo && !loading && (
         <div className="space-y-8">
-          {/* Main Content Area */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-            {/* Video Player - Left Side */}
-            <div className="xl:col-span-4">
-              <div className="card-modern p-4">
+          {/* Top Tier: Full-Width Video Player (16:9) */}
+          <div className="w-full">
+            <div className="card-modern overflow-hidden">
+              <div className="aspect-video">
                 <VideoPlayer 
                   video={currentVideo} 
                   onPlayerReady={(player) => setPlayerRef(player)}
                 />
               </div>
             </div>
-            
-            {/* Transcript Viewer - Right Side */}
-            <div className="xl:col-span-8">
-              <TranscriptViewer 
-                transcript={currentVideo.transcript}
-                timestampedSegments={currentVideo.timestampedSegments}
-                summary={currentVideo.summary}
-                onSeek={(time) => {
-                  console.log('🎥 AnalyzePage: onSeek called with time:', time)
-                  console.log('🎥 AnalyzePage: playerRef available:', !!playerRef)
-                  
-                  const trySeek = (retryCount = 0) => {
-                    if (playerRef) {
-                      console.log('🎥 AnalyzePage: playerRef methods:', {
-                        seekToWithAutoplay: !!playerRef.seekToWithAutoplay,
-                        seekTo: !!playerRef.seekTo,
-                        getPlayerState: !!playerRef.getPlayerState,
-                        playVideo: !!playerRef.playVideo
-                      })
-                      
-                      // Use the enhanced seekTo function with autoplay
-                      if (playerRef.seekToWithAutoplay) {
-                        console.log('🎥 Using seekToWithAutoplay')
-                        playerRef.seekToWithAutoplay(time, true)
-                      } else if (playerRef.seekTo) {
-                        console.log('🎥 Using fallback seekTo method')
-                        // Fallback to original method
-                        playerRef.seekTo(time, true)
-                        // Auto-play if not already playing
-                        setTimeout(() => {
-                          if (playerRef.getPlayerState && playerRef.getPlayerState() !== 1 && playerRef.playVideo) {
-                            console.log('🎥 Auto-playing video after seek')
-                            playerRef.playVideo()
-                          }
-                        }, 100)
-                      } else {
-                        console.error('🚨 No seek method available on playerRef!')
-                      }
-                    } else if (retryCount < 5) {
-                      console.log(`⏳ Player not ready yet, retrying... (${retryCount + 1}/5)`)
-                      setTimeout(() => trySeek(retryCount + 1), 500)
-                    } else {
-                      console.error('🚨 playerRef is not available after 5 retries!')
-                      alert('動画プレーヤーの準備ができていません。ページを再読み込みしてください。')
-                    }
-                  }
-                  
-                  trySeek()
-                }}
-                onQuestionClick={handleQuestionClick}
-              />
-            </div>
           </div>
           
-          {/* Chat Interface - Full Width at Bottom */}
+          {/* Middle Tier: Full-Width Transcript/Summary/Article Tabs */}
+          <div className="w-full">
+            <TranscriptViewer 
+              transcript={currentVideo.transcript}
+              timestampedSegments={currentVideo.timestampedSegments}
+              summary={currentVideo.summary}
+              onSeek={(time) => {
+                console.log('🎥 AnalyzePage: onSeek called with time:', time)
+                console.log('🎥 AnalyzePage: playerRef available:', !!playerRef)
+                
+                const trySeek = (retryCount = 0) => {
+                  if (playerRef) {
+                    console.log('🎥 AnalyzePage: playerRef methods:', {
+                      seekToWithAutoplay: !!playerRef.seekToWithAutoplay,
+                      seekTo: !!playerRef.seekTo,
+                      getPlayerState: !!playerRef.getPlayerState,
+                      playVideo: !!playerRef.playVideo
+                    })
+                    
+                    // Use the enhanced seekTo function with autoplay
+                    if (playerRef.seekToWithAutoplay) {
+                      console.log('🎥 Using seekToWithAutoplay')
+                      playerRef.seekToWithAutoplay(time, true)
+                    } else if (playerRef.seekTo) {
+                      console.log('🎥 Using fallback seekTo method')
+                      // Fallback to original method
+                      playerRef.seekTo(time, true)
+                      // Auto-play if not already playing
+                      setTimeout(() => {
+                        if (playerRef.getPlayerState && playerRef.getPlayerState() !== 1 && playerRef.playVideo) {
+                          console.log('🎥 Auto-playing video after seek')
+                          playerRef.playVideo()
+                        }
+                      }, 100)
+                    } else {
+                      console.error('🚨 No seek method available on playerRef!')
+                    }
+                  } else if (retryCount < 5) {
+                    console.log(`⏳ Player not ready yet, retrying... (${retryCount + 1}/5)`)
+                    setTimeout(() => trySeek(retryCount + 1), 500)
+                  } else {
+                    console.error('🚨 playerRef is not available after 5 retries!')
+                    alert('動画プレーヤーの準備ができていません。ページを再読み込みしてください。')
+                  }
+                }
+                
+                trySeek()
+              }}
+              onQuestionClick={handleQuestionClick}
+            />
+          </div>
+          
+          {/* Bottom Tier: Full-Width Chat and Q&A */}
           <div className="w-full">
             <div className="card-modern">
               <ChatInterface 
