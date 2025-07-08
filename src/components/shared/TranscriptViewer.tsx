@@ -9,6 +9,7 @@ interface TranscriptViewerProps {
     text: string
   }>
   summary?: string
+  transcriptSource?: 'subtitle' | 'whisper'
   onSeek?: (time: number) => void
   onQuestionClick?: (question: string) => void
 }
@@ -22,7 +23,7 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, onSeek, onQuestionClick }) => {
+const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, onSeek, onQuestionClick }) => {
   const [activeTab, setActiveTab] = useState<TabType>('transcript')
   const [summary, setSummary] = useState(initialSummary || '')
   const [article, setArticle] = useState('')
@@ -130,7 +131,29 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
         if (timestampedSegments && timestampedSegments.length > 0) {
           return (
             <div className="space-y-4">
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-between items-center mb-4">
+                {/* Transcript source indicator */}
+                {transcriptSource && (
+                  <div className="flex items-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      transcriptSource === 'subtitle' 
+                        ? 'bg-green-100 text-green-800 border border-green-200' 
+                        : 'bg-blue-100 text-blue-800 border border-blue-200'
+                    }`}>
+                      {transcriptSource === 'subtitle' ? (
+                        <>
+                          <span className="mr-1">📺</span>
+                          YouTube キャプション
+                        </>
+                      ) : (
+                        <>
+                          <span className="mr-1">🤖</span>
+                          Whisper AI 生成
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )}
                 <button
                   onClick={() => alert('文字起こしの再生成機能は実装予定です')}
                   className="btn-regenerate inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors"
@@ -163,7 +186,29 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
         }
         return transcript ? (
           <div className="space-y-4">
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-between items-center mb-4">
+              {/* Transcript source indicator */}
+              {transcriptSource && (
+                <div className="flex items-center">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    transcriptSource === 'subtitle' 
+                      ? 'bg-green-100 text-green-800 border border-green-200' 
+                      : 'bg-blue-100 text-blue-800 border border-blue-200'
+                  }`}>
+                    {transcriptSource === 'subtitle' ? (
+                      <>
+                        <span className="mr-1">📺</span>
+                        YouTube キャプション
+                      </>
+                    ) : (
+                      <>
+                        <span className="mr-1">🤖</span>
+                        Whisper AI 生成
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => alert('文字起こしの再生成機能は実装予定です')}
                 className="btn-regenerate inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors"

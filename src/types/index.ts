@@ -22,6 +22,7 @@ export interface VideoMetadata {
   transcript?: string;
   summary?: string;
   timestampedSegments?: TimestampedSegment[];
+  transcriptSource?: 'subtitle' | 'whisper';
 }
 
 export interface Chapter {

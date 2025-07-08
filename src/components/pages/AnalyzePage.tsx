@@ -145,7 +145,8 @@ const AnalyzePage: React.FC = () => {
         },
         transcript: data.transcript,
         summary: data.summary,
-        timestampedSegments: data.timestampedSegments || []
+        timestampedSegments: data.timestampedSegments || [],
+        transcriptSource: data.method as 'subtitle' | 'whisper'
       }
       
       setCurrentVideo(videoMetadata)
@@ -548,6 +549,7 @@ const AnalyzePage: React.FC = () => {
               transcript={currentVideo.transcript}
               timestampedSegments={currentVideo.timestampedSegments}
               summary={currentVideo.summary}
+              transcriptSource={currentVideo.transcriptSource}
               onSeek={(time) => {
                 console.log('🎥 AnalyzePage: onSeek called with time:', time)
                 console.log('🎥 AnalyzePage: playerRef available:', !!playerRef)
