@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
-import VideoPlayer from '../shared/VideoPlayer'
 import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
 
@@ -409,11 +408,136 @@ const AnalyzePage: React.FC = () => {
           {/* Top Tier: Full-Width Video Player (16:9) */}
           <div className="w-full">
             <div className="card-modern overflow-hidden">
+              {/* Video iframe with proper 16:9 aspect ratio */}
               <div className="aspect-video">
-                <VideoPlayer 
-                  video={currentVideo} 
-                  onPlayerReady={(player) => setPlayerRef(player)}
-                />
+                {currentVideo.basic?.videoId && (
+                  <iframe
+                    ref={(iframe) => {
+                      if (iframe && !playerRef) {
+                        // Initialize YouTube Player API when iframe is ready
+                        const initPlayer = () => {
+                          if (window.YT && window.YT.Player) {
+                            const player = new window.YT.Player(iframe, {
+                              events: {
+                                onReady: (event: any) => {
+                                  setPlayerRef(event.target)
+                                }
+                              }
+                            })
+                          }
+                        }
+                        
+                        if (window.YT) {
+                          initPlayer()
+                        } else {
+                          // Load YouTube API if not already loaded
+                          const tag = document.createElement('script')
+                          tag.src = 'https://www.youtube.com/iframe_api'
+                          const firstScriptTag = document.getElementsByTagName('script')[0]
+                          firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+                          
+                          window.onYouTubeIframeAPIReady = initPlayer
+                        }
+                      }
+                    }}
+                    src={`https://www.youtube.com/embed/${currentVideo.basic.videoId}?enablejsapi=1`}
+                    title={currentVideo.basic.title || 'YouTube Video'}
+                    className="w-full h-full"
+                    allowFullScreen
+                  />
+                )}
+              </div>
+              
+              {/* Video metadata outside aspect ratio container */}
+              <div className="p-6 space-y-3">
+                <h3 className="text-subheading text-app-primary font-semibold">
+                  {currentVideo.basic?.title || 'Unknown Title'}
+                </h3>
+                
+                <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">⏱</span>
+                    <span className="text-tabular">
+                      {currentVideo.basic?.duration ? 
+                        `${Math.floor(currentVideo.basic.duration / 60)}:${(currentVideo.basic.duration % 60).toString().padStart(2, '0')}` 
+                        : 'Unknown'
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">📺</span>
+                    <span className="truncate max-w-32">{currentVideo.basic?.channel || 'Unknown Channel'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">👁</span>
+                    <span className="text-tabular">
+                      {currentVideo.basic?.viewCount ? 
+                        currentVideo.basic.viewCount >= 1000000 ? 
+                          `${(currentVideo.basic.viewCount / 1000000).toFixed(1)}M views` :
+                        currentVideo.basic.viewCount >= 1000 ?
+                          `${(currentVideo.basic.viewCount / 1000).toFixed(1)}K views` :
+                          `${currentVideo.basic.viewCount.toLocaleString()} views`
+                        : 'Unknown views'
+                      }
+                    </span>
+                  </div>
+                  {currentVideo.basic?.likes && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400">👍</span>
+                      <span className="text-tabular">{currentVideo.basic.likes.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                {currentVideo.basic?.uploadDate && (
+                  <p className="text-xs text-gray-500">
+                    Uploaded: {new Date(currentVideo.basic.uploadDate).toLocaleDateString()}
+                  </p>
+                )}
+
+                {currentVideo.basic?.description && (
+                  <details className="text-sm text-gray-600">
+                    <summary className="cursor-pointer hover:text-gray-800 font-medium py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+                      📝 Description
+                    </summary>
+                    <div className="mt-2 p-3 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
+                      <p className="whitespace-pre-wrap text-body">{currentVideo.basic.description}</p>
+                    </div>
+                  </details>
+                )}
+
+                {currentVideo.chapters && currentVideo.chapters.length > 0 && (
+                  <details className="text-sm text-gray-600">
+                    <summary className="cursor-pointer hover:text-gray-800 font-medium py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+                      📑 Chapters ({currentVideo.chapters.length})
+                    </summary>
+                    <div className="mt-2 p-3 bg-gray-50 rounded-lg max-h-40 overflow-y-auto">
+                      <ul className="space-y-2">
+                        {currentVideo.chapters.map((chapter, index) => (
+                          <li key={index} className="flex gap-3 items-start">
+                            <span className="font-mono text-xs bg-white px-2 py-1 rounded border text-indigo-600 font-semibold min-w-fit">
+                              {chapter.timestamp}
+                            </span>
+                            <span className="text-body">{chapter.title}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </details>
+                )}
+
+                {currentVideo.stats?.keywords && currentVideo.stats.keywords.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {currentVideo.stats.keywords.slice(0, 5).map((keyword, index) => (
+                      <span
+                        key={index}
+                        className="inline-block px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded-full border border-blue-200 transition-colors hover:bg-blue-100"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

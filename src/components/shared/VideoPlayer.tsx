@@ -76,20 +76,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady, onSeek 
     }
   }, [video.basic?.videoId, onPlayerReady])
   return (
-    <div className="w-full">
+    <div className="w-full h-full flex flex-col">
       {video.basic?.videoId && (
-        <div className="w-full mb-6">
+        <div className="relative w-full h-full">
           <iframe
             ref={iframeRef}
             src={`https://www.youtube.com/embed/${video.basic.videoId}?enablejsapi=1`}
             title={video.basic.title || 'YouTube Video'}
-            className="w-full h-full rounded-lg"
+            className="absolute inset-0 w-full h-full rounded-lg"
             allowFullScreen
           />
         </div>
       )}
 
-      <div className="p-6 space-y-3">
+      <div className="p-6 space-y-3 flex-shrink-0">
         <h3 className="text-subheading text-app-primary font-semibold">{video.basic?.title || 'Unknown Title'}</h3>
         
         <div className="flex flex-wrap gap-4 text-sm text-gray-600">
