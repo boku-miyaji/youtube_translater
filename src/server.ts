@@ -1754,32 +1754,35 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
 
     // Load article prompt template
     const prompts = loadPrompts();
-    const articlePrompt = prompts.article?.template || `
-あなたは動画内容専門の解説記事ライターです。以下の文字起こしから、動画で実際に説明されている内容のみを使用して、コンパクトで読みやすい解説記事を作成してください。
+    const articlePrompt = prompts.article?.template || `あなたは動画内容専門の解説記事ライターです。以下の文字起こしから、動画で実際に説明されている内容のみを使用して、コンパクトで読みやすい解説記事を作成してください。
 
-絶対条件(違反禁止):
+**絶対条件（違反禁止）**:
 ✅ 文字起こしに明確に記載されている内容のみ使用
-❌ Pandas、Pythonなど一般的なテーマの解説は絶対禁止
-❌ 文字起こしにない外部知識・一般理論は絶対禁止
-❌ 「初心者向け」など汎用的なタイトルは絶対禁止
+❌ 一般的なプログラミング解説・チュートリアルは絶対禁止
+❌ 文字起こしにない外部知識・理論は絶対禁止
+❌ 「初心者向け」など汎用的な内容は絶対禁止
+❌ YouTube APIの使い方など、動画と無関係な内容は絶対禁止
 
-出力形式(節間に空行を入れない):
+**出力形式（セクション間の空行なし）**:
 ## 📖 この動画で学べること
-(動画の話者が実際に説明している内容を簡潔に)
-## 🎯 動画のポイント
-- (動画で実際に言及されているポイントを箇条書きで)
-## 💡 具体的な内容
-(動画で示されている実例・デモ・コード・手順を具体的に)
-## 🔧 動画で紹介されている活用方法
-(話者が実際に推奨・紹介している実用的な使い方のみ)
-## 📝 動画のまとめ
-(話者の結論や言及された価値を明確に)
+（動画の話者が実際に説明している内容を簡潔に）
 
-文字起こし:
+## 🎯 動画のポイント
+- （動画で実際に言及されているポイントを箇条書きで）
+
+## 💡 具体的な内容
+（動画で示されている実例・デモ・コード・手順を具体的に）
+
+## 🔧 動画で紹介されている活用方法
+（話者が実際に推奨・紹介している実用的な使い方のみ）
+
+## 📝 動画のまとめ
+（話者の結論や言及された価値を明確に）
+
+**文字起こし:**
 {transcript}
 
-再度確認: 文字起こしに明記されていない内容は一切追加しないでください。セクション間の空行は入れず、コンパクトに出力してください。
-`;
+**再度確認**: 文字起こしに明記されていない内容は一切追加しないでください。動画で実際に話されている内容のみを基に記事を作成してください。`;
 
     // Replace template variables
     const finalPrompt = articlePrompt.replace('{transcript}', transcript);
@@ -1787,6 +1790,8 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
     console.log('🤖 Generating article with OpenAI...');
     console.log('Model:', gptModel);
     console.log('Prompt length:', finalPrompt.length);
+    console.log('Transcript preview (first 200 chars):', transcript.substring(0, 200) + '...');
+    console.log('Using prompts.json template:', !!prompts.article?.template);
     
     const completion = await openai.chat.completions.create({
       model: gptModel,
@@ -1825,6 +1830,31 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
     // Add to session costs
     sessionCosts.gpt += cost;
     sessionCosts.total += cost;
+    
+    // Update current article
+    currentArticle = article;
+    
+    // Update history if we have current metadata
+    if (currentMetadata) {
+      const videoId = currentMetadata.basic.videoId;
+      if (videoId) {
+        const history = loadHistory();
+        const existingIndex = history.findIndex(item => item.id === videoId);
+        
+        if (existingIndex >= 0) {
+          // Update existing entry with the generated article
+          history[existingIndex].article = article;
+          history[existingIndex].timestamp = new Date().toISOString();
+          saveHistory(history);
+          
+          // Also save to article history
+          addArticleToHistory(videoId, article, 'generated');
+          console.log('📝 Article saved to history for video:', videoId);
+        } else {
+          console.log('⚠️ Could not find existing history entry for video:', videoId);
+        }
+      }
+    }
 
     console.log('✅ Article generation successful');
     res.json({
