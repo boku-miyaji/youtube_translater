@@ -202,7 +202,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 content={summary} 
                 onSeek={onSeek} 
                 onQuestionClick={onQuestionClick}
-                className="prose-p:mb-1 prose-headings:mt-1 prose-headings:mb-0 prose-ul:mb-0.5 prose-li:mb-0 prose-li:ml-0"
+                className=""
               />
               {/* Deep dive questions section */}
               {(summary.includes('深掘り質問') || summary.includes('?')) && (
@@ -260,7 +260,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 content={article} 
                 onSeek={onSeek} 
                 onQuestionClick={onQuestionClick}
-                className="prose-p:mb-1 prose-headings:mt-1 prose-headings:mb-0 prose-ul:mb-0.5 prose-li:mb-0 prose-li:ml-0"
+                className=""
               />
             </div>
           )

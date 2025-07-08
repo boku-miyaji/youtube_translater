@@ -100,14 +100,15 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     // Remove multiple consecutive empty lines
     processed = processed.replace(/\n\s*\n\s*\n/g, '\n\n')
     
-    // Add extra line breaks before headings for block separation
-    processed = processed.replace(/^(#{1,6}\s)/gim, '\n$1')
+    // Add extra line breaks before headings for enhanced block separation
+    // This helps create visual separation between content blocks
+    processed = processed.replace(/([^\n])\n(#{1,6}\s)/gim, '$1\n\n$2')
     
     return processed
   }
 
   const components: Components = {
-    // Handle paragraph elements with timestamp processing
+    // Handle paragraph elements with timestamp processing and block spacing
     p: ({ children }) => {
       const textContent = children?.toString() || ''
       
@@ -126,7 +127,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         const questions = textContent.match(/[^.!?]*[?？][^.!?]*/g)
         if (questions && questions.length > 0) {
           return (
-            <p className="mb-1">
+            <p className="mb-4">
               {processedContent}
               {questions.map((question, index) => {
                 const trimmedQuestion = question.trim()
@@ -149,18 +150,19 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         }
       }
       
-      return <p className="mb-1">{processedContent}</p>
+      // Use larger margin for better block separation
+      return <p className="mb-4">{processedContent}</p>
     },
 
-    // Handle headings with smart block separation
-    h1: ({ children }) => <h1 className="text-2xl font-bold mt-3 mb-0 first:mt-2">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-xl font-bold mt-3 mb-0 first:mt-1.5">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-lg font-semibold mt-3 mb-0 first:mt-1">{children}</h3>,
-    h4: ({ children }) => <h4 className="text-base font-semibold mt-3 mb-0 first:mt-1">{children}</h4>,
+    // Handle headings with enhanced block separation for better readability
+    h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-3 first:mt-0">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-xl font-bold mt-8 mb-3 first:mt-0">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-lg font-semibold mt-6 mb-2 first:mt-0">{children}</h3>,
+    h4: ({ children }) => <h4 className="text-base font-semibold mt-6 mb-2 first:mt-0">{children}</h4>,
 
-    // Handle lists with no indentation and minimal spacing - very restrictive bullet logic
-    ul: ({ children }) => <ul className="list-none mb-0.5">{children}</ul>,
-    ol: ({ children }) => <ol className="list-none mb-0.5">{children}</ol>,
+    // Handle lists with enhanced spacing for block separation
+    ul: ({ children }) => <ul className="list-none mb-6 mt-2">{children}</ul>,
+    ol: ({ children }) => <ol className="list-none mb-6 mt-2">{children}</ol>,
     li: ({ children }) => {
       const content = children?.toString() || ''
       
@@ -186,7 +188,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         content.trim().length === content.length // No leading/trailing whitespace issues
       
       return (
-        <li className="ml-0 mb-0">
+        <li className="ml-0 mb-1">
           {shouldAddBullet ? '• ' : ''}{processedContent}
         </li>
       )
