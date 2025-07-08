@@ -16,6 +16,7 @@ const AnalyzePage: React.FC = () => {
   const [prefillQuestion, setPrefillQuestion] = useState<string>('')
   const [videoPreview, setVideoPreview] = useState<{title: string, thumbnail: string} | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
+  const [formCollapsed, setFormCollapsed] = useState(false)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -98,6 +99,8 @@ const AnalyzePage: React.FC = () => {
 
     setLoading(true)
     setUrlError('')
+    // Expand form during analysis
+    setFormCollapsed(false)
     try {
       console.log('Sending request to /api/upload-youtube with:', { url: url.trim(), language, model })
       const response = await fetch('/api/upload-youtube', {
@@ -147,6 +150,8 @@ const AnalyzePage: React.FC = () => {
       }
       
       setCurrentVideo(videoMetadata)
+      // Auto-collapse form after successful analysis
+      setFormCollapsed(true)
     } catch (error) {
       console.error('Error processing video:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -161,6 +166,11 @@ const AnalyzePage: React.FC = () => {
     setPrefillQuestion(question)
     // Clear the question after a brief delay to allow ChatInterface to pick it up
     setTimeout(() => setPrefillQuestion(''), 100)
+  }
+
+  // Handle form collapse/expand toggle
+  const toggleFormCollapse = () => {
+    setFormCollapsed(!formCollapsed)
   }
 
   // Debug current video data
@@ -206,120 +216,173 @@ const AnalyzePage: React.FC = () => {
         </p>
       </div>
 
-      {/* Control Bar - Sticky Form */}
-      <div className={`${currentVideo ? 'sticky top-4 z-40' : ''}`}>
-        <div className="card-modern p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* URL Input with Preview */}
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
-                  <span className="flex items-center gap-2">
-                    🔗 YouTube URL
-                  </span>
-                </label>
-                <input
-                  type="url"
-                  id="url"
-                  value={url}
-                  onChange={(e) => handleUrlChange(e.target.value)}
-                  onPaste={handleUrlPaste}
-                  placeholder="https://www.youtube.com/watch?v=... or paste a YouTube link"
-                  className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
-                    urlError 
-                      ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
-                      : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
-                  }`}
-                  data-testid="url-input"
-                  required
-                />
-                {urlError && (
-                  <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
-                    ⚠️ {urlError}
-                  </div>
-                )}
-              </div>
-
-              {/* URL Preview Card */}
-              {videoPreview && !urlError && (
-                <div className="url-preview-card">
-                  <div className="flex items-center gap-4">
-                    <img 
-                      src={videoPreview.thumbnail} 
-                      alt="Video thumbnail"
-                      className="w-20 h-15 object-cover rounded-lg shadow-sm"
-                      onError={(e) => {
-                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="60" fill="%23e5e7eb"%3E%3Crect width="80" height="60"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%236b7280"%3E📹%3C/text%3E%3C/svg%3E'
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 text-sm text-blue-800">
-                        ✅ Valid YouTube URL detected
-                      </div>
-                      <p className="text-xs text-blue-600 mt-1 opacity-75">
-                        Ready to analyze
-                      </p>
-                    </div>
+      {/* Control Bar - Collapsible Form */}
+      <div className={`${currentVideo ? 'sticky top-4 z-40' : ''} transition-all duration-300 ease-in-out`}>
+        <div className="card-modern overflow-hidden">
+          {/* Collapsed State - Minimal Display */}
+          {formCollapsed && currentVideo && (
+            <div className="p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-app-primary">🔗 Current URL:</span>
+                    <span className="text-sm text-gray-600 truncate font-mono bg-gray-50 px-2 py-1 rounded">
+                      {url}
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Settings Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2">
-                  🌐 Language
-                </label>
-                <select
-                  id="language"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
-                >
-                  <option value="original">Original</option>
-                  <option value="ja">Japanese</option>
-                  <option value="en">English</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2">
-                  🤖 AI Model
-                </label>
-                <select
-                  id="model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
-                >
-                  <option value="gpt-4.1-mini">GPT-4.1 Mini (Fast)</option>
-                  <option value="gpt-4o-mini">GPT-4o Mini (Balanced)</option>
-                  <option value="gpt-4">GPT-4 (Premium)</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-2 lg:col-span-1 flex items-end">
                 <button
-                  type="submit"
-                  disabled={loading || !url.trim() || !!urlError}
-                  className="btn-modern btn-success w-full h-10 text-white font-semibold shadow-elevation-hover"
-                  data-testid="analyze-button"
+                  onClick={toggleFormCollapse}
+                  className="btn-modern px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
+                  title="Expand form to analyze new video"
                 >
-                  {loading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span className="text-tabular">Analyzing...</span>
-                    </div>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      ⚡ Analyze Video
-                    </span>
-                  )}
+                  <span className="flex items-center gap-2">
+                    📝 Edit
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
                 </button>
               </div>
             </div>
-          </form>
+          )}
+
+          {/* Expanded State - Full Form */}
+          {(!formCollapsed || !currentVideo) && (
+            <div className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Form Header with Collapse Button */}
+                {currentVideo && (
+                  <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                    <h3 className="text-lg font-semibold text-app-primary">Analyze New Video</h3>
+                    <button
+                      type="button"
+                      onClick={toggleFormCollapse}
+                      className="btn-modern px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
+                      title="Minimize form"
+                    >
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                        Minimize
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* URL Input with Preview */}
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
+                      <span className="flex items-center gap-2">
+                        🔗 YouTube URL
+                      </span>
+                    </label>
+                    <input
+                      type="url"
+                      id="url"
+                      value={url}
+                      onChange={(e) => handleUrlChange(e.target.value)}
+                      onPaste={handleUrlPaste}
+                      placeholder="https://www.youtube.com/watch?v=... or paste a YouTube link"
+                      className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
+                        urlError 
+                          ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
+                          : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
+                      }`}
+                      data-testid="url-input"
+                      required
+                    />
+                    {urlError && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                        ⚠️ {urlError}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* URL Preview Card */}
+                  {videoPreview && !urlError && (
+                    <div className="url-preview-card">
+                      <div className="flex items-center gap-4">
+                        <img 
+                          src={videoPreview.thumbnail} 
+                          alt="Video thumbnail"
+                          className="w-20 h-15 object-cover rounded-lg shadow-sm"
+                          onError={(e) => {
+                            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="60" fill="%23e5e7eb"%3E%3Crect width="80" height="60"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%236b7280"%3E📹%3C/text%3E%3C/svg%3E'
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-sm text-blue-800">
+                            ✅ Valid YouTube URL detected
+                          </div>
+                          <p className="text-xs text-blue-600 mt-1 opacity-75">
+                            Ready to analyze
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Settings Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2">
+                      🌐 Language
+                    </label>
+                    <select
+                      id="language"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                    >
+                      <option value="original">Original</option>
+                      <option value="ja">Japanese</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2">
+                      🤖 AI Model
+                    </label>
+                    <select
+                      id="model"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                    >
+                      <option value="gpt-4.1-mini">GPT-4.1 Mini (Fast)</option>
+                      <option value="gpt-4o-mini">GPT-4o Mini (Balanced)</option>
+                      <option value="gpt-4">GPT-4 (Premium)</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2 lg:col-span-1 flex items-end">
+                    <button
+                      type="submit"
+                      disabled={loading || !url.trim() || !!urlError}
+                      className="btn-modern btn-success w-full h-10 text-white font-semibold shadow-elevation-hover"
+                      data-testid="analyze-button"
+                    >
+                      {loading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span className="text-tabular">Analyzing...</span>
+                        </div>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          ⚡ Analyze Video
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </div>
 
