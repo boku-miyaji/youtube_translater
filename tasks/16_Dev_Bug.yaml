@@ -71,9 +71,10 @@ implementation:
   analysisTimeDisplayFixCommit: 4469f23
   analysisTimeMigrationCommit: 4fbd63d
   costAnalysisToggleCommit: f330599
+  analysisInfoVisibilityImprovement: b2776ae
   Delete:
     - componentReimplementationCommit: 9bf03d1
-  status: "ENHANCED: Added detailed cost display feature with comprehensive bug fixes, analysis time display, optimized UI spacing, fixed analysis time display issue, analysis time migration for historical entries, and toggle functionality - shows accurate transcription, summary, and article costs on Analyze screen with proper terminology, reliable analysis time tracking for both new and historical videos, compact layout, and user-controlled cost/time information visibility"
+  status: "ENHANCED: Added detailed cost display feature with comprehensive bug fixes, analysis time display, optimized UI spacing, fixed analysis time display issue, analysis time migration for historical entries, toggle functionality, and improved visibility - shows accurate transcription, summary, and article costs on Analyze screen with proper terminology, reliable analysis time tracking for both new and historical videos, compact layout, user-controlled cost/time information visibility, and better readability with simplified design"
   changes:
     - "Fixed sidebar toggle button visibility and functionality"
     - "Implemented proper Daily Spending calculation with yesterday comparison"
@@ -295,6 +296,11 @@ implementation:
     - "🔄 COST ANALYSIS TOGGLE: Created expand/collapse button with smooth transitions and clear labels"
     - "🔄 COST ANALYSIS TOGGLE: Enhanced UI with rotating chevron icon for visual feedback"
     - "🔄 COST ANALYSIS TOGGLE: Improved user control over information density on Analyze page"
+    - "👁️ VISIBILITY IMPROVEMENT: Changed background from gradient to simple white for better contrast"
+    - "👁️ VISIBILITY IMPROVEMENT: Updated toggle button text color from gray-700 to gray-900 for better readability"
+    - "👁️ VISIBILITY IMPROVEMENT: Unified all analysis time colors from blue to gray for consistency"
+    - "👁️ VISIBILITY IMPROVEMENT: Changed source badges (YouTube/Whisper AI) to gray for simplicity"
+    - "👁️ VISIBILITY IMPROVEMENT: Removed hover effects and simplified design for better accessibility"
 pr: tasks/pr/16_Bug.md
 review: tasks/pr/16_Bug_review.md
 diff: 
@@ -346,5 +352,6 @@ diff:
   - tasks/pr/16_commits/16_Bug_diff_20250709132100.md
   - tasks/pr/16_commits/16_Bug_diff_20250709132730.md
   - tasks/pr/16_commits/16_Bug_diff_20250709171500.md
+  - tasks/pr/16_commits/16_Bug_diff_20250709172000.md
 createdAt: "2025-07-03T06:12:40Z"
-updatedAt: "2025-07-09T17:15:00Z"
+updatedAt: "2025-07-09T17:20:00Z"
