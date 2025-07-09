@@ -628,11 +628,11 @@ const AnalyzePage: React.FC = () => {
 
                 {/* Cost and Analysis Time Information */}
                 {(currentVideo.costs || currentVideo.analysisTime) && (
-                  <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-2 rounded border border-gray-200">
+                  <div className="bg-white p-2 rounded border border-gray-200">
                     {/* Toggle Button */}
                     <button
                       onClick={() => setShowCostInfo(!showCostInfo)}
-                      className="w-full flex items-center justify-between px-1 py-1 mb-2 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                      className="w-full flex items-center justify-between px-1 py-1 mb-2 text-xs font-medium text-gray-900"
                     >
                       <span className="flex items-center gap-1">
                         <span>{showCostInfo ? '📊' : '📊'}</span>
@@ -666,10 +666,10 @@ const AnalyzePage: React.FC = () => {
                                   '無料'
                                 }
                                 {currentVideo.transcriptSource === 'subtitle' && (
-                                  <span className="ml-1 text-xs text-green-600">(YouTube字幕)</span>
+                                  <span className="ml-1 text-xs text-gray-600">(YouTube字幕)</span>
                                 )}
                                 {currentVideo.transcriptSource === 'whisper' && (
-                                  <span className="ml-1 text-xs text-blue-600">(Whisper AI)</span>
+                                  <span className="ml-1 text-xs text-gray-600">(Whisper AI)</span>
                                 )}
                               </span>
                             </div>
@@ -704,13 +704,13 @@ const AnalyzePage: React.FC = () => {
                         return currentVideo.analysisTime
                       })() && (
                         <div>
-                          <h4 className="text-xs font-medium text-blue-700 mb-1 flex items-center gap-1">
+                          <h4 className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
                             ⏱️ 解析時間
                           </h4>
                           <div className="space-y-0.5 text-xs">
                             <div className="flex justify-between items-center">
-                              <span className="text-blue-600">開始:</span>
-                              <span className="font-medium text-blue-800">
+                              <span className="text-gray-600">開始:</span>
+                              <span className="font-medium text-gray-800">
                                 {new Date(currentVideo.analysisTime.startTime).toLocaleString('ja-JP', {
                                   month: 'short',
                                   day: 'numeric',
@@ -720,8 +720,8 @@ const AnalyzePage: React.FC = () => {
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-blue-600">終了:</span>
-                              <span className="font-medium text-blue-800">
+                              <span className="text-gray-600">終了:</span>
+                              <span className="font-medium text-gray-800">
                                 {new Date(currentVideo.analysisTime.endTime).toLocaleString('ja-JP', {
                                   month: 'short',
                                   day: 'numeric',
@@ -730,9 +730,9 @@ const AnalyzePage: React.FC = () => {
                                 })}
                               </span>
                             </div>
-                            <div className="flex justify-between items-center pt-0.5 border-t border-blue-200">
-                              <span className="text-blue-700 font-medium">所要時間:</span>
-                              <span className="font-semibold text-blue-900">
+                            <div className="flex justify-between items-center pt-0.5 border-t border-gray-200">
+                              <span className="text-gray-700 font-medium">所要時間:</span>
+                              <span className="font-semibold text-gray-900">
                                 {currentVideo.analysisTime.duration < 60 ? 
                                   `${currentVideo.analysisTime.duration}秒` : 
                                   `${Math.floor(currentVideo.analysisTime.duration / 60)}分${currentVideo.analysisTime.duration % 60}秒`
