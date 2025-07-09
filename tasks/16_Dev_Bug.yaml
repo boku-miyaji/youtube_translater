@@ -66,9 +66,14 @@ implementation:
   costDisplayImplementationCommit: 106301b
   costDisplayBugFixCommit: e9d3dd3
   costDisplayFinalFixCommit: 0f2a7b5
+  costDisplayComprehensiveFixCommit: 32b8656
+  uiSpacingOptimizationCommit: 9ae2eb0
+  analysisTimeDisplayFixCommit: 4469f23
+  analysisTimeMigrationCommit: 4fbd63d
+  costAnalysisToggleCommit: f330599
   Delete:
     - componentReimplementationCommit: 9bf03d1
-  status: "ENHANCED: Added detailed cost display feature with comprehensive bug fixes - shows accurate transcription, summary, and article costs on Analyze screen with proper terminology"
+  status: "ENHANCED: Added detailed cost display feature with comprehensive bug fixes, analysis time display, optimized UI spacing, fixed analysis time display issue, analysis time migration for historical entries, and toggle functionality - shows accurate transcription, summary, and article costs on Analyze screen with proper terminology, reliable analysis time tracking for both new and historical videos, compact layout, and user-controlled cost/time information visibility"
   changes:
     - "Fixed sidebar toggle button visibility and functionality"
     - "Implemented proper Daily Spending calculation with yesterday comparison"
@@ -265,6 +270,31 @@ implementation:
     - "🔧 COST DISPLAY FINAL FIX: Fixed summary cost showing as $0 with backward compatibility"
     - "🔧 COST DISPLAY FINAL FIX: Added comprehensive debug logging for cost calculation troubleshooting"
     - "📝 TERMINOLOGY UNIFICATION: Changed '転写' to '文字起こし' for consistent Japanese terminology"
+    - "💰 COST DISPLAY COMPREHENSIVE FIX: Fixed 0 dollar display issue for all cost components"
+    - "💰 COST DISPLAY COMPREHENSIVE FIX: Fixed history transition cost display by calculating costs in HistoryTable"
+    - "💰 COST DISPLAY COMPREHENSIVE FIX: Enhanced server response with detailed cost information"
+    - "⏱️ ANALYSIS TIME FEATURE: Added analysis time recording and display functionality"
+    - "⏱️ ANALYSIS TIME FEATURE: Added AnalysisTimeInfo type definition for comprehensive time tracking"
+    - "⏱️ ANALYSIS TIME FEATURE: Enhanced UI with analysis time display panel showing start, end, and duration"
+    - "🔧 DATA STRUCTURE ENHANCEMENT: Enhanced metadata with costs, analysis time, and transcript source"
+    - "🎨 UI SPACING OPTIMIZATION: Reduced padding from p-3 to p-2 for 33% space reduction"
+    - "🎨 UI SPACING OPTIMIZATION: Combined cost and analysis time into single compact panel"
+    - "🎨 UI SPACING OPTIMIZATION: Reduced text size from text-sm to text-xs for denser information display"
+    - "🎨 UI SPACING OPTIMIZATION: Tightened spacing throughout with space-y-0.5 instead of space-y-1"
+    - "🎨 UI SPACING OPTIMIZATION: Implemented gradient background for visual distinction between cost and time"
+    - "🎨 UI SPACING OPTIMIZATION: Enhanced responsive design with md:grid-cols-2 layout"
+    - "🔧 ANALYSIS TIME DISPLAY FIX: Fixed missing analysisTime field in new video processing"
+    - "🔧 ANALYSIS TIME DISPLAY FIX: Added comprehensive debug logging for analysis time data flow tracking"
+    - "🔧 ANALYSIS TIME DISPLAY FIX: Ensured analysis time displays for both new processing and historical navigation"
+    - "🔧 ANALYSIS TIME DISPLAY FIX: Fixed inconsistent user experience between new and historical videos"
+    - "⏱️ ANALYSIS TIME MIGRATION: Added automatic migration logic to loadHistory function for backward compatibility"
+    - "⏱️ ANALYSIS TIME MIGRATION: Implemented estimation algorithm for historical entries (80% of duration, min 30s)"
+    - "⏱️ ANALYSIS TIME MIGRATION: Successfully migrated all 56 historical entries with estimated analysis times"
+    - "🔄 COST ANALYSIS TOGGLE: Added toggle functionality for cost and analysis time display in Analyze screen"
+    - "🔄 COST ANALYSIS TOGGLE: Implemented showCostInfo state with default visibility (true)"
+    - "🔄 COST ANALYSIS TOGGLE: Created expand/collapse button with smooth transitions and clear labels"
+    - "🔄 COST ANALYSIS TOGGLE: Enhanced UI with rotating chevron icon for visual feedback"
+    - "🔄 COST ANALYSIS TOGGLE: Improved user control over information density on Analyze page"
 pr: tasks/pr/16_Bug.md
 review: tasks/pr/16_Bug_review.md
 diff: 
@@ -312,5 +342,9 @@ diff:
   - tasks/pr/16_commits/16_Bug_diff_20250709123655.md
   - tasks/pr/16_commits/16_Bug_diff_20250709125700.md
   - tasks/pr/16_commits/16_Bug_diff_20250709130000.md
+  - tasks/pr/16_commits/16_Bug_diff_20250709131500.md
+  - tasks/pr/16_commits/16_Bug_diff_20250709132100.md
+  - tasks/pr/16_commits/16_Bug_diff_20250709132730.md
+  - tasks/pr/16_commits/16_Bug_diff_20250709171500.md
 createdAt: "2025-07-03T06:12:40Z"
-updatedAt: "2025-07-09T13:00:00Z"
+updatedAt: "2025-07-09T17:15:00Z"
