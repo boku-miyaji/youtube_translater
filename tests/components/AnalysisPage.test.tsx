@@ -109,13 +109,14 @@ describe('AnalysisPage Component', () => {
     expect(screen.getByText('Analysis')).toBeInTheDocument()
   })
 
-  it('should display refined section title "データ分析" instead of "視覚的分析"', () => {
+  it('should display organized section headers with proper categorization', () => {
     renderAnalysisPage()
-    expect(screen.getByText('📊 データ分析')).toBeInTheDocument()
-    expect(screen.queryByText('📊 視覚的分析')).not.toBeInTheDocument()
+    expect(screen.getByText('📊 概要サマリー')).toBeInTheDocument()
+    expect(screen.getByText('🎬 動画処理詳細')).toBeInTheDocument()
+    expect(screen.getByText('💰 コスト詳細')).toBeInTheDocument()
   })
 
-  it('should display refined statistics title "動画処理統計" instead of "動画分析統計"', () => {
+  it('should display refined statistics title "動画処理統計" in correct section', () => {
     renderAnalysisPage()
     expect(screen.getByText('📊 動画処理統計')).toBeInTheDocument()
     expect(screen.queryByText('📊 動画分析統計')).not.toBeInTheDocument()
@@ -167,5 +168,37 @@ describe('AnalysisPage Component', () => {
     // Check that processing time analysis is displayed
     expect(screen.getByText('⏱️ 処理時間分析')).toBeInTheDocument()
     expect(screen.getByText('平均処理時間:')).toBeInTheDocument()
+  })
+
+  it('should display cost-related information in the dedicated cost section', () => {
+    renderAnalysisPage()
+    // Check that all cost-related elements are present
+    expect(screen.getByText('Cost Trends')).toBeInTheDocument()
+    expect(screen.getByText('💸 詳細コスト分析')).toBeInTheDocument()
+    expect(screen.getByText('Model Usage Statistics')).toBeInTheDocument()
+    expect(screen.getByText('コスト内訳')).toBeInTheDocument()
+    expect(screen.getByText('累積コストの推移')).toBeInTheDocument()
+  })
+
+  it('should display video processing information in the dedicated processing section', () => {
+    renderAnalysisPage()
+    // Check that all processing-related elements are present
+    expect(screen.getByText('処理方法の内訳')).toBeInTheDocument()
+    expect(screen.getByText('処理時間の分布')).toBeInTheDocument()
+    expect(screen.getByText('日別処理動画数の推移')).toBeInTheDocument()
+    expect(screen.getByText('週間処理動画数')).toBeInTheDocument()
+  })
+
+  it('should maintain proper section ordering in the layout', () => {
+    renderAnalysisPage()
+    const sections = [
+      '📊 概要サマリー',
+      '🎬 動画処理詳細', 
+      '💰 コスト詳細'
+    ]
+    
+    sections.forEach(section => {
+      expect(screen.getByText(section)).toBeInTheDocument()
+    })
   })
 })
