@@ -665,6 +665,38 @@ const AnalyzePage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Analysis Time Information */}
+                {currentVideo.analysisTime && (
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 className="text-sm font-medium text-blue-700 mb-3 flex items-center gap-2">
+                      ⏱️ 解析時間
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-blue-600">開始時刻:</span>
+                        <span className="font-medium text-blue-800">
+                          {new Date(currentVideo.analysisTime.startTime).toLocaleString('ja-JP')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-blue-600">終了時刻:</span>
+                        <span className="font-medium text-blue-800">
+                          {new Date(currentVideo.analysisTime.endTime).toLocaleString('ja-JP')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-blue-200">
+                        <span className="text-blue-700 font-medium">解析時間:</span>
+                        <span className="font-semibold text-blue-900">
+                          {currentVideo.analysisTime.duration < 60 ? 
+                            `${currentVideo.analysisTime.duration}秒` : 
+                            `${Math.floor(currentVideo.analysisTime.duration / 60)}分${currentVideo.analysisTime.duration % 60}秒`
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

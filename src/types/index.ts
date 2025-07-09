@@ -24,6 +24,7 @@ export interface VideoMetadata {
   timestampedSegments?: TimestampedSegment[];
   transcriptSource?: 'subtitle' | 'whisper';
   costs?: DetailedCosts;
+  analysisTime?: AnalysisTimeInfo;
 }
 
 export interface Chapter {
@@ -52,6 +53,12 @@ export interface Summary {
   };
 }
 
+export interface AnalysisTimeInfo {
+  startTime: string;
+  endTime: string;
+  duration: number; // seconds
+}
+
 export interface HistoryEntry {
   id: string;
   title: string;
@@ -69,6 +76,7 @@ export interface HistoryEntry {
   article: string | null;
   timestamp: string;
   thumbnail?: string;
+  analysisTime?: AnalysisTimeInfo;
 }
 
 export interface SessionCosts {

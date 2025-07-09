@@ -70,7 +70,36 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
     console.log('  - summary source:', video.summary?.content ? 'summary.content' : video.summary ? 'direct' : 'none')
     console.log('  - timestampedSegments source:', video.timestampedSegments ? 'direct' : video.metadata?.timestampedSegments ? 'metadata' : 'none')
     
-    // Set current video with complete data including summary
+    // Calculate detailed costs from history data
+    const pricing = { whisper: 0.006 }; // $0.006 per minute
+    let transcriptionCost = 0;
+    let summaryCost = 0;
+    let articleCost = 0;
+
+    // Calculate transcription cost
+    if (video.method === 'whisper' && video.metadata?.basic?.duration) {
+      const durationMinutes = Math.ceil(video.metadata.basic.duration / 60);
+      transcriptionCost = durationMinutes * pricing.whisper;
+    }
+
+    // Get summary cost
+    if (video.summary?.cost) {
+      summaryCost = video.summary.cost;
+    } else if (video.method === 'whisper' && video.cost) {
+      // Fallback: use entry.cost as summary cost for old data
+      summaryCost = video.cost;
+    }
+
+    const detailedCosts = {
+      transcription: transcriptionCost,
+      summary: summaryCost,
+      article: articleCost,
+      total: transcriptionCost + summaryCost + articleCost
+    };
+
+    console.log('🏛️ HistoryTable: Calculated costs:', detailedCosts);
+    
+    // Set current video with complete data including summary, costs, and analysis time
     const videoData = {
       basic: {
         title: video.title || video.metadata?.basic?.title || 'Unknown Title',
@@ -94,7 +123,10 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
       },
       transcript: transcript,
       summary: summary,
-      timestampedSegments: timestampedSegments
+      timestampedSegments: timestampedSegments,
+      transcriptSource: video.method,
+      costs: detailedCosts,
+      analysisTime: video.analysisTime
     }
     
     console.log('🏛️ HistoryTable: Final constructed videoData:', {

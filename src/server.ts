@@ -245,7 +245,8 @@ function addToHistory(
   timestampedSegments: TimestampedSegment[] = [],
   tags: string[] = [],
   mainTags: string[] = [],
-  article: string | null = null
+  article: string | null = null,
+  analysisTime: { startTime: string; endTime: string; duration: number } | null = null
 ): HistoryEntry {
   const history = loadHistory();
   const entry: HistoryEntry = {
@@ -264,7 +265,8 @@ function addToHistory(
     mainTags, // メインタグ情報
     article, // 生成された記事コンテンツ
     thumbnail: metadata?.basic?.thumbnail || undefined, // Extract thumbnail from metadata
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    analysisTime: analysisTime || undefined
   };
   
   // 既存のエントリーがあれば更新、なければ追加
@@ -894,7 +896,8 @@ async function analyzeNeedForArticleContext(message: string): Promise<boolean> {
 // API version of upload endpoint
 app.post('/api/upload-youtube', async (req: Request, res: Response) => {
   try {
-    console.log('API server: /api/upload-youtube called');
+    const analysisStartTime = new Date().toISOString();
+    console.log('API server: /api/upload-youtube called at', analysisStartTime);
     const { url, language = 'original', model = 'gpt-4o-mini' } = req.body;
     
     if (!url) {
@@ -992,6 +995,21 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     console.log('Session costs after:', sessionCosts);
     console.log('================================================');
 
+    // Calculate analysis time
+    const analysisEndTime = new Date().toISOString();
+    const analysisDuration = Math.round((new Date(analysisEndTime).getTime() - new Date(analysisStartTime).getTime()) / 1000);
+    const analysisTimeInfo = {
+      startTime: analysisStartTime,
+      endTime: analysisEndTime,
+      duration: analysisDuration
+    };
+
+    console.log('=== ANALYSIS TIME INFO ===');
+    console.log('Start time:', analysisStartTime);
+    console.log('End time:', analysisEndTime);
+    console.log('Duration:', analysisDuration, 'seconds');
+    console.log('==========================');
+
     // Add to history
     const historyEntry = addToHistory(
       videoId,
@@ -1007,7 +1025,8 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       timestampedSegments,
       [],
       [],
-      null
+      null,
+      analysisTimeInfo
     );
 
     // Add cost entry for tracking
@@ -1024,13 +1043,26 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       );
     }
 
+    // Enhanced metadata with costs, analysis time, and transcript source
+    const enhancedMetadata = {
+      ...metadata,
+      costs: {
+        transcription: transcriptionCost,
+        summary: summaryCost,
+        article: 0,
+        total: totalCost
+      },
+      analysisTime: analysisTimeInfo,
+      transcriptSource: method
+    };
+
     res.json({
       success: true,
       videoId,
       title: metadata.basic.title,
       transcript,
       timestampedSegments,
-      metadata,
+      metadata: enhancedMetadata,
       summary: summaryResult?.content,
       method,
       language: detectedLanguage,
@@ -1043,6 +1075,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         article: 0, // Article is generated separately
         total: totalCost
       },
+      analysisTime: analysisTimeInfo,
       message: 'Video transcribed and analyzed successfully'
     });
 
@@ -1195,18 +1228,27 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         console.log('Summary cost logic used:', existingEntry.summary?.cost ? 'summary.cost' : (existingEntry.method === 'whisper' && existingEntry.cost ? 'entry.cost fallback' : 'no cost'));
         console.log('=====================================');
         
+        // Enhanced metadata with costs, analysis time, and transcript source from history
+        const enhancedHistoryMetadata = {
+          ...(existingEntry.metadata || {}),
+          costs: detailedCosts,
+          analysisTime: existingEntry.analysisTime,
+          transcriptSource: existingEntry.method
+        };
+
         return res.json({
           success: true,
           title: existingEntry.title,
           transcript: existingEntry.transcript,
           summary: existingEntry.summary?.content,
-          metadata: existingEntry.metadata || {} as VideoMetadata,
+          metadata: enhancedHistoryMetadata,
           method: existingEntry.method,
           language: existingEntry.language,
           gptModel: existingEntry.gptModel,
           timestampedSegments: existingEntry.timestampedSegments || [],
           cost: detailedCosts.total,
           costs: detailedCosts,
+          analysisTime: existingEntry.analysisTime,
           message: 'Retrieved from history',
           fromHistory: true
         });

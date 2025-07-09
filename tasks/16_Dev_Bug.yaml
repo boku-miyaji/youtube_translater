@@ -65,9 +65,10 @@ implementation:
   prDocumentationCommit: 7056b6d
   costDisplayImplementationCommit: 106301b
   costDisplayBugFixCommit: e9d3dd3
+  costDisplayFinalFixCommit: 0f2a7b5
   Delete:
     - componentReimplementationCommit: 9bf03d1
-  status: "ENHANCED: Added detailed cost display feature with bug fix - shows accurate transcription, summary, and article costs on Analyze screen"
+  status: "ENHANCED: Added detailed cost display feature with comprehensive bug fixes - shows accurate transcription, summary, and article costs on Analyze screen with proper terminology"
   changes:
     - "Fixed sidebar toggle button visibility and functionality"
     - "Implemented proper Daily Spending calculation with yesterday comparison"
@@ -260,6 +261,10 @@ implementation:
     - "🐛 COST DISPLAY BUG FIX: Fixed Whisper AI transcription cost showing as free in history loading"
     - "🐛 COST DISPLAY BUG FIX: Fixed summary cost showing as $0 by properly extracting from history entries"
     - "🐛 COST DISPLAY BUG FIX: Enhanced cost calculation logic for both new processing and history loading"
+    - "🔧 COST DISPLAY FINAL FIX: Fixed WhisperAI transcription cost showing as free with fallback logic"
+    - "🔧 COST DISPLAY FINAL FIX: Fixed summary cost showing as $0 with backward compatibility"
+    - "🔧 COST DISPLAY FINAL FIX: Added comprehensive debug logging for cost calculation troubleshooting"
+    - "📝 TERMINOLOGY UNIFICATION: Changed '転写' to '文字起こし' for consistent Japanese terminology"
 pr: tasks/pr/16_Bug.md
 review: tasks/pr/16_Bug_review.md
 diff: 
@@ -306,5 +311,6 @@ diff:
   - tasks/pr/16_Bug_diff_20250708142934.md
   - tasks/pr/16_commits/16_Bug_diff_20250709123655.md
   - tasks/pr/16_commits/16_Bug_diff_20250709125700.md
+  - tasks/pr/16_commits/16_Bug_diff_20250709130000.md
 createdAt: "2025-07-03T06:12:40Z"
-updatedAt: "2025-07-09T12:57:00Z"
+updatedAt: "2025-07-09T13:00:00Z"
