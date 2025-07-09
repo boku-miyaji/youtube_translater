@@ -133,8 +133,11 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
       ...videoData,
       transcript: `${transcript ? 'PRESENT' : 'MISSING'} (${transcript?.length || 0} chars)`,
       summary: `${summary ? 'PRESENT' : 'MISSING'} (${summary?.length || 0} chars)`,
-      timestampedSegments: `${timestampedSegments?.length || 0} segments`
+      timestampedSegments: `${timestampedSegments?.length || 0} segments`,
+      analysisTime: video.analysisTime ? 'PRESENT' : 'MISSING'
     })
+    
+    console.log('🕒 HistoryTable: Analysis time data:', video.analysisTime)
     
     console.log('🏛️ HistoryTable: Calling setCurrentVideo...')
     setCurrentVideo(videoData)

@@ -25,6 +25,7 @@ export interface VideoMetadata {
   transcriptSource?: 'subtitle' | 'whisper';
   costs?: DetailedCosts;
   analysisTime?: AnalysisTimeInfo;
+  inferenceStats?: InferenceStats;
 }
 
 export interface Chapter {
@@ -57,6 +58,21 @@ export interface AnalysisTimeInfo {
   startTime: string;
   endTime: string;
   duration: number; // seconds
+}
+
+export interface InferenceStats {
+  apiCallCount: number;
+  totalTokens: { input: number; output: number };
+  modelUsed: string;
+  tokensPerSecond: number;
+  costPerToken: number;
+  efficiencyScore: number;
+  sessionCosts: SessionCosts;
+  callBreakdown: {
+    transcription: { tokens: { input: number; output: number }, cost: number, method: 'subtitle' | 'whisper' };
+    summary: { tokens: { input: number; output: number }, cost: number };
+    article?: { tokens: { input: number; output: number }, cost: number };
+  };
 }
 
 export interface HistoryEntry {

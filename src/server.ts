@@ -920,6 +920,74 @@ async function analyzeNeedForArticleContext(message: string): Promise<boolean> {
   }
 }
 
+// Inference Statistics Calculation
+function calculateInferenceStats(
+  method: 'subtitle' | 'whisper',
+  transcriptionCost: number,
+  summaryCost: number,
+  summaryResult: any,
+  analysisDuration: number,
+  totalCost: number,
+  model: string
+): any {
+  // Calculate API call count
+  let apiCallCount = 0;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  
+  // Transcription tokens (only for Whisper)
+  const transcriptionTokens = method === 'whisper' ? 
+    { input: 0, output: Math.ceil(transcriptionCost / 0.006 * 1000) } : // Estimate based on cost
+    { input: 0, output: 0 };
+  
+  // Summary tokens
+  const summaryTokens = summaryResult ? 
+    summaryResult.tokens : 
+    { input: 0, output: 0 };
+  
+  // Count API calls
+  if (method === 'whisper') apiCallCount++;
+  if (summaryResult) apiCallCount++;
+  
+  // Calculate total tokens
+  totalInputTokens = transcriptionTokens.input + summaryTokens.input;
+  totalOutputTokens = transcriptionTokens.output + summaryTokens.output;
+  
+  // Calculate efficiency metrics
+  const tokensPerSecond = analysisDuration > 0 ? 
+    (totalInputTokens + totalOutputTokens) / analysisDuration : 0;
+  
+  const costPerToken = (totalInputTokens + totalOutputTokens) > 0 ? 
+    totalCost / (totalInputTokens + totalOutputTokens) : 0;
+  
+  // Calculate efficiency score (0-100)
+  const baseScore = 80;
+  const speedBonus = Math.min(tokensPerSecond / 10, 20); // Up to 20 points for speed
+  const costEfficiencyBonus = Math.max(0, 5 - (costPerToken * 10000)); // Bonus for low cost per token
+  const efficiencyScore = Math.min(100, Math.max(0, baseScore + speedBonus + costEfficiencyBonus));
+  
+  return {
+    apiCallCount,
+    totalTokens: { input: totalInputTokens, output: totalOutputTokens },
+    modelUsed: model,
+    tokensPerSecond: Math.round(tokensPerSecond * 100) / 100,
+    costPerToken: Math.round(costPerToken * 100000) / 100000,
+    efficiencyScore: Math.round(efficiencyScore),
+    sessionCosts: { ...sessionCosts },
+    callBreakdown: {
+      transcription: { 
+        tokens: transcriptionTokens, 
+        cost: transcriptionCost, 
+        method 
+      },
+      summary: { 
+        tokens: summaryTokens, 
+        cost: summaryCost 
+      }
+    }
+  };
+}
+
 // API Endpoints
 
 // API version of upload endpoint
@@ -1072,7 +1140,18 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       );
     }
 
-    // Enhanced metadata with costs, analysis time, and transcript source
+    // Calculate inference statistics
+    const inferenceStats = calculateInferenceStats(
+      method,
+      transcriptionCost,
+      summaryCost,
+      summaryResult,
+      analysisDuration,
+      totalCost,
+      model
+    );
+
+    // Enhanced metadata with costs, analysis time, transcript source, and inference stats
     const enhancedMetadata = {
       ...metadata,
       costs: {
@@ -1082,7 +1161,8 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         total: totalCost
       },
       analysisTime: analysisTimeInfo,
-      transcriptSource: method
+      transcriptSource: method,
+      inferenceStats: inferenceStats
     };
 
     res.json({

@@ -93,7 +93,36 @@ const DashboardPage: React.FC = () => {
     const summary = video.summary?.content || video.summary || ''
     const timestampedSegments = video.timestampedSegments || video.metadata?.timestampedSegments || []
     
-    // Set the current video in the app store with complete data including summary
+    // Calculate detailed costs from history data (same logic as HistoryTable)
+    const pricing = { whisper: 0.006 }; // $0.006 per minute
+    let transcriptionCost = 0;
+    let summaryCost = 0;
+    let articleCost = 0;
+
+    // Calculate transcription cost
+    if (video.method === 'whisper' && video.metadata?.basic?.duration) {
+      const durationMinutes = Math.ceil(video.metadata.basic.duration / 60);
+      transcriptionCost = durationMinutes * pricing.whisper;
+    }
+
+    // Get summary cost
+    if (video.summary?.cost) {
+      summaryCost = video.summary.cost;
+    } else if (video.method === 'whisper' && video.cost) {
+      // Fallback: use entry.cost as summary cost for old data
+      summaryCost = video.cost;
+    }
+
+    const detailedCosts = {
+      transcription: transcriptionCost,
+      summary: summaryCost,
+      article: articleCost,
+      total: transcriptionCost + summaryCost + articleCost
+    };
+
+    console.log('Dashboard: Calculated costs:', detailedCosts);
+    
+    // Set the current video in the app store with complete data including summary, costs, and analysis time
     const videoData = {
       basic: {
         title: video.title || video.metadata?.basic?.title || 'Unknown Title',
@@ -117,13 +146,19 @@ const DashboardPage: React.FC = () => {
       },
       transcript: transcript,
       summary: summary,
-      timestampedSegments: timestampedSegments
+      timestampedSegments: timestampedSegments,
+      transcriptSource: video.method,
+      costs: detailedCosts,
+      analysisTime: video.analysisTime
     }
     
     console.log('Dashboard: Enhanced video data:', videoData)
     console.log('Dashboard: Final transcript:', !!transcript, transcript?.length || 0)
     console.log('Dashboard: Final summary:', !!summary, summary?.length || 0)
     console.log('Dashboard: Final timestampedSegments:', timestampedSegments?.length || 0)
+    console.log('Dashboard: Final costs:', detailedCosts)
+    console.log('🕒 Dashboard: Final analysisTime:', video.analysisTime)
+    console.log('🕒 Dashboard: analysisTime present?', video.analysisTime ? 'YES' : 'NO')
     
     setCurrentVideo(videoData)
     
