@@ -21,7 +21,8 @@ const AnalysisPage: React.FC = () => {
   const thisMonthTotal = thisMonthCosts.reduce((sum, cost) => sum + (cost.totalCost || 0), 0)
 
   const modelStats = costs ? costs.reduce((acc: any, cost) => {
-    const model = cost.model || 'Unknown'
+    // Extract model from cost data using the correct field name
+    const model = cost.gptModel || 'GPT-4o Mini'
     if (!acc[model]) {
       acc[model] = { count: 0, totalCost: 0 }
     }
@@ -131,9 +132,9 @@ const AnalysisPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Visual Analytics Section */}
+      {/* Data Analytics Section */}
       <div className="mt-8">
-        <h2 className="text-2xl font-bold text-app-primary mb-6">📊 視覚的分析</h2>
+        <h2 className="text-2xl font-bold text-app-primary mb-6">📊 データ分析</h2>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Processing Method Distribution */}
@@ -188,9 +189,14 @@ const AnalysisPage: React.FC = () => {
                   return acc
                 }, {})
 
-                // Convert to array and sort by date
+                // Convert to array and sort by date (newest on right)
                 const sortedData = Object.entries(dailyData)
                   .map(([date, count]) => ({ date, value: count as number }))
+                  .sort((a, b) => {
+                    const dateA = new Date(a.date + ', ' + new Date().getFullYear())
+                    const dateB = new Date(b.date + ', ' + new Date().getFullYear())
+                    return dateA.getTime() - dateB.getTime()
+                  })
                   .slice(-14) // Last 14 days
 
                 return (
@@ -256,7 +262,11 @@ const AnalysisPage: React.FC = () => {
                 
                 const data = Object.entries(weeklyData)
                   .map(([label, value]) => ({ label, value }))
-                  .reverse()
+                  .sort((a, b) => {
+                    const dateA = new Date(a.label + ', ' + new Date().getFullYear())
+                    const dateB = new Date(b.label + ', ' + new Date().getFullYear())
+                    return dateA.getTime() - dateB.getTime()
+                  })
                 
                 return (
                   <BarChart
@@ -293,7 +303,7 @@ const AnalysisPage: React.FC = () => {
                   }
                 })
                 
-                // Get last 30 data points
+                // Get last 30 data points (already sorted by date)
                 const recentData = cumulativeData.slice(-30)
                 
                 return (
@@ -318,7 +328,7 @@ const AnalysisPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                📊 動画分析統計
+                📊 動画処理統計
               </h2>
             </div>
             <div className="px-6 py-4">

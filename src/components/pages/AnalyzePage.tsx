@@ -9,7 +9,7 @@ const AnalyzePage: React.FC = () => {
   const location = useLocation()
   const [url, setUrl] = useState('')
   const [language, setLanguage] = useState('original')
-  const [model, setModel] = useState('gpt-4.1-mini')
+  const [model, setModel] = useState('gpt-4o-mini')
   const [urlError, setUrlError] = useState('')
   const [playerRef, setPlayerRef] = useState<any>(null)
   const [prefillQuestion, setPrefillQuestion] = useState<string>('')
@@ -440,8 +440,8 @@ const AnalyzePage: React.FC = () => {
                       onChange={(e) => setModel(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
                     >
-                      <option value="gpt-4.1-mini">GPT-4.1 Mini (Fast)</option>
-                      <option value="gpt-4o-mini">GPT-4o Mini (Balanced)</option>
+                      <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                      <option value="gpt-4o">GPT-4o (Balanced)</option>
                       <option value="gpt-4">GPT-4 (Premium)</option>
                     </select>
                   </div>
