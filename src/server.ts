@@ -977,6 +977,17 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     // Calculate total cost
     const summaryCost = summaryResult?.cost || 0;
     const totalCost = transcriptionCost + summaryCost;
+    
+    // Debug cost calculation
+    console.log('=== COST CALCULATION DEBUG ===');
+    console.log('Method:', method);
+    console.log('Video duration:', metadata.basic.duration, 'seconds');
+    console.log('Duration minutes:', Math.ceil(metadata.basic.duration / 60));
+    console.log('Transcription cost:', transcriptionCost);
+    console.log('Summary cost:', summaryCost);
+    console.log('Total cost:', totalCost);
+    console.log('Session costs after:', sessionCosts);
+    console.log('==============================');
 
     // Add to history
     const historyEntry = addToHistory(
@@ -1134,6 +1145,47 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         console.log('- has currentArticle:', !!currentArticle);
         console.log('- Added to session costs:', totalCost);
         
+        // Build detailed cost information from history entry
+        let transcriptionCost = 0;
+        let summaryCost = 0;
+        let articleCost = 0;
+        
+        // Calculate transcription cost
+        if (existingEntry.method === 'whisper' && existingEntry.metadata?.basic?.duration) {
+          const durationMinutes = Math.ceil(existingEntry.metadata.basic.duration / 60);
+          transcriptionCost = durationMinutes * pricing.whisper;
+        }
+        
+        // Get summary cost
+        if (existingEntry.summary?.cost) {
+          summaryCost = existingEntry.summary.cost;
+        }
+        
+        // Calculate article cost (if available)
+        // Note: Article cost is not stored in history, so we can't calculate it from history
+        // This will be 0 for historical entries
+        
+        const detailedCosts = {
+          transcription: transcriptionCost,
+          summary: summaryCost,
+          article: articleCost,
+          total: transcriptionCost + summaryCost + articleCost
+        };
+        
+        // Debug cost calculation from history
+        console.log('=== HISTORY COST CALCULATION DEBUG ===');
+        console.log('Method:', existingEntry.method);
+        console.log('Video duration:', existingEntry.metadata?.basic?.duration || 'N/A', 'seconds');
+        console.log('Duration minutes:', existingEntry.metadata?.basic?.duration ? Math.ceil(existingEntry.metadata.basic.duration / 60) : 'N/A');
+        console.log('Transcription cost:', transcriptionCost);
+        console.log('Summary cost:', summaryCost);
+        console.log('Article cost:', articleCost);
+        console.log('Total cost:', detailedCosts.total);
+        console.log('Original history cost:', existingEntry.cost);
+        console.log('Summary from history:', existingEntry.summary ? 'Present' : 'Missing');
+        console.log('Summary cost from history:', existingEntry.summary?.cost || 'N/A');
+        console.log('=====================================');
+        
         return res.json({
           success: true,
           title: existingEntry.title,
@@ -1144,10 +1196,10 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
           language: existingEntry.language,
           gptModel: existingEntry.gptModel,
           timestampedSegments: existingEntry.timestampedSegments || [],
-          cost: existingEntry.cost,
+          cost: detailedCosts.total,
+          costs: detailedCosts,
           message: 'Retrieved from history',
-          fromHistory: true,
-          costs: sessionCosts
+          fromHistory: true
         });
       }
     }
