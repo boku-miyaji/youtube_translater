@@ -632,7 +632,8 @@ const AnalyzePage: React.FC = () => {
                     {/* Toggle Button */}
                     <button
                       onClick={() => setShowCostInfo(!showCostInfo)}
-                      className="w-full flex items-center justify-between px-2 py-2 mb-3 text-sm font-semibold text-black bg-white rounded border border-gray-200 hover:bg-gray-50"
+                      className="w-full flex items-center justify-between px-2 py-2 mb-3 text-sm font-bold text-slate-900 bg-white rounded border border-gray-200 hover:bg-gray-50"
+                      style={{ color: '#000000' }}
                     >
                       <span className="flex items-center gap-1">
                         <span>{showCostInfo ? '📊' : '📊'}</span>
