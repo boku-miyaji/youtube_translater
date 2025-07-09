@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
+import { useHistory } from '../../hooks/useHistory'
 
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
+  const { data: history } = useHistory()
   const location = useLocation()
   const [url, setUrl] = useState('')
   const [language, setLanguage] = useState('original')
@@ -17,6 +19,9 @@ const AnalyzePage: React.FC = () => {
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [formCollapsed, setFormCollapsed] = useState(false)
   const [showCostInfo, setShowCostInfo] = useState(true)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [filteredSuggestions, setFilteredSuggestions] = useState<any[]>([])
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -68,6 +73,28 @@ const AnalyzePage: React.FC = () => {
     setUrl(value)
     setUrlError('')
     setVideoPreview(null)
+    
+    // Filter suggestions based on input
+    if (value.trim() && history) {
+      const filtered = history
+        .filter((item: any) => {
+          const title = item.title || item.metadata?.basic?.title || ''
+          const url = item.url || ''
+          return title.toLowerCase().includes(value.toLowerCase()) || 
+                 url.toLowerCase().includes(value.toLowerCase())
+        })
+        .sort((a: any, b: any) => {
+          // Sort by timestamp (most recent first)
+          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        })
+        .slice(0, 5) // Limit to 5 suggestions
+      
+      setFilteredSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setFilteredSuggestions([])
+      setShowSuggestions(false)
+    }
     
     if (value.trim()) {
       if (validateYouTubeUrl(value.trim())) {
@@ -202,6 +229,32 @@ const AnalyzePage: React.FC = () => {
     setFormCollapsed(!formCollapsed)
   }
 
+  // Handle suggestion selection
+  const handleSuggestionClick = (suggestion: any) => {
+    const suggestionUrl = suggestion.url || ''
+    setUrl(suggestionUrl)
+    setShowSuggestions(false)
+    setFilteredSuggestions([])
+    
+    if (suggestionUrl && validateYouTubeUrl(suggestionUrl)) {
+      generateVideoPreview(suggestionUrl)
+    }
+  }
+
+  // Handle input focus/blur for suggestions
+  const handleInputFocus = () => {
+    if (filteredSuggestions.length > 0) {
+      setShowSuggestions(true)
+    }
+  }
+
+  const handleInputBlur = () => {
+    // Delay hiding suggestions to allow clicking
+    setTimeout(() => {
+      setShowSuggestions(false)
+    }, 200)
+  }
+
   // Debug current video data
   useEffect(() => {
     console.log('🎬 UploadPage: VIDEO DATA CHANGED EVENT')
@@ -254,13 +307,16 @@ const AnalyzePage: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-sm font-medium text-app-primary whitespace-nowrap">🔗 URL:</span>
-                  <div className="flex-1">
+                  <div className="flex-1 relative">
                     <input
+                      ref={inputRef}
                       type="url"
                       value={url}
                       onChange={(e) => handleUrlChange(e.target.value)}
                       onPaste={handleUrlPaste}
-                      placeholder="https://www.youtube.com/watch?v=..."
+                      onFocus={handleInputFocus}
+                      onBlur={handleInputBlur}
+                      placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
                       className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all duration-200 focus-ring font-mono ${
                         urlError 
                           ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
@@ -268,6 +324,40 @@ const AnalyzePage: React.FC = () => {
                       }`}
                       required
                     />
+                    
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                        {filteredSuggestions.map((suggestion, index) => (
+                          <div
+                            key={suggestion.id || index}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-center gap-3"
+                          >
+                            <img
+                              src={suggestion.thumbnail || suggestion.metadata?.basic?.thumbnail || `https://img.youtube.com/vi/${suggestion.id}/default.jpg`}
+                              alt="Video thumbnail"
+                              className="w-12 h-9 object-cover rounded shadow-sm flex-shrink-0"
+                              onError={(e) => {
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="36" fill=""%23e5e7eb""%3E%3Crect width="48" height="36"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill=""%23676767"" font-size="10"%3E📹%3C/text%3E%3C/svg%3E'
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">
+                                {suggestion.title || suggestion.metadata?.basic?.title || 'Unknown Title'}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {suggestion.url}
+                              </div>
+                              <div className="text-xs text-gray-400 mt-1">
+                                {new Date(suggestion.timestamp).toLocaleDateString('ja-JP')}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
                     {urlError && (
                       <div className="mt-1 flex items-center gap-1 text-xs text-red-600">
                         ⚠️ {urlError}
@@ -359,7 +449,7 @@ const AnalyzePage: React.FC = () => {
 
                 {/* URL Input with Preview */}
                 <div className="space-y-4">
-                  <div>
+                  <div className="relative">
                     <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
                       <span className="flex items-center gap-2">
                         🔗 YouTube URL
@@ -368,10 +458,13 @@ const AnalyzePage: React.FC = () => {
                     <input
                       type="url"
                       id="url"
+                      ref={inputRef}
                       value={url}
                       onChange={(e) => handleUrlChange(e.target.value)}
                       onPaste={handleUrlPaste}
-                      placeholder="https://www.youtube.com/watch?v=... or paste a YouTube link"
+                      onFocus={handleInputFocus}
+                      onBlur={handleInputBlur}
+                      placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
                         urlError 
                           ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
@@ -380,6 +473,40 @@ const AnalyzePage: React.FC = () => {
                       data-testid="url-input"
                       required
                     />
+                    
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                        {filteredSuggestions.map((suggestion, index) => (
+                          <div
+                            key={suggestion.id || index}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-center gap-3"
+                          >
+                            <img
+                              src={suggestion.thumbnail || suggestion.metadata?.basic?.thumbnail || `https://img.youtube.com/vi/${suggestion.id}/default.jpg`}
+                              alt="Video thumbnail"
+                              className="w-12 h-9 object-cover rounded shadow-sm flex-shrink-0"
+                              onError={(e) => {
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="36" fill=""%23e5e7eb""%3E%3Crect width="48" height="36"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill=""%23676767"" font-size="10"%3E📹%3C/text%3E%3C/svg%3E'
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">
+                                {suggestion.title || suggestion.metadata?.basic?.title || 'Unknown Title'}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {suggestion.url}
+                              </div>
+                              <div className="text-xs text-gray-400 mt-1">
+                                {new Date(suggestion.timestamp).toLocaleDateString('ja-JP')}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
                     {urlError && (
                       <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
                         ⚠️ {urlError}

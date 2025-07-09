@@ -79,9 +79,15 @@ implementation:
   analysisPageVisualizationEnhancement: 280937f
   jsxSyntaxErrorFix: aa61f47
   jsxSyntaxErrorCompleteFix: ea8dade
+  jsxSyntaxErrorFinalFix: d898d35
+  analysisScreenRefinement: 90ba1e0
+  graphDateOrderFix: d2e445c
+  layoutReorganization: 0eac6e9
+  processingTimePerMinute: 04a6261
+  chatEndpointFix: 7613c96
   Delete:
     - componentReimplementationCommit: 9bf03d1
-  status: "VISUALIZATION COMPLETE: Enhanced Analysis page with comprehensive graphical visualization and completely fixed all JSX syntax errors. Added multiple chart types including pie charts (processing methods, cost breakdown), line charts (daily trends, cumulative costs), histogram (processing time distribution), and bar charts (model usage, weekly volume). All charts implemented using custom SVG components without external libraries. Completely resolved all JSX syntax errors in AnalysisPage.tsx ensuring proper build completion and runtime stability."
+  status: "ANALYSIS SCREEN COMPLETE: Fully redesigned analysis screen with comprehensive improvements. Reorganized layout into logical sections (Summary, Video Processing, Cost Details), fixed graph date ordering, refined UI text, and added processing time per minute analysis. Enhanced user experience with better information categorization, meaningful performance metrics, and intuitive data visualization. CHAT FUNCTIONALITY FIXED: Resolved 404 error by standardizing API endpoints to /api/chat. All requested features implemented successfully."
   changes:
     - "Fixed sidebar toggle button visibility and functionality"
     - "Implemented proper Daily Spending calculation with yesterday comparison"
@@ -93,6 +99,7 @@ implementation:
     - "Fixed API endpoint mismatch (process-video -> upload-youtube)"
     - "Added Quick Analyze functionality with URL passing"
     - "Changed default language from 'ja' to 'original'"
+    - "Fixed chat functionality 404 error by standardizing API endpoints to /api/chat"
     - "🔧 REVIEW FIXES: Added missing /api/summarize endpoint"
     - "🔧 REVIEW FIXES: Redesigned TranscriptViewer buttons for better visibility"
     - "🔧 REVIEW FIXES: Enhanced Video Player metadata extraction with fallbacks"
@@ -326,6 +333,19 @@ implementation:
     - "📊 VISUAL ANALYTICS SECTION: Created dedicated visual analytics section with 2-column layout for chart display, showing processing method distribution, model usage statistics, daily/weekly trends, and cost analysis"
     - "🐛 JSX SYNTAX ERROR FIX: Fixed critical JSX syntax error in AnalysisPage.tsx that was preventing build completion - corrected incorrect closing tag from } to )"
     - "🔧 JSX SYNTAX ERROR COMPLETE FIX: Completely resolved all remaining JSX syntax errors in AnalysisPage.tsx (lines 312 and 486) ensuring proper build completion and runtime stability"
+    - "✅ JSX SYNTAX ERROR FINAL FIX: Root cause analysis and final fix of JSX syntax errors - corrected lines 312 and 486 with proper div closing tags, ensuring successful React application build and deployment"
+    - "🎨 ANALYSIS SCREEN WORDING REFINEMENT: Replaced unnatural expressions like '視覚的分析' with more natural 'データ分析', improved statistical section titles for better user understanding"
+    - "🐛 AI MODEL DISPLAY FIX: Fixed Unknown model display issue by correctly using 'gptModel' field instead of 'model', updated model selection options to proper GPT-4o family"
+    - "📊 GRAPH DATE ORDERING FIX: Fixed graph date ordering to show newest dates on the right side, matching user expectations for time-series data visualization"
+    - "🧪 COMPREHENSIVE TEST COVERAGE: Added detailed test suite for analysis page improvements ensuring wording accuracy and data display correctness"
+    - "📅 GRAPH DATE ORDER FIX: Fixed time series graph date ordering to display oldest dates on left and newest on right for Cost Trends, daily processing trend, and weekly processing volume"
+    - "🔄 COST CHART TIMESTAMP SORTING: Improved CostChart component to sort data by timestamp for accurate chronological order"
+    - "📈 DAILY TREND IMPROVEMENT: Enhanced daily processing trend graph by sorting history data before grouping for proper time series display"
+    - "📉 WEEKLY VOLUME OPTIMIZATION: Fixed weekly processing volume graph to display weeks in chronological order from oldest to newest"
+    - "🎨 LAYOUT REORGANIZATION: Completely redesigned analysis screen layout with logical information categorization into Summary, Video Processing Details, and Cost Details sections"
+    - "📄 SECTION ORGANIZATION: Grouped related information together to improve readability and user experience with clear visual separation"
+    - "📊 PROCESSING TIME PER MINUTE: Added calculation of processing time per minute of video content for meaningful performance metrics"
+    - "📊 NORMALIZED EFFICIENCY METRICS: Display average, minimum, and maximum processing time per minute considering video duration for accurate efficiency analysis"
 pr: tasks/pr/16_Bug.md
 review: tasks/pr/16_Bug_review.md
 diff: 
@@ -383,5 +403,10 @@ diff:
   - tasks/pr/16_commits/16_Bug_diff_20250709232448.md
   - tasks/pr/16_commits/16_Bug_diff_20250709235640.md
   - tasks/pr/16_commits/16_Bug_diff_20250710001053.md
+  - tasks/pr/16_commits/16_Bug_diff_20250710001901.md
+  - tasks/pr/16_commits/16_Bug_diff_20250710002941.md
+  - tasks/pr/16_commits/16_Bug_diff_20250710003919.md
+  - tasks/pr/16_commits/16_Bug_diff_20250710004747.md
+  - tasks/pr/16_commits/16_Bug_diff_20250710005121.md
 createdAt: "2025-07-03T06:12:40Z"
-updatedAt: "2025-07-10T00:11:22Z"
+updatedAt: "2025-07-09T15:52:10Z"
