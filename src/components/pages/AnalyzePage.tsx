@@ -16,6 +16,7 @@ const AnalyzePage: React.FC = () => {
   const [videoPreview, setVideoPreview] = useState<{title: string, thumbnail: string} | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [formCollapsed, setFormCollapsed] = useState(false)
+  const [showCostInfo, setShowCostInfo] = useState(true)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -628,7 +629,28 @@ const AnalyzePage: React.FC = () => {
                 {/* Cost and Analysis Time Information */}
                 {(currentVideo.costs || currentVideo.analysisTime) && (
                   <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-2 rounded border border-gray-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Toggle Button */}
+                    <button
+                      onClick={() => setShowCostInfo(!showCostInfo)}
+                      className="w-full flex items-center justify-between px-1 py-1 mb-2 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                    >
+                      <span className="flex items-center gap-1">
+                        <span>{showCostInfo ? '📊' : '📊'}</span>
+                        分析情報 {showCostInfo ? '（非表示にする）' : '（表示する）'}
+                      </span>
+                      <svg
+                        className={`w-4 h-4 transition-transform ${showCostInfo ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* Content */}
+                    {showCostInfo && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {/* Cost Information */}
                       {currentVideo.costs && (
                         <div>
@@ -720,7 +742,8 @@ const AnalyzePage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
