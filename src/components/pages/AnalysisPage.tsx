@@ -309,7 +309,7 @@ const AnalysisPage: React.FC = () => {
             </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* Detailed Analysis Statistics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -483,7 +483,7 @@ const AnalysisPage: React.FC = () => {
             })()}
           </div>
         )}
-      }
+      </div>
     </div>
   )
 }
