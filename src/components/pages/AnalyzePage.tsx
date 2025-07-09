@@ -627,7 +627,7 @@ const AnalyzePage: React.FC = () => {
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">転写:</span>
+                        <span className="text-gray-600">文字起こし:</span>
                         <span className="font-medium text-gray-800">
                           {currentVideo.costs.transcription > 0 ? 
                             `$${currentVideo.costs.transcription.toFixed(4)}` : 

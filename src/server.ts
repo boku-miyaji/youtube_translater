@@ -949,7 +949,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       }
     }
 
-    // Calculate transcription cost
+    // 文字起こしコストを計算
     let transcriptionCost = 0;
     if (method === 'whisper') {
       // Whisper cost is $0.006 per minute
@@ -979,15 +979,18 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     const totalCost = transcriptionCost + summaryCost;
     
     // Debug cost calculation
-    console.log('=== COST CALCULATION DEBUG ===');
+    console.log('=== NEW PROCESSING COST CALCULATION DEBUG ===');
     console.log('Method:', method);
     console.log('Video duration:', metadata.basic.duration, 'seconds');
     console.log('Duration minutes:', Math.ceil(metadata.basic.duration / 60));
-    console.log('Transcription cost:', transcriptionCost);
-    console.log('Summary cost:', summaryCost);
+    console.log('Pricing whisper:', pricing.whisper);
+    console.log('Transcription cost calculated:', transcriptionCost);
+    console.log('Summary result:', summaryResult ? 'Present' : 'Missing');
+    console.log('Summary cost from result:', summaryResult?.cost || 'N/A');
+    console.log('Summary cost used:', summaryCost);
     console.log('Total cost:', totalCost);
     console.log('Session costs after:', sessionCosts);
-    console.log('==============================');
+    console.log('================================================');
 
     // Add to history
     const historyEntry = addToHistory(
@@ -1150,20 +1153,23 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         let summaryCost = 0;
         let articleCost = 0;
         
-        // Calculate transcription cost
+        // 文字起こしコストを計算
         if (existingEntry.method === 'whisper' && existingEntry.metadata?.basic?.duration) {
           const durationMinutes = Math.ceil(existingEntry.metadata.basic.duration / 60);
           transcriptionCost = durationMinutes * pricing.whisper;
         }
         
-        // Get summary cost
+        // 要約コストを取得
         if (existingEntry.summary?.cost) {
           summaryCost = existingEntry.summary.cost;
+        } else if (existingEntry.method === 'whisper' && existingEntry.cost) {
+          // 古い履歴データの場合、costフィールドが要約コストのみの場合がある
+          // その場合は、costフィールドを要約コストとして使用
+          summaryCost = existingEntry.cost;
         }
         
-        // Calculate article cost (if available)
-        // Note: Article cost is not stored in history, so we can't calculate it from history
-        // This will be 0 for historical entries
+        // 記事コストを計算（履歴には保存されていないため、通常は0）
+        // 将来的に記事コストも履歴に保存される場合に備えて残しておく
         
         const detailedCosts = {
           transcription: transcriptionCost,
@@ -1177,13 +1183,16 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         console.log('Method:', existingEntry.method);
         console.log('Video duration:', existingEntry.metadata?.basic?.duration || 'N/A', 'seconds');
         console.log('Duration minutes:', existingEntry.metadata?.basic?.duration ? Math.ceil(existingEntry.metadata.basic.duration / 60) : 'N/A');
-        console.log('Transcription cost:', transcriptionCost);
-        console.log('Summary cost:', summaryCost);
+        console.log('Pricing whisper:', pricing.whisper);
+        console.log('Transcription cost calculated:', transcriptionCost);
+        console.log('Summary cost from summary.cost:', existingEntry.summary?.cost || 'N/A');
+        console.log('Summary cost from entry.cost:', existingEntry.cost || 'N/A');
+        console.log('Summary cost used:', summaryCost);
         console.log('Article cost:', articleCost);
         console.log('Total cost:', detailedCosts.total);
         console.log('Original history cost:', existingEntry.cost);
         console.log('Summary from history:', existingEntry.summary ? 'Present' : 'Missing');
-        console.log('Summary cost from history:', existingEntry.summary?.cost || 'N/A');
+        console.log('Summary cost logic used:', existingEntry.summary?.cost ? 'summary.cost' : (existingEntry.method === 'whisper' && existingEntry.cost ? 'entry.cost fallback' : 'no cost'));
         console.log('=====================================');
         
         return res.json({
