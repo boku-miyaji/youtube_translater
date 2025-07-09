@@ -1488,7 +1488,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/chat', async (req: Request, res: Response) => {
+app.post('/api/chat', async (req: Request, res: Response) => {
   try {
     const { message, videoId, history, gptModel = 'gpt-4o-mini' } = req.body;
     

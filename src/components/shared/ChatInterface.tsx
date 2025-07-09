@@ -50,7 +50,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     setLoading(true)
 
     try {
-      const response = await fetch('/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,7 +85,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         if (error.message.includes('Failed to send message')) {
           // Try to get more specific error info from response
           try {
-            const errorResponse = await fetch('/chat', {
+            const errorResponse = await fetch('/api/chat', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ message: input.trim(), videoId, history: messages })
