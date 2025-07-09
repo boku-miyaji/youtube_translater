@@ -158,7 +158,36 @@ const costsFile = path.join('history', 'costs.json');
 function loadHistory(): HistoryEntry[] {
   if (fs.existsSync(historyFile)) {
     try {
-      return JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+      const history = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+      
+      // Migration: Add default analysisTime for entries that don't have it
+      let migrationApplied = false;
+      const migratedHistory = history.map((entry: any) => {
+        if (!entry.analysisTime && entry.timestamp) {
+          // Create default analysis time based on video duration and timestamp
+          const entryDate = new Date(entry.timestamp);
+          const duration = entry.metadata?.basic?.duration || 60; // Default to 60 seconds
+          const estimatedProcessingTime = Math.max(30, Math.floor(duration * 0.8)); // Estimate processing time
+          
+          const startTime = new Date(entryDate.getTime() - (estimatedProcessingTime * 1000));
+          entry.analysisTime = {
+            startTime: startTime.toISOString(),
+            endTime: entryDate.toISOString(),
+            duration: estimatedProcessingTime
+          };
+          migrationApplied = true;
+          console.log(`Migration: Added analysisTime for entry ${entry.id} (${entry.title})`);
+        }
+        return entry;
+      });
+      
+      // Save migrated data back to file
+      if (migrationApplied) {
+        saveHistory(migratedHistory);
+        console.log('Migration completed: analysisTime fields added to historical entries');
+      }
+      
+      return migratedHistory;
     } catch (error) {
       console.error('Error loading history:', error);
       return [];
