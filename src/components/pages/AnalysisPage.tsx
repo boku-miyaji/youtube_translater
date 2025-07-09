@@ -158,6 +158,20 @@ const AnalysisPage: React.FC = () => {
                     const minTime = processingTimes.length > 0 ? Math.min(...processingTimes) : 0
                     const maxTime = processingTimes.length > 0 ? Math.max(...processingTimes) : 0
                     
+                    // Calculate processing time per minute of video
+                    const processingTimePerMinute = history
+                      .filter(h => h.analysisTime?.duration && h.metadata?.basic?.duration)
+                      .map(h => {
+                        const processingTime = h.analysisTime!.duration
+                        const videoDuration = h.metadata!.basic!.duration
+                        return processingTime / (videoDuration / 60) // seconds per minute of video
+                      })
+                    
+                    const avgTimePerMinute = processingTimePerMinute.length > 0 ? 
+                      processingTimePerMinute.reduce((a, b) => a + b, 0) / processingTimePerMinute.length : 0
+                    const minTimePerMinute = processingTimePerMinute.length > 0 ? Math.min(...processingTimePerMinute) : 0
+                    const maxTimePerMinute = processingTimePerMinute.length > 0 ? Math.max(...processingTimePerMinute) : 0
+                    
                     return (
                       <>
                         <div className="flex justify-between items-center">
@@ -178,11 +192,33 @@ const AnalysisPage: React.FC = () => {
                             {maxTime < 60 ? `${maxTime}秒` : `${Math.floor(maxTime / 60)}分${maxTime % 60}秒`}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">処理効率:</span>
-                          <span className="text-sm font-bold text-gray-900">
-                            {processingTimes.length > 0 ? `${(processingTimes.length / (avgTime / 60)).toFixed(1)}本/分` : '0本/分'}
-                          </span>
+                        <div className="border-t border-gray-200 pt-2 mt-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700">動画1分あたり平均処理時間:</span>
+                            <span className="text-sm font-bold text-blue-600">
+                              {avgTimePerMinute > 0 ? `${avgTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700">動画1分あたり最短:</span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {minTimePerMinute > 0 ? `${minTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700">動画1分あたり最長:</span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-200 pt-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700">処理効率:</span>
+                            <span className="text-sm font-bold text-gray-900">
+                              {processingTimes.length > 0 ? `${(processingTimes.length / (avgTime / 60)).toFixed(1)}本/分` : '0本/分'}
+                            </span>
+                          </div>
                         </div>
                       </>
                     )
