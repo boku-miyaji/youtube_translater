@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
+import { useHistory } from '../../hooks/useHistory'
+import { useCosts } from '../../hooks/useCosts'
 import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
 
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
+  const { data: history } = useHistory()
+  const { data: costs } = useCosts()
   const [url, setUrl] = useState('')
   const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4.1-mini')
@@ -742,7 +746,91 @@ const AnalyzePage: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Inference Statistics */}
+                      {/* Video Analysis Statistics */}
+                      {history && history.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-black mb-2 flex items-center gap-1">
+                            📊 動画分析統計
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-800 font-medium">総処理動画数:</span>
+                              <span className="font-semibold text-black">
+                                {history.length}本
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-800 font-medium">今週の処理:</span>
+                              <span className="font-semibold text-black">
+                                {history.filter(h => 
+                                  new Date(h.timestamp) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                                ).length}本
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-800 font-medium">Whisper AI処理:</span>
+                              <span className="font-semibold text-black">
+                                {history.filter(h => h.method === 'whisper').length}本
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-800 font-medium">YouTube字幕処理:</span>
+                              <span className="font-semibold text-black">
+                                {history.filter(h => h.method === 'subtitle').length}本
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Processing Time Analysis */}
+                      {history && history.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-black mb-2 flex items-center gap-1">
+                            ⏱️ 処理時間分析
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            {(() => {
+                              const processingTimes = history.map(h => h.analysisTime?.duration).filter(Boolean)
+                              const avgTime = processingTimes.length > 0 ? 
+                                processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length : 0
+                              const minTime = processingTimes.length > 0 ? Math.min(...processingTimes) : 0
+                              const maxTime = processingTimes.length > 0 ? Math.max(...processingTimes) : 0
+                              
+                              return (
+                                <>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-800 font-medium">平均処理時間:</span>
+                                    <span className="font-semibold text-black">
+                                      {avgTime < 60 ? `${Math.round(avgTime)}秒` : `${Math.floor(avgTime / 60)}分${Math.round(avgTime % 60)}秒`}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-800 font-medium">最短時間:</span>
+                                    <span className="font-semibold text-black">
+                                      {minTime < 60 ? `${minTime}秒` : `${Math.floor(minTime / 60)}分${minTime % 60}秒`}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-800 font-medium">最長時間:</span>
+                                    <span className="font-semibold text-black">
+                                      {maxTime < 60 ? `${maxTime}秒` : `${Math.floor(maxTime / 60)}分${maxTime % 60}秒`}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-800 font-medium">処理効率:</span>
+                                    <span className="font-bold text-black text-base">
+                                      {processingTimes.length > 0 ? `${(processingTimes.length / (avgTime / 60)).toFixed(1)}本/分` : '0本/分'}
+                                    </span>
+                                  </div>
+                                </>
+                              )
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Enhanced Inference Statistics */}
                       {currentVideo.inferenceStats && (
                         <div>
                           <h4 className="text-sm font-semibold text-black mb-2 flex items-center gap-1">
@@ -762,11 +850,65 @@ const AnalyzePage: React.FC = () => {
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
+                              <span className="text-gray-800 font-medium">入力/出力:</span>
+                              <span className="font-semibold text-black text-xs">
+                                {currentVideo.inferenceStats.totalTokens.input}/{currentVideo.inferenceStats.totalTokens.output}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-800 font-medium">トークン/秒:</span>
+                              <span className="font-semibold text-black">
+                                {currentVideo.inferenceStats.tokensPerSecond}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
                               <span className="text-gray-800 font-medium">効率スコア:</span>
                               <span className="font-bold text-black text-base">
                                 {currentVideo.inferenceStats.efficiencyScore}/100
                               </span>
                             </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cost Analysis Summary */}
+                      {costs && costs.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-black mb-2 flex items-center gap-1">
+                            💸 コスト分析
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            {(() => {
+                              const totalCost = costs.reduce((sum, cost) => sum + cost.totalCost, 0)
+                              const avgCost = costs.length > 0 ? totalCost / costs.length : 0
+                              const todayCosts = costs.filter(c => 
+                                new Date(c.timestamp).toDateString() === new Date().toDateString()
+                              )
+                              const todayTotal = todayCosts.reduce((sum, cost) => sum + cost.totalCost, 0)
+                              
+                              return (
+                                <>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-800 font-medium">総コスト:</span>
+                                    <span className="font-semibold text-black">
+                                      ${totalCost.toFixed(4)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-800 font-medium">平均コスト:</span>
+                                    <span className="font-semibold text-black">
+                                      ${avgCost.toFixed(4)}/本
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-800 font-medium">今日の合計:</span>
+                                    <span className="font-bold text-black text-base">
+                                      ${todayTotal.toFixed(4)}
+                                    </span>
+                                  </div>
+                                </>
+                              )
+                            })()}
                           </div>
                         </div>
                       )}
