@@ -24,8 +24,10 @@ const CostChart: React.FC<CostChartProps> = ({ data }) => {
   }, {})
 
   const chartData = Object.entries(dailyCosts)
+    .map(([date, cost]) => ({ date, cost: cost as number, timestamp: new Date(date) }))
+    .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Sort by date (oldest to newest)
     .slice(-30) // Last 30 days
-    .map(([date, cost]) => ({ date, cost: cost as number }))
+    .map(item => ({ date: item.date, cost: item.cost }))
 
   const maxCost = Math.max(...chartData.map(d => d.cost))
 

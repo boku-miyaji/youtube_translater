@@ -182,21 +182,21 @@ const AnalysisPage: React.FC = () => {
           {history && history.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               {(() => {
+                // Sort history by timestamp first (oldest to newest)
+                const sortedHistory = [...history].sort((a, b) => 
+                  new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                )
+
                 // Group by date
-                const dailyData = history.reduce((acc: any, item) => {
+                const dailyData = sortedHistory.reduce((acc: any, item) => {
                   const date = new Date(item.timestamp).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
                   acc[date] = (acc[date] || 0) + 1
                   return acc
                 }, {})
 
-                // Convert to array and sort by date (newest on right)
+                // Convert to array and maintain chronological order
                 const sortedData = Object.entries(dailyData)
                   .map(([date, count]) => ({ date, value: count as number }))
-                  .sort((a, b) => {
-                    const dateA = new Date(a.date + ', ' + new Date().getFullYear())
-                    const dateB = new Date(b.date + ', ' + new Date().getFullYear())
-                    return dateA.getTime() - dateB.getTime()
-                  })
                   .slice(-14) // Last 14 days
 
                 return (
@@ -241,10 +241,10 @@ const AnalysisPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow p-6">
               {(() => {
                 // Group by week
-                const weeklyData: { [key: string]: number } = {}
+                const weeklyData: { label: string; value: number; timestamp: number }[] = []
                 const now = new Date()
                 
-                for (let i = 0; i < 8; i++) {
+                for (let i = 7; i >= 0; i--) { // Start from oldest week (7 weeks ago) to newest
                   const weekStart = new Date(now)
                   weekStart.setDate(now.getDate() - i * 7)
                   weekStart.setHours(0, 0, 0, 0)
@@ -254,19 +254,19 @@ const AnalysisPage: React.FC = () => {
                   
                   const weekLabel = `${(weekStart.getMonth() + 1)}/${weekStart.getDate()}`
                   
-                  weeklyData[weekLabel] = history.filter(h => {
+                  const count = history.filter(h => {
                     const timestamp = new Date(h.timestamp)
                     return timestamp >= weekStart && timestamp < weekEnd
                   }).length
+                  
+                  weeklyData.push({
+                    label: weekLabel,
+                    value: count,
+                    timestamp: weekStart.getTime()
+                  })
                 }
                 
-                const data = Object.entries(weeklyData)
-                  .map(([label, value]) => ({ label, value }))
-                  .sort((a, b) => {
-                    const dateA = new Date(a.label + ', ' + new Date().getFullYear())
-                    const dateB = new Date(b.label + ', ' + new Date().getFullYear())
-                    return dateA.getTime() - dateB.getTime()
-                  })
+                const data = weeklyData.map(item => ({ label: item.label, value: item.value }))
                 
                 return (
                   <BarChart
