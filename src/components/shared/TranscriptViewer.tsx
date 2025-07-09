@@ -12,6 +12,7 @@ interface TranscriptViewerProps {
   transcriptSource?: 'subtitle' | 'whisper'
   onSeek?: (time: number) => void
   onQuestionClick?: (question: string) => void
+  onArticleGenerated?: (cost: number) => void
 }
 
 type TabType = 'transcript' | 'summary' | 'article'
@@ -23,7 +24,7 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, onSeek, onQuestionClick }) => {
+const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, onSeek, onQuestionClick, onArticleGenerated }) => {
   const [activeTab, setActiveTab] = useState<TabType>('transcript')
   const [summary, setSummary] = useState(initialSummary || '')
   const [article, setArticle] = useState('')
@@ -102,7 +103,8 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
       console.log('Article generation response:', { 
         hasArticle: !!data.article, 
         articleLength: data.article?.length || 0,
-        success: data.success
+        success: data.success,
+        cost: data.cost
       })
       
       if (!data.article) {
@@ -110,6 +112,11 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
       }
       
       setArticle(data.article)
+      
+      // Notify parent component of article generation cost
+      if (onArticleGenerated && data.cost) {
+        onArticleGenerated(data.cost)
+      }
     } catch (error) {
       console.error('Error generating article:', error)
       const errorMessage = error instanceof Error ? error.message : '不明なエラーが発生しました。'

@@ -146,7 +146,13 @@ const AnalyzePage: React.FC = () => {
         transcript: data.transcript,
         summary: data.summary,
         timestampedSegments: data.timestampedSegments || [],
-        transcriptSource: data.method as 'subtitle' | 'whisper'
+        transcriptSource: data.method as 'subtitle' | 'whisper',
+        costs: data.costs || {
+          transcription: 0,
+          summary: 0,
+          article: 0,
+          total: 0
+        }
       }
       
       setCurrentVideo(videoMetadata)
@@ -166,6 +172,22 @@ const AnalyzePage: React.FC = () => {
     setPrefillQuestion(question)
     // Clear the question after a brief delay to allow ChatInterface to pick it up
     setTimeout(() => setPrefillQuestion(''), 100)
+  }
+
+  // Handle article generation cost update
+  const handleArticleGenerated = (cost: number) => {
+    if (currentVideo && currentVideo.costs) {
+      const updatedCosts = {
+        ...currentVideo.costs,
+        article: cost,
+        total: currentVideo.costs.transcription + currentVideo.costs.summary + cost
+      }
+      
+      setCurrentVideo({
+        ...currentVideo,
+        costs: updatedCosts
+      })
+    }
   }
 
   // Handle form collapse/expand toggle
@@ -596,6 +618,53 @@ const AnalyzePage: React.FC = () => {
                     ))}
                   </div>
                 )}
+
+                {/* Cost Information */}
+                {currentVideo.costs && (
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                      💰 分析コスト
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">転写:</span>
+                        <span className="font-medium text-gray-800">
+                          {currentVideo.costs.transcription > 0 ? 
+                            `$${currentVideo.costs.transcription.toFixed(4)}` : 
+                            '無料'
+                          }
+                          {currentVideo.transcriptSource === 'subtitle' && (
+                            <span className="ml-2 text-xs text-green-600">(YouTube字幕)</span>
+                          )}
+                          {currentVideo.transcriptSource === 'whisper' && (
+                            <span className="ml-2 text-xs text-blue-600">(Whisper AI)</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">要約:</span>
+                        <span className="font-medium text-gray-800">
+                          ${currentVideo.costs.summary.toFixed(4)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">記事:</span>
+                        <span className="font-medium text-gray-800">
+                          {currentVideo.costs.article > 0 ? 
+                            `$${currentVideo.costs.article.toFixed(4)}` : 
+                            '未生成'
+                          }
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span className="text-gray-700 font-medium">合計:</span>
+                        <span className="font-semibold text-gray-900">
+                          ${currentVideo.costs.total.toFixed(4)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -650,6 +719,7 @@ const AnalyzePage: React.FC = () => {
                 trySeek()
               }}
               onQuestionClick={handleQuestionClick}
+              onArticleGenerated={handleArticleGenerated}
             />
           </div>
           

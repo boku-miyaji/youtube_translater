@@ -23,6 +23,7 @@ export interface VideoMetadata {
   summary?: string;
   timestampedSegments?: TimestampedSegment[];
   transcriptSource?: 'subtitle' | 'whisper';
+  costs?: DetailedCosts;
 }
 
 export interface Chapter {
@@ -126,6 +127,13 @@ export interface ChatResponse {
   };
 }
 
+export interface DetailedCosts {
+  transcription: number;
+  summary: number;
+  article: number;
+  total: number;
+}
+
 export interface UploadResponse {
   success: boolean;
   title?: string;
@@ -138,10 +146,10 @@ export interface UploadResponse {
   detectedLanguage?: string;
   timestampedSegments?: TimestampedSegment[];
   cost?: number;
+  costs?: DetailedCosts;
   message: string;
   error?: string;
   fromHistory?: boolean;
-  costs?: SessionCosts;
 }
 
 export interface PromptTemplate {

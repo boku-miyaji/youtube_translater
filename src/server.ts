@@ -949,6 +949,16 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       }
     }
 
+    // Calculate transcription cost
+    let transcriptionCost = 0;
+    if (method === 'whisper') {
+      // Whisper cost is $0.006 per minute
+      const durationMinutes = Math.ceil(metadata.basic.duration / 60);
+      transcriptionCost = durationMinutes * pricing.whisper;
+      sessionCosts.whisper += transcriptionCost;
+      sessionCosts.total += transcriptionCost;
+    }
+
     // Generate summary
     let summaryResult = null;
     try {
@@ -964,6 +974,10 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     currentMetadata = metadata;
     currentTimestampedSegments = timestampedSegments;
 
+    // Calculate total cost
+    const summaryCost = summaryResult?.cost || 0;
+    const totalCost = transcriptionCost + summaryCost;
+
     // Add to history
     const historyEntry = addToHistory(
       videoId,
@@ -971,7 +985,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       url,
       transcript,
       method,
-      summaryResult?.cost || 0,
+      totalCost,
       metadata,
       summaryResult,
       language,
@@ -981,6 +995,20 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       [],
       null
     );
+
+    // Add cost entry for tracking
+    if (totalCost > 0) {
+      addCostEntry(
+        videoId,
+        metadata.basic.title,
+        method,
+        language,
+        model,
+        transcriptionCost,
+        summaryCost,
+        totalCost
+      );
+    }
 
     res.json({
       success: true,
@@ -994,7 +1022,13 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       language: detectedLanguage,
       detectedLanguage,
       gptModel: model,
-      cost: summaryResult?.cost || 0,
+      cost: totalCost,
+      costs: {
+        transcription: transcriptionCost,
+        summary: summaryCost,
+        article: 0, // Article is generated separately
+        total: totalCost
+      },
       message: 'Video transcribed and analyzed successfully'
     });
 
