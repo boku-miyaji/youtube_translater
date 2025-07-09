@@ -12,6 +12,8 @@ This PR implements comprehensive UI/UX improvements across the YouTube Video Ana
 3. **Deep-Dive Questions** - AI-powered contextual questions with chat integration
 4. **Transcript Source Display** - Visual indicators for YouTube captions vs Whisper AI
 5. **Collapsible Analyze Form** - Maximizes content area with smooth transitions
+6. **Cost Analysis Toggle** - User-controlled cost and analysis time display
+7. **High-Contrast Design** - Dramatically improved visibility and accessibility
 
 ## 📋 Comprehensive Feature List
 
@@ -44,6 +46,13 @@ This PR implements comprehensive UI/UX improvements across the YouTube Video Ana
 - **Button Visibility**: Neutral colors replacing purple/blue themes
 - **Responsive Design**: Full mobile, tablet, and desktop support
 
+### 💰 Cost Analysis Features
+- **Toggle Functionality**: Show/hide cost and analysis time information
+- **Comprehensive Cost Display**: Transcription, summary, and article costs
+- **Analysis Time Tracking**: Recording and display of processing duration
+- **High-Contrast Design**: Dramatically improved visibility and readability
+- **Accessibility Compliance**: Maximum contrast ratios for all text elements
+
 ### 🐛 Bug Fixes
 - **Sidebar Issues**: Fixed partially visible toggle button
 - **Dashboard Calculations**: Accurate daily spending percentages
@@ -54,11 +63,12 @@ This PR implements comprehensive UI/UX improvements across the YouTube Video Ana
 
 ## 📊 Technical Statistics
 
-- **Total Commits**: 37 major implementation commits
+- **Total Commits**: 40+ major implementation commits
 - **Files Modified**: 15+ React components, 5+ API endpoints
-- **Lines Added**: ~3,000 lines of improved code
+- **Lines Added**: ~3,200 lines of improved code
 - **Lines Removed**: ~1,500 lines of legacy code
-- **Net Addition**: +1,500 lines of enhanced functionality
+- **Net Addition**: +1,700 lines of enhanced functionality
+- **Accessibility Improvements**: 3 major contrast enhancement cycles
 
 ## 🧪 Quality Assurance
 
