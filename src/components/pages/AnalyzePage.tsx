@@ -122,6 +122,9 @@ const AnalyzePage: React.FC = () => {
 
       const data = await response.json()
       
+      console.log('🕒 AnalyzePage: Server response analysis time:', data.analysisTime)
+      console.log('🕒 AnalyzePage: Metadata analysis time:', data.metadata?.analysisTime)
+      
       // Convert server response to VideoMetadata format
       const videoMetadata = {
         basic: {
@@ -152,8 +155,11 @@ const AnalyzePage: React.FC = () => {
           summary: 0,
           article: 0,
           total: 0
-        }
+        },
+        analysisTime: data.analysisTime
       }
+      
+      console.log('🕒 AnalyzePage: Final videoMetadata analysis time:', videoMetadata.analysisTime)
       
       setCurrentVideo(videoMetadata)
       // Auto-collapse form after successful analysis
@@ -671,7 +677,10 @@ const AnalyzePage: React.FC = () => {
                       )}
 
                       {/* Analysis Time Information */}
-                      {currentVideo.analysisTime && (
+                      {(() => {
+                        console.log('🕒 AnalyzePage: Checking analysis time for display:', currentVideo.analysisTime)
+                        return currentVideo.analysisTime
+                      })() && (
                         <div>
                           <h4 className="text-xs font-medium text-blue-700 mb-1 flex items-center gap-1">
                             ⏱️ 解析時間
