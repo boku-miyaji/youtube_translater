@@ -75,9 +75,10 @@ implementation:
   analysisInfoContrastDramaticImprovement: b6335da
   analysisInfoToggleTextEnhancement: 7bd8c9d
   comprehensiveInferenceAnalyticsImplementation: de34e32
+  comprehensiveVideoAnalysisAndProcessingTimeStatistics: 850b525
   Delete:
     - componentReimplementationCommit: 9bf03d1
-  status: "COMPREHENSIVE: Added detailed cost display feature with comprehensive bug fixes, analysis time display, optimized UI spacing, fixed analysis time display issue, analysis time migration for historical entries, toggle functionality, improved visibility, dramatically enhanced contrast, enhanced toggle text visibility, and comprehensive inference analytics - shows accurate transcription, summary, and article costs on Analyze screen with proper terminology, reliable analysis time tracking for both new and historical videos, compact layout, user-controlled cost/time information visibility, excellent readability with high-contrast design, maximum accessibility compliance, enhanced toggle button text visibility, and advanced inference statistics including API call counts, token usage, processing efficiency, efficiency scoring, and session analytics"
+  status: "COMPREHENSIVE: Added detailed cost display feature with comprehensive bug fixes, analysis time display, optimized UI spacing, fixed analysis time display issue, analysis time migration for historical entries, toggle functionality, improved visibility, dramatically enhanced contrast, enhanced toggle text visibility, comprehensive inference analytics, and comprehensive video analysis statistics - shows accurate transcription, summary, and article costs on Analyze screen with proper terminology, reliable analysis time tracking for both new and historical videos, compact layout, user-controlled cost/time information visibility, excellent readability with high-contrast design, maximum accessibility compliance, enhanced toggle button text visibility, advanced inference statistics including API call counts, token usage, processing efficiency, efficiency scoring, session analytics, video analysis statistics with total processed videos and weekly counts, detailed processing time analysis with average/min/max times and efficiency metrics, and comprehensive cost analysis with total/average/daily cost breakdowns"
   changes:
     - "Fixed sidebar toggle button visibility and functionality"
     - "Implemented proper Daily Spending calculation with yesterday comparison"
@@ -314,6 +315,9 @@ implementation:
     - "🧠 COMPREHENSIVE INFERENCE ANALYTICS: Added detailed inference statistics including API call counts, token usage metrics, processing efficiency analysis, and performance scoring system"
     - "🧠 COMPREHENSIVE INFERENCE ANALYTICS: Implemented 3-column layout with advanced analytics displaying tokens/second, cost/token, efficiency scores, and session information"
     - "🧠 COMPREHENSIVE INFERENCE ANALYTICS: Created InferenceStats interface and calculateInferenceStats function for real-time performance monitoring and optimization insights"
+    - "📊 COMPREHENSIVE VIDEO ANALYSIS STATISTICS: Added total processed videos count, weekly processing statistics, Whisper AI vs YouTube subtitle processing breakdown, and historical video processing trends"
+    - "⏱️ DETAILED PROCESSING TIME ANALYSIS: Implemented average/minimum/maximum processing time calculations, processing efficiency metrics (videos/minute), and comprehensive time-based analytics"
+    - "💸 ENHANCED COST ANALYSIS SUMMARY: Added total cost across all processed videos, average cost per video, today's total cost, and cost trend analysis with real-time calculations"
 pr: tasks/pr/16_Bug.md
 review: tasks/pr/16_Bug_review.md
 diff: 
@@ -367,5 +371,6 @@ diff:
   - tasks/pr/16_commits/16_Bug_diff_20250709171500.md
   - tasks/pr/16_commits/16_Bug_diff_20250709172000.md
   - tasks/pr/16_commits/16_Bug_diff_20250709184500.md
+  - tasks/pr/16_commits/16_Bug_diff_20250709190000.md
 createdAt: "2025-07-03T06:12:40Z"
-updatedAt: "2025-07-09T18:45:00Z"
+updatedAt: "2025-07-09T19:00:00Z"
