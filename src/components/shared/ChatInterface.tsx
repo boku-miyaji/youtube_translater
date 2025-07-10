@@ -29,6 +29,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
   const hasValidSummary = safeSummary && safeSummary.trim().length > 0
   
   console.log('🔍 ChatInterface data validation:')
+  console.log('  - raw transcript prop:', transcript ? {
+    type: typeof transcript,
+    length: typeof transcript === 'string' ? transcript.length : 'NOT_STRING',
+    preview: typeof transcript === 'string' ? transcript.substring(0, 100) + '...' : JSON.stringify(transcript).substring(0, 100) + '...'
+  } : 'MISSING')
+  console.log('  - raw summary prop:', summary ? {
+    type: typeof summary,
+    length: typeof summary === 'string' ? summary.length : 'NOT_STRING',
+    preview: typeof summary === 'string' ? summary.substring(0, 100) + '...' : JSON.stringify(summary).substring(0, 100) + '...'
+  } : 'MISSING')
+  console.log('  - safeTranscript:', safeTranscript ? {
+    type: typeof safeTranscript,
+    length: safeTranscript.length,
+    preview: safeTranscript.substring(0, 100) + '...'
+  } : 'MISSING')
+  console.log('  - safeSummary:', safeSummary ? {
+    type: typeof safeSummary,
+    length: safeSummary.length,
+    preview: safeSummary.substring(0, 100) + '...'
+  } : 'MISSING')
   console.log('  - hasValidTranscript:', hasValidTranscript)
   console.log('  - hasValidSummary:', hasValidSummary)
 

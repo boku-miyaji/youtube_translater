@@ -1560,6 +1560,10 @@ app.post('/api/chat', async (req: Request, res: Response) => {
         console.log('  - ✅ Using currentVideo.transcript:', transcriptContent.length, 'chars')
       } else {
         console.log('  - ❌ No valid transcript found anywhere - returning error')
+        console.log('  - 🔍 DEBUG: All sources checked:')
+        console.log('    - Request transcript: ', hasValidTranscript ? 'VALID' : 'INVALID')
+        console.log('    - Global currentTranscript: ', hasValidCurrentTranscript ? 'VALID' : 'INVALID')
+        console.log('    - CurrentVideo transcript: ', hasValidCurrentVideoTranscript ? 'VALID' : 'INVALID')
         return res.status(400).json({ 
           success: false,
           response: '動画の文字起こしが見つかりません。まず動画をアップロードしてから質問してください。',

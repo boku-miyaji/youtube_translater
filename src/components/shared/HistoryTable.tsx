@@ -63,22 +63,57 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
     // Handle both HistoryEntry and direct video data structures
     const transcript = video.transcript || video.metadata?.transcript || ''
     
-    // Ensure summary is always a string
+    // Ensure summary is always a string with comprehensive extraction
     let summary = ''
+    
+    // Priority 1: object with content field (most common for historical videos)
     if (video.summary?.content && typeof video.summary.content === 'string') {
       summary = video.summary.content
-    } else if (typeof video.summary === 'string') {
+    } 
+    // Priority 2: direct string value
+    else if (typeof video.summary === 'string') {
       summary = video.summary
-    } else if (video.summary && typeof video.summary === 'object' && video.summary.content) {
-      summary = String(video.summary.content)
+    } 
+    // Priority 3: object with content field (backup conversion)
+    else if (video.summary && typeof video.summary === 'object' && video.summary.content) {
+      // Handle cases where content might be nested or need conversion
+      const content = video.summary.content
+      if (typeof content === 'string') {
+        summary = content
+      } else if (typeof content === 'object' && content.content) {
+        summary = String(content.content)
+      } else {
+        summary = String(content)
+      }
+    }
+    // Priority 4: try to extract from metadata if available
+    else if (video.metadata?.summary) {
+      if (typeof video.metadata.summary === 'string') {
+        summary = video.metadata.summary
+      } else if (video.metadata.summary.content) {
+        summary = String(video.metadata.summary.content)
+      }
     }
     
     const timestampedSegments = video.timestampedSegments || video.metadata?.timestampedSegments || []
     
     console.log('🏛️ HistoryTable: Extracted data:')
     console.log('  - transcript source:', video.transcript ? 'direct' : video.metadata?.transcript ? 'metadata' : 'none')
+    console.log('  - transcript length:', transcript ? transcript.length : 0)
+    console.log('  - transcript preview:', transcript ? transcript.substring(0, 100) + '...' : 'EMPTY')
     console.log('  - summary source:', video.summary?.content ? 'summary.content' : video.summary ? 'direct' : 'none')
+    console.log('  - summary length:', summary ? summary.length : 0)
+    console.log('  - summary preview:', summary ? summary.substring(0, 100) + '...' : 'EMPTY')
     console.log('  - timestampedSegments source:', video.timestampedSegments ? 'direct' : video.metadata?.timestampedSegments ? 'metadata' : 'none')
+    console.log('  - timestampedSegments count:', timestampedSegments ? timestampedSegments.length : 0)
+    
+    // Additional debugging for summary structure
+    console.log('🔍 Summary structure analysis:')
+    console.log('  - video.summary type:', typeof video.summary)
+    console.log('  - video.summary keys:', video.summary && typeof video.summary === 'object' ? Object.keys(video.summary) : 'NOT_OBJECT')
+    console.log('  - video.summary.content type:', video.summary?.content ? typeof video.summary.content : 'MISSING')
+    console.log('  - video.summary.content length:', video.summary?.content ? 
+      (typeof video.summary.content === 'string' ? video.summary.content.length : 'NOT_STRING') : 'MISSING')
     
     // Calculate detailed costs from history data
     const pricing = { whisper: 0.006 }; // $0.006 per minute
@@ -146,6 +181,19 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
       timestampedSegments: `${timestampedSegments?.length || 0} segments`,
       analysisTime: video.analysisTime ? 'PRESENT' : 'MISSING'
     })
+    
+    // Critical debugging - what will be passed to ChatInterface
+    console.log('📤 Data to be passed to ChatInterface:')
+    console.log('  - videoData.transcript:', videoData.transcript ? {
+      type: typeof videoData.transcript,
+      length: videoData.transcript.length,
+      preview: videoData.transcript.substring(0, 100) + '...'
+    } : 'MISSING')
+    console.log('  - videoData.summary:', videoData.summary ? {
+      type: typeof videoData.summary,
+      length: videoData.summary.length,
+      preview: videoData.summary.substring(0, 100) + '...'
+    } : 'MISSING')
     
     console.log('🕒 HistoryTable: Analysis time data:', video.analysisTime)
     
