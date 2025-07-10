@@ -26,6 +26,7 @@ const AnalyzePage: React.FC = () => {
   const [loadingCostEstimation, setLoadingCostEstimation] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const costEstimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isFirstModelChange = useRef(true)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -441,6 +442,10 @@ const AnalyzePage: React.FC = () => {
                   <span className="font-mono">{costEstimation.durationFormatted}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span>使用モデル:</span>
+                  <span className="font-mono">{costEstimation.gptModel || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
                   <span>文字起こし:</span>
                   <span className="font-mono">${costs.transcription.toFixed(4)}</span>
                 </div>
@@ -501,6 +506,32 @@ const AnalyzePage: React.FC = () => {
       } : null
     })
   }, [costEstimation, loadingCostEstimation])
+
+  // Auto re-calculate cost estimation when model changes
+  useEffect(() => {
+    console.log('🔄 Model changed to:', model)
+    
+    // Skip the first render to avoid initial calculation
+    if (isFirstModelChange.current) {
+      isFirstModelChange.current = false
+      console.log('🔄 Skipping initial model change')
+      return
+    }
+    
+    // Only re-calculate if we have existing cost estimation
+    if (costEstimation && costEstimation.success && !loadingCostEstimation) {
+      console.log('🔄 Re-calculating cost estimation due to model change')
+      
+      if (inputType === 'url' && url.trim() && validateYouTubeUrl(url.trim())) {
+        // Re-estimate for URL
+        estimateCostForUrl(url.trim())
+      } else if (inputType === 'file' && videoFile) {
+        // Re-estimate for file
+        estimateCostForFile(videoFile)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model]) // Only depend on model changes to avoid infinite loops
 
   // Debug current video data
   useEffect(() => {

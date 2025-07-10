@@ -332,6 +332,7 @@ export interface CostEstimationResponse {
   title?: string;
   duration?: number;  // seconds
   durationFormatted?: string;
+  gptModel?: string;  // GPT model used for cost calculation
   estimatedCosts?: {
     transcription: number;
     summary: number;
@@ -347,6 +348,7 @@ export interface FileCostEstimationResponse {
   filename?: string;
   duration?: number;  // seconds
   durationFormatted?: string;
+  gptModel?: string;  // GPT model used for cost calculation
   estimatedCosts?: {
     transcription: number;
     summary: number;

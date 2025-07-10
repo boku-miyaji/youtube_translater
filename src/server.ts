@@ -2752,6 +2752,7 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
       title: videoDetails.title,
       duration,
       durationFormatted: formatDuration(duration),
+      gptModel,
       estimatedCosts: {
         transcription: transcriptionCost,
         summary: gptCosts.summary,
@@ -2819,6 +2820,7 @@ app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, 
       filename: originalName,
       duration,
       durationFormatted: formatDuration(duration),
+      gptModel,
       estimatedCosts: {
         transcription: transcriptionCost,
         summary: gptCosts.summary,
