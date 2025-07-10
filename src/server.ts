@@ -993,7 +993,7 @@ async function getYouTubeSubtitles(videoId: string, preferredLanguage: string = 
           }))
         };
       }
-    } catch (error) {
+    } catch {
       console.log(`No ${lang} subtitles found`);
       continue;
     }
@@ -1309,7 +1309,8 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     console.log('==========================');
 
     // Add to history
-    const historyEntry = addToHistory(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _historyEntry = addToHistory(
       videoId,
       metadata.basic.title,
       url,
@@ -1700,7 +1701,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         // Build detailed cost information from history entry
         let transcriptionCost = 0;
         let summaryCost = 0;
-        let articleCost = 0;
+        const articleCost = 0;
         
         // 文字起こしコストを計算
         if (existingEntry.method === 'whisper' && existingEntry.metadata?.basic?.duration) {
@@ -1833,7 +1834,8 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
     // currentSummary = summary;
 
     // Save to history
-    const entry = addToHistory(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _entry = addToHistory(
       videoId,
       videoTitle,
       url,

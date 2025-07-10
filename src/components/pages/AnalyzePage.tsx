@@ -25,6 +25,7 @@ const AnalyzePage: React.FC = () => {
   const [costEstimation, setCostEstimation] = useState<any>(null)
   const [loadingCostEstimation, setLoadingCostEstimation] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const costEstimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -73,23 +74,34 @@ const AnalyzePage: React.FC = () => {
   }
 
   const handleUrlChange = (value: string) => {
+    console.log('🔄 handleUrlChange called with value:', value)
     setUrl(value)
     setUrlError('')
     setVideoPreview(null)
     setCostEstimation(null)
+    setLoadingCostEstimation(false)
+    
+    // Clear previous timeout
+    if (costEstimationTimeoutRef.current) {
+      console.log('🔄 Clearing previous cost estimation timeout')
+      clearTimeout(costEstimationTimeoutRef.current)
+      costEstimationTimeoutRef.current = null
+    }
     
     if (value.trim()) {
       if (validateYouTubeUrl(value.trim())) {
+        console.log('✅ Valid YouTube URL detected, generating preview')
         // Generate instant preview for valid URLs
         generateVideoPreview(value.trim())
-        // Estimate cost for valid URLs with a delay
-        const timeoutId = setTimeout(() => {
-          estimateCostForUrl(value.trim())
-        }, 1000)
         
-        // Store timeout ID for cleanup
-        return () => clearTimeout(timeoutId)
+        // Estimate cost for valid URLs with a delay using ref for cleanup
+        console.log('⏰ Setting timeout for cost estimation in 1000ms')
+        costEstimationTimeoutRef.current = setTimeout(() => {
+          console.log('🔄 Starting cost estimation for URL:', value.trim())
+          estimateCostForUrl(value.trim())
+        }, 1000) // Reduced delay to 1 second for faster response
       } else {
+        console.log('❌ Invalid YouTube URL')
         setUrlError('Please enter a valid YouTube URL')
       }
     }
@@ -98,19 +110,35 @@ const AnalyzePage: React.FC = () => {
   // Handle paste event for instant preview
   const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text')
+    console.log('📋 Paste event detected with text:', pastedText)
     if (pastedText && validateYouTubeUrl(pastedText)) {
-      setTimeout(() => generateVideoPreview(pastedText), 100)
+      console.log('✅ Valid pasted URL, will trigger preview and cost estimation')
+      setTimeout(() => {
+        generateVideoPreview(pastedText)
+        // Also estimate cost for pasted URLs
+        setTimeout(() => {
+          console.log('🔄 Starting cost estimation for pasted URL:', pastedText)
+          estimateCostForUrl(pastedText)
+        }, 1000) // Consistent 1 second delay
+      }, 100)
     }
   }
 
   // Estimate cost for YouTube URL
   const estimateCostForUrl = async (url: string) => {
-    if (!validateYouTubeUrl(url.trim())) return
+    console.log('💰 estimateCostForUrl called with:', url)
     
+    if (!validateYouTubeUrl(url.trim())) {
+      console.log('❌ Invalid YouTube URL, skipping cost estimation')
+      return
+    }
+    
+    console.log('✅ Valid YouTube URL, starting cost estimation...')
     setLoadingCostEstimation(true)
     setCostEstimation(null)
     
     try {
+      console.log('📡 Making API call to /api/estimate-cost-url')
       const response = await fetch('/api/estimate-cost-url', {
         method: 'POST',
         headers: {
@@ -124,16 +152,21 @@ const AnalyzePage: React.FC = () => {
         }),
       })
       
+      console.log('📡 API response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('💰 Cost estimation result:', data)
         setCostEstimation(data)
       } else {
-        console.error('Failed to estimate cost')
+        const errorText = await response.text()
+        console.error('❌ Failed to estimate cost:', response.status, errorText)
       }
     } catch (error) {
-      console.error('Error estimating cost:', error)
+      console.error('❌ Error estimating cost:', error)
     } finally {
       setLoadingCostEstimation(false)
+      console.log('✅ Cost estimation completed')
     }
   }
 
@@ -363,7 +396,10 @@ const AnalyzePage: React.FC = () => {
 
   // Render cost estimation display
   const renderCostEstimation = () => {
+    console.log('🎨 renderCostEstimation called - loadingCostEstimation:', loadingCostEstimation, 'costEstimation:', costEstimation)
+    
     if (loadingCostEstimation) {
+      console.log('🎨 Rendering loading state')
       return (
         <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
           <div className="flex items-center gap-2 text-blue-800">
@@ -375,6 +411,7 @@ const AnalyzePage: React.FC = () => {
     }
 
     if (costEstimation && costEstimation.success) {
+      console.log('🎨 Rendering cost estimation result')
       const costs = costEstimation.estimatedCosts
       return (
         <div className="p-3 rounded-lg bg-green-50 border border-green-200">
@@ -411,9 +448,23 @@ const AnalyzePage: React.FC = () => {
       )
     }
 
+    console.log('🎨 No cost estimation to render - returning null')
     return null
   }
 
+
+  // Debug cost estimation state changes
+  useEffect(() => {
+    console.log('💰 Cost estimation state changed:', {
+      loadingCostEstimation,
+      costEstimation: costEstimation ? {
+        success: costEstimation.success,
+        title: costEstimation.title,
+        duration: costEstimation.duration,
+        hasEstimatedCosts: !!costEstimation.estimatedCosts
+      } : null
+    })
+  }, [costEstimation, loadingCostEstimation])
 
   // Debug current video data
   useEffect(() => {
