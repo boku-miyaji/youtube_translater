@@ -11,6 +11,7 @@ export interface VideoMetadata {
     category?: string;
     description?: string;
     thumbnail?: string;
+    videoPath?: string;      // Path to uploaded video file (for local files)
   };
   chapters: Chapter[];
   captions: Caption[];

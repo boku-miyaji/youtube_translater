@@ -10,6 +10,7 @@ interface VideoPlayerProps {
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady, onSeek }) => {
   const playerRef = useRef<any>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   // Format duration from seconds to readable format
   const formatDuration = (seconds: number): string => {
@@ -35,49 +36,86 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady, onSeek 
     return `${count.toLocaleString()} views`
   }
 
+  // Determine video type
+  const isYouTubeVideo = Boolean(video.basic?.videoId)
+  const isLocalVideo = Boolean(video.basic?.videoPath)
+
   // Expose seek function
   const seekTo = (time: number, autoplay: boolean = true) => {
-    if (playerRef.current && playerRef.current.seekTo) {
+    if (isYouTubeVideo && playerRef.current && playerRef.current.seekTo) {
       playerRef.current.seekTo(time, true)
       if (autoplay && playerRef.current.getPlayerState() !== 1) {
         playerRef.current.playVideo()
+      }
+    } else if (isLocalVideo && videoRef.current) {
+      videoRef.current.currentTime = time
+      if (autoplay) {
+        videoRef.current.play()
       }
     }
   }
 
   useEffect(() => {
-    // YouTube Player API initialization
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    const firstScriptTag = document.getElementsByTagName('script')[0]
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+    if (isYouTubeVideo) {
+      // YouTube Player API initialization
+      const tag = document.createElement('script')
+      tag.src = 'https://www.youtube.com/iframe_api'
+      const firstScriptTag = document.getElementsByTagName('script')[0]
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
 
-    // @ts-ignore
-    window.onYouTubeIframeAPIReady = () => {
-      if (iframeRef.current && video.basic?.videoId) {
-        // @ts-ignore
-        playerRef.current = new window.YT.Player(iframeRef.current, {
-          events: {
-            onReady: () => {
-              if (onPlayerReady && playerRef.current) {
-                // Add seekTo method to the player reference
-                playerRef.current.seekToWithAutoplay = seekTo
-                onPlayerReady(playerRef.current)
+      // @ts-ignore
+      window.onYouTubeIframeAPIReady = () => {
+        if (iframeRef.current && video.basic?.videoId) {
+          // @ts-ignore
+          playerRef.current = new window.YT.Player(iframeRef.current, {
+            events: {
+              onReady: () => {
+                if (onPlayerReady && playerRef.current) {
+                  // Add seekTo method to the player reference
+                  playerRef.current.seekToWithAutoplay = seekTo
+                  onPlayerReady(playerRef.current)
+                }
               }
             }
+          })
+        }
+      }
+
+      return () => {
+        // @ts-ignore
+        delete window.onYouTubeIframeAPIReady
+      }
+    } else if (isLocalVideo && videoRef.current) {
+      // HTML5 video player setup
+      const videoElement = videoRef.current
+      
+      const handleLoadedMetadata = () => {
+        if (onPlayerReady && videoElement) {
+          // Create a YouTube-like interface for compatibility
+          const player = {
+            seekTo: (time: number) => seekTo(time),
+            seekToWithAutoplay: seekTo,
+            getCurrentTime: () => videoElement.currentTime,
+            getDuration: () => videoElement.duration,
+            playVideo: () => videoElement.play(),
+            pauseVideo: () => videoElement.pause(),
+            getPlayerState: () => videoElement.paused ? 2 : 1 // 1 = playing, 2 = paused
           }
-        })
+          onPlayerReady(player)
+        }
+      }
+
+      videoElement.addEventListener('loadedmetadata', handleLoadedMetadata)
+      
+      return () => {
+        videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata)
       }
     }
-
-    return () => {
-      // @ts-ignore
-      delete window.onYouTubeIframeAPIReady
-    }
-  }, [video.basic?.videoId, onPlayerReady])
+  }, [video.basic?.videoId, video.basic?.videoPath, onPlayerReady, isYouTubeVideo, isLocalVideo])
   return (
     <div className="w-full h-full flex flex-col">
-      {video.basic?.videoId && (
+      {/* YouTube Video Player */}
+      {isYouTubeVideo && (
         <div className="relative w-full h-full">
           <iframe
             ref={iframeRef}
@@ -86,6 +124,32 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady, onSeek 
             className="absolute inset-0 w-full h-full rounded-lg"
             allowFullScreen
           />
+        </div>
+      )}
+
+      {/* Local Video File Player */}
+      {isLocalVideo && (
+        <div className="relative w-full h-full">
+          <video
+            ref={videoRef}
+            src={video.basic.videoPath}
+            controls
+            className="absolute inset-0 w-full h-full rounded-lg object-contain bg-black"
+            title={video.basic.title || 'Video'}
+          >
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      )}
+
+      {/* Fallback for unsupported videos */}
+      {!isYouTubeVideo && !isLocalVideo && (
+        <div className="relative w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
+          <div className="text-center text-gray-500">
+            <div className="text-4xl mb-4">🎬</div>
+            <p className="text-lg font-medium">Video not available</p>
+            <p className="text-sm">No video source found</p>
+          </div>
         </div>
       )}
 

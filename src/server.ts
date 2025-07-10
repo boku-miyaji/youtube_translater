@@ -60,6 +60,7 @@ app.use((req: Request, res: Response, next) => {
 });
 
 app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -1404,7 +1405,8 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
     const videoMetadata: VideoMetadata = {
       basic: {
         title: originalName.replace(/\.[^/.]+$/, ''), // Remove extension
-        duration: videoMeta.duration
+        duration: videoMeta.duration,
+        videoPath: `/uploads/${req.file.filename}` // Path to serve the video file
       },
       chapters: [],
       captions: [],
