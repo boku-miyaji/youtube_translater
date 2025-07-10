@@ -6,11 +6,29 @@ const HistoryPage: React.FC = () => {
   const { data: history, isLoading, error } = useHistory()
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('timestamp')
+  const [selectedChannel, setSelectedChannel] = useState('')
 
-  const filteredHistory = history ? history.filter((item: any) =>
-    item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.videoId?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : []
+  // Get unique channels from history data
+  const availableChannels = React.useMemo(() => {
+    if (!history) return []
+    
+    const channels = history
+      .map((item: any) => item.metadata?.basic?.channel || 'Unknown Channel')
+      .filter((channel: string) => channel && channel !== 'Unknown Channel')
+    
+    return [...new Set(channels)].sort()
+  }, [history])
+
+  const filteredHistory = history ? history.filter((item: any) => {
+    const matchesSearch = item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.videoId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (item.metadata?.basic?.channel || '').toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesChannel = selectedChannel === '' || 
+                          (item.metadata?.basic?.channel || 'Unknown Channel') === selectedChannel
+    
+    return matchesSearch && matchesChannel
+  }) : []
 
   return (
     <div className="space-y-6">
@@ -21,7 +39,7 @@ const HistoryPage: React.FC = () => {
 
       {/* Search and Filter */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-700">
               Search
@@ -31,9 +49,27 @@ const HistoryPage: React.FC = () => {
               id="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by title or video ID..."
+              placeholder="Search by title, video ID, or channel..."
               className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+          </div>
+          <div>
+            <label htmlFor="channel" className="block text-sm font-medium text-gray-700">
+              Filter by Channel
+            </label>
+            <select
+              id="channel"
+              value={selectedChannel}
+              onChange={(e) => setSelectedChannel(e.target.value)}
+              className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Channels</option>
+              {availableChannels.map((channel) => (
+                <option key={channel} value={channel}>
+                  📺 {channel}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label htmlFor="sort" className="block text-sm font-medium text-gray-700">
@@ -51,10 +87,71 @@ const HistoryPage: React.FC = () => {
             </select>
           </div>
         </div>
+        
+        {/* Filter Summary */}
+        {(searchTerm || selectedChannel) && (
+          <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+            <span>Filters:</span>
+            {searchTerm && (
+              <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800">
+                🔍 "{searchTerm}"
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="ml-1 text-blue-600 hover:text-blue-800"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {selectedChannel && (
+              <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800">
+                📺 {selectedChannel}
+                <button
+                  onClick={() => setSelectedChannel('')}
+                  className="ml-1 text-green-600 hover:text-green-800"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            <button
+              onClick={() => {
+                setSearchTerm('')
+                setSelectedChannel('')
+              }}
+              className="text-gray-500 hover:text-gray-700 underline"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </div>
 
       {/* History Table */}
       <div className="bg-white rounded-lg shadow">
+        {/* Results Header */}
+        {!isLoading && !error && (
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">
+                  {filteredHistory.length} videos found
+                </span>
+                {(searchTerm || selectedChannel) && history && (
+                  <span>
+                    (filtered from {history.length} total)
+                  </span>
+                )}
+              </div>
+              {availableChannels.length > 0 && (
+                <div className="text-xs text-gray-500">
+                  📺 {availableChannels.length} channels available
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
         {isLoading ? (
           <div className="p-6">
             <p className="text-gray-500">Loading history...</p>
