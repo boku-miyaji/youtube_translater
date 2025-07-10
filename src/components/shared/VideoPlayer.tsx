@@ -36,16 +36,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady, onSeek 
     return `${count.toLocaleString()} views`
   }
 
-  // Determine video type
-  const isYouTubeVideo = Boolean(video.basic?.videoId)
+  // Determine video type - prioritize local video over YouTube
   const isLocalVideo = Boolean(video.basic?.videoPath)
+  const isYouTubeVideo = Boolean(video.basic?.videoId) && !isLocalVideo
   
   // Debug logging for video type determination
   console.log('VideoPlayer debug:', { 
     videoId: video.basic?.videoId, 
     videoPath: video.basic?.videoPath, 
     isYouTubeVideo, 
-    isLocalVideo 
+    isLocalVideo,
+    source: video.source 
   })
 
   // Expose seek function
