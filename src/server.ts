@@ -100,7 +100,7 @@ if (!fs.existsSync('history')) {
 
 let currentTranscript = '';
 let currentMetadata: VideoMetadata | null = null;
-const currentVideo: VideoMetadata | null = null;
+let currentVideo: VideoMetadata | null = null;
 // let currentSummary: Summary | null = null;
 let currentTimestampedSegments: TimestampedSegment[] = [];
 let currentArticle: string | null = null;
@@ -1530,6 +1530,9 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     console.log('  - currentTranscript:', currentTranscript ? `${currentTranscript.length} chars` : 'MISSING')
     console.log('  - currentVideo:', currentVideo ? 'EXISTS' : 'MISSING')
     console.log('  - currentVideo.transcript:', currentVideo?.transcript ? `${currentVideo.transcript.length} chars` : 'MISSING')
+    console.log('  - 🚨 CRITICAL: currentVideo is always null on server side!')
+    console.log('  - 🚨 CRITICAL: Server-side currentVideo state is not synchronized with client!')
+    console.log('  - 🚨 CRITICAL: Chat will FAIL unless transcript is sent from client!')
     
     if (!message) {
       console.log('❌ Message validation failed')

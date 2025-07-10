@@ -29,6 +29,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
   const hasValidTranscript = safeTranscript && safeTranscript.trim().length > 0
   const hasValidSummary = safeSummary && safeSummary.trim().length > 0
   
+  // Simplified content check for UI purposes
+  const hasAnyContentForUI = (safeTranscript && safeTranscript.length > 0) || (safeSummary && safeSummary.length > 0)
+  
   console.log('🔍 ChatInterface data validation:')
   console.log('  - raw transcript prop:', transcript ? {
     type: typeof transcript,
@@ -78,8 +81,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     e.preventDefault()
     if (!input.trim() || loading) return
     
-    // Check if we have valid transcript content before making API call
-    if (!hasValidTranscript && !hasValidSummary) {
+    // Check if we have any transcript content before making API call
+    // Allow if either transcript or summary has any content (even if not perfectly valid)
+    const hasAnyContent = (safeTranscript && safeTranscript.length > 0) || (safeSummary && safeSummary.length > 0)
+    
+    console.log('🎯 === PRE-REQUEST CONTENT CHECK ===')
+    console.log('  - hasValidTranscript:', hasValidTranscript)
+    console.log('  - hasValidSummary:', hasValidSummary)
+    console.log('  - hasAnyContent:', hasAnyContent)
+    console.log('  - safeTranscript exists and has content:', !!(safeTranscript && safeTranscript.length > 0))
+    console.log('  - safeSummary exists and has content:', !!(safeSummary && safeSummary.length > 0))
+    
+    if (!hasAnyContent) {
+      console.log('❌ No content available - showing error')
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: 'まず動画をアップロードして文字起こしを生成してから質問してください。',
@@ -93,6 +107,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       setInput('')
       return
     }
+    
+    console.log('✅ Content available - proceeding with request')
 
     const userMessage: ChatMessage = {
       role: 'user',
@@ -105,14 +121,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     setLoading(true)
 
     try {
+      // Force sending transcript and summary if they are non-empty strings
+      // This ensures server gets the data for historical videos
+      const transcriptToSend = (safeTranscript && safeTranscript.length > 0) ? safeTranscript : undefined
+      const summaryToSend = (safeSummary && safeSummary.length > 0) ? safeSummary : undefined
+      
       const requestData = {
         message: input.trim(),
         videoId,
         history: messages,
-        transcript: hasValidTranscript ? safeTranscript : undefined,
-        summary: hasValidSummary ? safeSummary : undefined,
+        transcript: transcriptToSend,
+        summary: summaryToSend,
         gptModel: gptModel || 'gpt-4o-mini',
       }
+      
+      console.log('🎯 === FORCE SEND LOGIC ===')
+      console.log('  - safeTranscript value:', safeTranscript ? `"${safeTranscript.substring(0, 50)}..."` : 'MISSING/EMPTY')
+      console.log('  - safeTranscript length:', safeTranscript ? safeTranscript.length : 0)
+      console.log('  - safeSummary value:', safeSummary ? `"${safeSummary.substring(0, 50)}..."` : 'MISSING/EMPTY')
+      console.log('  - safeSummary length:', safeSummary ? safeSummary.length : 0)
+      console.log('  - transcriptToSend:', transcriptToSend ? `"${transcriptToSend.substring(0, 50)}..."` : 'UNDEFINED')
+      console.log('  - summaryToSend:', summaryToSend ? `"${summaryToSend.substring(0, 50)}..."` : 'UNDEFINED')
+      console.log('  - Will send transcript:', !!requestData.transcript, '(length:', requestData.transcript ? requestData.transcript.length : 0, ')')
+      console.log('  - Will send summary:', !!requestData.summary, '(length:', requestData.summary ? requestData.summary.length : 0, ')')
       
       console.log('\n🚀 === CLIENT CHAT REQUEST DEBUG ===')
       console.log('📤 Original props received by ChatInterface:')
@@ -169,6 +200,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       console.log('📤 Final JSON to be sent:', JSON.stringify(requestData, null, 2))
       console.log('🚀 === CLIENT SENDING REQUEST ===\n')
       
+      console.log('🌐 === MAKING FETCH REQUEST ===')
+      console.log('URL:', '/api/chat')
+      console.log('Method: POST')
+      console.log('Headers:', { 'Content-Type': 'application/json' })
+      console.log('Body (stringified):', JSON.stringify(requestData))
+      
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -177,13 +214,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         body: JSON.stringify(requestData),
       })
 
+      console.log('🌐 === RECEIVED RESPONSE ===')
+      console.log('Response status:', response.status)
+      console.log('Response ok:', response.ok)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+
       if (!response.ok) {
         let errorMessage = 'Failed to send message'
         try {
           const errorData = await response.json()
-          console.error('API Error Response:', errorData)
+          console.error('🚨 === API ERROR RESPONSE DETAILS ===')
+          console.error('Full error data:', errorData)
+          console.error('Error data keys:', Object.keys(errorData))
+          console.error('Error response field:', errorData.response)
+          console.error('Error success field:', errorData.success)
+          console.error('Error model field:', errorData.model)
+          
           if (errorData.response) {
             errorMessage = errorData.response
+            console.error('🚨 Using error message from server:', errorMessage)
           }
         } catch (parseError) {
           console.error('Error parsing API response:', parseError)
@@ -499,11 +548,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         {messages.length === 0 ? (
           <div className="space-y-4">
             <p className="text-gray-500 text-center">
-              {!hasValidTranscript && !hasValidSummary ? "Upload a video first to start chatting..." : "Start a conversation about the video..."}
+              {!hasAnyContentForUI ? "Upload a video first to start chatting..." : "Start a conversation about the video..."}
             </p>
             
             {/* Sample Deep Dive Questions - only show when we have transcript/summary */}
-            {(hasValidTranscript || hasValidSummary) && (
+            {hasAnyContentForUI && (
               <div className="bg-app-background rounded-lg p-4 border border-app-light">
                 <h3 className="text-sm font-semibold text-app-primary mb-3">💡 深掘り質問サンプル</h3>
                 <div className="flex flex-wrap gap-2">
@@ -559,7 +608,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       </div>
       
       {/* Sample Questions (visible when there are messages and we have transcript/summary) */}
-      {messages.length > 0 && (hasValidTranscript || hasValidSummary) && (
+      {messages.length > 0 && hasAnyContentForUI && (
         <div className="mb-3 bg-app-background rounded-lg p-3 border border-app-light">
           <div className="flex flex-wrap gap-1">
             {sampleQuestions.slice(0, 3).map((question, index) => (
@@ -581,13 +630,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={!hasValidTranscript && !hasValidSummary ? "Upload a video first to start chatting..." : "Ask about the video..."}
+          placeholder={!hasAnyContentForUI ? "Upload a video first to start chatting..." : "Ask about the video..."}
           className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500"
-          disabled={loading || (!hasValidTranscript && !hasValidSummary)}
+          disabled={loading || !hasAnyContentForUI}
         />
         <button
           type="submit"
-          disabled={loading || !input.trim() || (!hasValidTranscript && !hasValidSummary)}
+          disabled={loading || !input.trim() || !hasAnyContentForUI}
           className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
         >
           Send
