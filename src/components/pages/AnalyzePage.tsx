@@ -845,9 +845,9 @@ const AnalyzePage: React.FC = () => {
                     >
                       <option value="gpt-4o-mini">GPT-4o Mini (Fast) - $0.15/$0.60/1M</option>
                       <option value="gpt-4o">GPT-4o (Balanced) - $2.50/$10.00/1M</option>
-                      <option value="gpt-4-turbo">GPT-4 Turbo (Advanced) - $10.00/$30.00/1M</option>
-                      <option value="gpt-4">GPT-4 (Premium) - $30.00/$60.00/1M</option>
-                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget) - $0.50/$1.50/1M</option>
+                      <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra Fast) - $0.10/$0.40/1M</option>
+                      <option value="gpt-4.1-mini">GPT-4.1 Mini (Fast) - $0.40/$1.60/1M</option>
+                      <option value="gpt-4.1">GPT-4.1 (Advanced) - $2.00/$8.00/1M</option>
                     </select>
                   </div>
 
