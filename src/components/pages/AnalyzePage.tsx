@@ -984,6 +984,7 @@ const AnalyzePage: React.FC = () => {
                   videoTitle={currentVideo.basic?.title}
                   transcript={currentVideo.transcript}
                   summary={currentVideo.summary}
+                  gptModel={currentVideo.gptModel}
                 />
               })()}
             </div>

@@ -80,6 +80,8 @@ app.get('/debug/state', (req: Request, res: Response) => {
   });
 });
 
+console.log('🔑 OpenAI API Key check:', process.env.OPENAI_API_KEY ? 'CONFIGURED' : 'MISSING');
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
@@ -1492,6 +1494,11 @@ app.post('/api/chat', async (req: Request, res: Response) => {
   try {
     const { message, videoId, history, gptModel = 'gpt-4o-mini', transcript, summary } = req.body;
     
+    console.log('🎯 === CHAT API REQUEST DETAILS ===')
+    console.log('  - Raw gptModel from request:', gptModel)
+    console.log('  - Type of gptModel:', typeof gptModel)
+    console.log('  - Request body keys:', Object.keys(req.body))
+    
     // 🔍 COMPREHENSIVE DEBUG LOGGING
     console.log('\n🔍 === CHAT API DEBUG START ===')
     console.log('📥 Request body keys:', Object.keys(req.body))
@@ -1636,6 +1643,14 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       content: message
     })
 
+    console.log('🤖 === OPENAI API CALL DEBUG ===')
+    console.log('  - Model:', gptModel)
+    console.log('  - Messages count:', messages.length)
+    console.log('  - System content length:', systemContent.length)
+    console.log('  - User message:', message.substring(0, 100) + '...')
+    console.log('  - OpenAI instance ready:', !!openai)
+    console.log('  - API Key configured:', process.env.OPENAI_API_KEY ? 'YES' : 'NO')
+    
     const response = await openai.chat.completions.create({
       model: gptModel,
       messages: messages as any,
@@ -1643,10 +1658,30 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       temperature: 0.7
     });
 
-    // Calculate cost
+    console.log('🤖 === OPENAI API RESPONSE ===')
+    console.log('  - Response received:', !!response)
+    console.log('  - Choices count:', response.choices?.length || 0)
+    console.log('  - First choice content:', response.choices[0]?.message?.content?.substring(0, 100) + '...')
+
+    // Calculate cost with safer model pricing lookup
     const inputTokens = Math.ceil(systemContent.length / 4) + Math.ceil(message.length / 4);
     const outputTokens = Math.ceil((response.choices[0].message.content || '').length / 4);
-    const modelPricing = pricing.models[gptModel];
+    
+    console.log('🤖 === PRICING DEBUG ===')
+    console.log('  - Model for pricing:', gptModel)
+    console.log('  - Available models:', Object.keys(pricing.models))
+    console.log('  - Model exists in pricing:', gptModel in pricing.models)
+    
+    // Validate model and use fallback if needed
+    if (!(gptModel in pricing.models)) {
+      console.log('  - ⚠️ WARNING: Model not found in pricing, using fallback');
+    }
+    
+    const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
+    console.log('  - Using pricing for:', modelPricing === pricing.models['gpt-4o-mini'] ? 'gpt-4o-mini (fallback)' : gptModel)
+    console.log('  - Input price per token:', modelPricing.input)
+    console.log('  - Output price per token:', modelPricing.output)
+    
     const chatCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
     
     sessionCosts.gpt += chatCost;
@@ -1662,10 +1697,44 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    console.error('Error in chat:', error);
-    res.status(500).json({ 
+    console.error('🚨 Error in chat:', error);
+    
+    let errorMessage = 'Failed to process chat message';
+    let statusCode = 500;
+    
+    // Provide more specific error messages based on the error type
+    if (error instanceof Error) {
+      console.error('🚨 Error name:', error.name);
+      console.error('🚨 Error message:', error.message);
+      console.error('🚨 Error stack:', error.stack);
+      
+      // Check for specific OpenAI API errors
+      if (error.message.includes('API key')) {
+        errorMessage = 'OpenAI API設定エラー: APIキーを確認してください。';
+        statusCode = 401;
+      } else if (error.message.includes('rate limit')) {
+        errorMessage = 'リクエスト制限に達しました。しばらくしてから再度お試しください。';
+        statusCode = 429;
+      } else if (error.message.includes('model')) {
+        errorMessage = 'AI モデルの設定に問題があります。管理者に連絡してください。';
+        statusCode = 400;
+      } else if (error.message.includes('network') || error.message.includes('timeout')) {
+        errorMessage = 'ネットワークエラーが発生しました。接続を確認してください。';
+        statusCode = 503;
+      } else if (error.message.includes('token')) {
+        errorMessage = 'リクエストが大きすぎます。短い質問をお試しください。';
+        statusCode = 400;
+      } else {
+        // Include the actual error message for debugging
+        errorMessage = `チャット処理エラー: ${error.message}`;
+      }
+    }
+    
+    console.error('🚨 Final error response:', { errorMessage, statusCode });
+    
+    res.status(statusCode).json({ 
       success: false,
-      response: 'Failed to process chat message',
+      response: errorMessage,
       model: req.body.gptModel || 'gpt-4o-mini',
       cost: 0,
       costs: sessionCosts,

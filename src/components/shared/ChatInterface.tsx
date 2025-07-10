@@ -12,9 +12,10 @@ interface ChatInterfaceProps {
   videoTitle?: string
   transcript?: string
   summary?: string
+  gptModel?: string
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion, videoTitle, transcript, summary }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion, videoTitle, transcript, summary, gptModel }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -104,6 +105,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         history: messages,
         transcript: hasValidTranscript ? safeTranscript : '',
         summary: hasValidSummary ? safeSummary : '',
+        gptModel: gptModel || 'gpt-4o-mini',
       }
       
       console.log('\n🚀 === CLIENT CHAT REQUEST DEBUG ===')
@@ -135,6 +137,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       console.log('  - message:', requestData.message)
       console.log('  - videoId:', requestData.videoId)
       console.log('  - historyLength:', requestData.history.length)
+      console.log('  - gptModel:', requestData.gptModel)
+      console.log('  - gptModel from props:', gptModel)
       console.log('  - transcript in request:', requestData.transcript ? {
         type: typeof requestData.transcript,
         length: requestData.transcript.length,
@@ -179,19 +183,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
 
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
-      console.error('Error sending message:', error)
+      console.error('🚨 Error sending message:', error)
       
       // Enhanced error handling with specific messages
       let errorContent = 'Sorry, I encountered an error. Please try again.'
       
       if (error instanceof Error) {
-        // Check for specific error types
+        console.error('🚨 Chat error details:', error.message)
+        console.error('🚨 Full error object:', error)
+        
+        // Check for specific error types and use the actual error message when possible
         if (error.message.includes('Failed to send message')) {
           errorContent = 'チャット機能でエラーが発生しました。動画をアップロードしてから質問してください。'
         } else if (error.message.includes('Network')) {
           errorContent = 'ネットワークエラーが発生しました。接続を確認してください。'
+        } else if (error.message.includes('動画の文字起こしが見つかりません')) {
+          errorContent = error.message // Use the actual server error message
+        } else if (error.message.includes('Failed to process chat message')) {
+          errorContent = 'チャット処理中にエラーが発生しました。しばらくしてから再度お試しください。'
+        } else if (error.message.length > 10 && error.message.length < 200) {
+          // If the error message seems reasonable, use it
+          errorContent = error.message
         }
-        console.error('Chat error details:', error.message)
+        
+        // Log the final error content for debugging
+        console.error('🚨 Final error content to display:', errorContent)
       }
       
       const errorMessage: ChatMessage = {

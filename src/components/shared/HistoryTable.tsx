@@ -106,6 +106,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
     console.log('  - summary preview:', summary ? summary.substring(0, 100) + '...' : 'EMPTY')
     console.log('  - timestampedSegments source:', video.timestampedSegments ? 'direct' : video.metadata?.timestampedSegments ? 'metadata' : 'none')
     console.log('  - timestampedSegments count:', timestampedSegments ? timestampedSegments.length : 0)
+    console.log('  - gptModel:', video.gptModel || 'DEFAULT: gpt-4o-mini')
     
     // Additional debugging for summary structure
     console.log('🔍 Summary structure analysis:')
@@ -171,7 +172,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
       timestampedSegments: timestampedSegments,
       transcriptSource: video.method,
       costs: detailedCosts,
-      analysisTime: video.analysisTime
+      analysisTime: video.analysisTime,
+      gptModel: video.gptModel || 'gpt-4o-mini'
     }
     
     console.log('🏛️ HistoryTable: Final constructed videoData:', {
@@ -194,6 +196,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
       length: videoData.summary.length,
       preview: videoData.summary.substring(0, 100) + '...'
     } : 'MISSING')
+    console.log('  - videoData.gptModel:', videoData.gptModel)
     
     console.log('🕒 HistoryTable: Analysis time data:', video.analysisTime)
     

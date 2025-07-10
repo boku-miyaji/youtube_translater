@@ -55,6 +55,7 @@ describe('ChatInterface Component', () => {
           history: [],
           transcript: 'Test transcript content',
           summary: 'Test summary content',
+          gptModel: 'gpt-4o-mini',
         }),
       })
     })
@@ -253,6 +254,7 @@ describe('ChatInterface Component', () => {
           history: [],
           transcript: '[object Object]',
           summary: '[object Object]',
+          gptModel: 'gpt-4o-mini',
         }),
       })
     })
