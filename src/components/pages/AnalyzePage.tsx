@@ -963,13 +963,29 @@ const AnalyzePage: React.FC = () => {
           {/* Bottom Tier: Full-Width Chat and Q&A */}
           <div className="w-full">
             <div className="card-modern">
-              <ChatInterface 
-                videoId={currentVideo.basic?.videoId} 
-                prefillQuestion={prefillQuestion}
-                videoTitle={currentVideo.basic?.title}
-                transcript={currentVideo.transcript}
-                summary={currentVideo.summary}
-              />
+              {(() => {
+                // 🔍 DEBUG: Log what we're passing to ChatInterface
+                console.log('🎯 AnalyzePage passing to ChatInterface:')
+                console.log('  - videoId:', currentVideo.basic?.videoId)
+                console.log('  - transcript:', currentVideo.transcript ? {
+                  type: typeof currentVideo.transcript,
+                  length: typeof currentVideo.transcript === 'string' ? currentVideo.transcript.length : 'NOT_STRING',
+                  preview: typeof currentVideo.transcript === 'string' ? currentVideo.transcript.substring(0, 100) + '...' : JSON.stringify(currentVideo.transcript).substring(0, 100) + '...'
+                } : 'MISSING')
+                console.log('  - summary:', currentVideo.summary ? {
+                  type: typeof currentVideo.summary,
+                  length: typeof currentVideo.summary === 'string' ? currentVideo.summary.length : 'NOT_STRING',
+                  preview: typeof currentVideo.summary === 'string' ? currentVideo.summary.substring(0, 100) + '...' : JSON.stringify(currentVideo.summary).substring(0, 100) + '...'
+                } : 'MISSING')
+                
+                return <ChatInterface 
+                  videoId={currentVideo.basic?.videoId} 
+                  prefillQuestion={prefillQuestion}
+                  videoTitle={currentVideo.basic?.title}
+                  transcript={currentVideo.transcript}
+                  summary={currentVideo.summary}
+                />
+              })()}
             </div>
           </div>
         </div>

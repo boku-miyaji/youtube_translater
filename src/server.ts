@@ -1492,7 +1492,33 @@ app.post('/api/chat', async (req: Request, res: Response) => {
   try {
     const { message, videoId, history, gptModel = 'gpt-4o-mini', transcript, summary } = req.body;
     
+    // 🔍 COMPREHENSIVE DEBUG LOGGING
+    console.log('\n🔍 === CHAT API DEBUG START ===')
+    console.log('📥 Request body keys:', Object.keys(req.body))
+    console.log('📥 Request body:', {
+      message: message ? `"${message.substring(0, 50)}..."` : 'MISSING',
+      videoId: videoId || 'MISSING',
+      historyLength: history?.length || 0,
+      gptModel,
+      transcript: transcript ? {
+        type: typeof transcript,
+        length: typeof transcript === 'string' ? transcript.length : 'NOT_STRING',
+        preview: typeof transcript === 'string' ? transcript.substring(0, 100) + '...' : JSON.stringify(transcript).substring(0, 100) + '...'
+      } : 'MISSING',
+      summary: summary ? {
+        type: typeof summary,
+        length: typeof summary === 'string' ? summary.length : 'NOT_STRING',
+        preview: typeof summary === 'string' ? summary.substring(0, 100) + '...' : JSON.stringify(summary).substring(0, 100) + '...'
+      } : 'MISSING'
+    })
+    
+    console.log('🌐 Global state:')
+    console.log('  - currentTranscript:', currentTranscript ? `${currentTranscript.length} chars` : 'MISSING')
+    console.log('  - currentVideo:', currentVideo ? 'EXISTS' : 'MISSING')
+    console.log('  - currentVideo.transcript:', currentVideo?.transcript ? `${currentVideo.transcript.length} chars` : 'MISSING')
+    
     if (!message) {
+      console.log('❌ Message validation failed')
       return res.status(400).json({ 
         success: false,
         response: 'Message is required',
@@ -1504,14 +1530,36 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     }
 
     // Check for transcript availability - prioritize transcript from request
-    let transcriptContent = transcript || currentTranscript;
+    console.log('🔍 Transcript validation:')
+    console.log('  - transcript from request:', transcript ? `${typeof transcript} (${typeof transcript === 'string' ? transcript.length : 'not string'} chars)` : 'MISSING')
+    console.log('  - currentTranscript global:', currentTranscript ? `${currentTranscript.length} chars` : 'MISSING')
     
-    // If no transcript from request or global, try to get it from video history
+    // Proper validation for non-empty strings
+    const hasValidTranscript = transcript && typeof transcript === 'string' && transcript.trim().length > 0
+    const hasValidCurrentTranscript = currentTranscript && typeof currentTranscript === 'string' && currentTranscript.trim().length > 0
+    
+    console.log('  - hasValidTranscript:', hasValidTranscript)
+    console.log('  - hasValidCurrentTranscript:', hasValidCurrentTranscript)
+    
+    let transcriptContent = hasValidTranscript ? transcript : (hasValidCurrentTranscript ? currentTranscript : '')
+    console.log('  - transcriptContent after proper validation:', transcriptContent ? `${typeof transcriptContent} (${transcriptContent.length} chars)` : 'MISSING')
+    
+    // If no valid transcript from request or global, try to get it from video history
     if (!transcriptContent && videoId) {
+      console.log('  - No transcriptContent, checking currentVideo...')
+      console.log('  - currentVideo exists:', !!currentVideo)
+      console.log('  - currentVideo.transcript exists:', !!currentVideo?.transcript)
+      console.log('  - currentVideo.transcript length:', currentVideo?.transcript ? currentVideo.transcript.length : 'N/A')
+      
       // Try to get from currentVideo if available
-      if (currentVideo?.transcript) {
+      const hasValidCurrentVideoTranscript = currentVideo?.transcript && typeof currentVideo.transcript === 'string' && currentVideo.transcript.trim().length > 0
+      console.log('  - hasValidCurrentVideoTranscript:', hasValidCurrentVideoTranscript)
+      
+      if (hasValidCurrentVideoTranscript) {
         transcriptContent = currentVideo.transcript;
+        console.log('  - ✅ Using currentVideo.transcript:', transcriptContent.length, 'chars')
       } else {
+        console.log('  - ❌ No valid transcript found anywhere - returning error')
         return res.status(400).json({ 
           success: false,
           response: '動画の文字起こしが見つかりません。まず動画をアップロードしてから質問してください。',
@@ -1523,7 +1571,14 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       }
     }
     
-    if (!transcriptContent) {
+    console.log('  - Final transcriptContent check:', transcriptContent ? `${typeof transcriptContent} (${transcriptContent.length} chars)` : 'MISSING')
+    
+    // Final validation with proper string checking
+    const hasValidFinalTranscript = transcriptContent && typeof transcriptContent === 'string' && transcriptContent.trim().length > 0
+    console.log('  - hasValidFinalTranscript:', hasValidFinalTranscript)
+    
+    if (!hasValidFinalTranscript) {
+      console.log('  - ❌ Final validation failed - no valid transcript content')
       return res.status(400).json({ 
         success: false,
         response: '動画の文字起こしがありません。動画をアップロードして文字起こしを生成してから質問してください。',
@@ -1533,6 +1588,9 @@ app.post('/api/chat', async (req: Request, res: Response) => {
         tokens: { input: 0, output: 0 }
       });
     }
+    
+    console.log('  - ✅ Transcript validation passed!')
+    console.log('🔍 === CHAT API DEBUG END ===\n')
 
     // Analyze if article context is needed
     const needsArticleContext = await analyzeNeedForArticleContext(message);

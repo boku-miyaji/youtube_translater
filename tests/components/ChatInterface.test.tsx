@@ -163,6 +163,24 @@ describe('ChatInterface Component', () => {
     expect(screen.getByText('Upload a video first to start chatting...')).toBeInTheDocument()
   })
 
+  it('should disable input and show appropriate message when transcript and summary are whitespace only', () => {
+    const propsWithWhitespaceContent = {
+      videoId: 'test-video-id',
+      videoTitle: 'Test Video',
+      transcript: '   \n\t   ',
+      summary: '   \n\t   '
+    }
+    
+    render(<ChatInterface {...propsWithWhitespaceContent} />)
+    
+    const input = screen.getByPlaceholderText('Upload a video first to start chatting...')
+    const sendButton = screen.getByRole('button', { name: /send/i })
+    
+    expect(input).toBeDisabled()
+    expect(sendButton).toBeDisabled()
+    expect(screen.getByText('Upload a video first to start chatting...')).toBeInTheDocument()
+  })
+
   it('should handle message when no transcript and provide helpful error', async () => {
     const propsWithoutContent = {
       videoId: 'test-video-id',

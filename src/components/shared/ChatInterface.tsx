@@ -20,9 +20,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
-  // Ensure transcript and summary are strings for all usage
+  // Ensure transcript and summary are strings for all usage and handle empty strings
   const safeTranscript = typeof transcript === 'string' ? transcript : (transcript ? String(transcript) : '')
   const safeSummary = typeof summary === 'string' ? summary : (summary ? String(summary) : '')
+  
+  // Additional validation for meaningful content (not just empty strings)
+  const hasValidTranscript = safeTranscript && safeTranscript.trim().length > 0
+  const hasValidSummary = safeSummary && safeSummary.trim().length > 0
+  
+  console.log('🔍 ChatInterface data validation:')
+  console.log('  - hasValidTranscript:', hasValidTranscript)
+  console.log('  - hasValidSummary:', hasValidSummary)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -43,8 +51,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     e.preventDefault()
     if (!input.trim() || loading) return
     
-    // Check if we have transcript content before making API call
-    if (!safeTranscript && !safeSummary) {
+    // Check if we have valid transcript content before making API call
+    if (!hasValidTranscript && !hasValidSummary) {
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: 'まず動画をアップロードして文字起こしを生成してから質問してください。',
@@ -74,19 +82,50 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         message: input.trim(),
         videoId,
         history: messages,
-        transcript: safeTranscript,
-        summary: safeSummary,
+        transcript: hasValidTranscript ? safeTranscript : '',
+        summary: hasValidSummary ? safeSummary : '',
       }
       
-      console.log('Chat API Request:', {
-        message: requestData.message,
-        videoId: requestData.videoId,
-        historyLength: requestData.history.length,
-        hasTranscript: !!requestData.transcript,
-        transcriptLength: requestData.transcript?.length || 0,
-        hasSummary: !!requestData.summary,
-        summaryLength: requestData.summary?.length || 0,
-      })
+      console.log('\n🚀 === CLIENT CHAT REQUEST DEBUG ===')
+      console.log('📤 Original props received by ChatInterface:')
+      console.log('  - transcript prop:', transcript ? {
+        type: typeof transcript,
+        length: typeof transcript === 'string' ? transcript.length : 'NOT_STRING',
+        preview: typeof transcript === 'string' ? transcript.substring(0, 100) + '...' : JSON.stringify(transcript).substring(0, 100) + '...'
+      } : 'MISSING')
+      console.log('  - summary prop:', summary ? {
+        type: typeof summary,
+        length: typeof summary === 'string' ? summary.length : 'NOT_STRING',
+        preview: typeof summary === 'string' ? summary.substring(0, 100) + '...' : JSON.stringify(summary).substring(0, 100) + '...'
+      } : 'MISSING')
+      
+      console.log('📤 Safe converted values:')
+      console.log('  - safeTranscript:', safeTranscript ? {
+        type: typeof safeTranscript,
+        length: safeTranscript.length,
+        preview: safeTranscript.substring(0, 100) + '...'
+      } : 'MISSING')
+      console.log('  - safeSummary:', safeSummary ? {
+        type: typeof safeSummary,
+        length: safeSummary.length,
+        preview: safeSummary.substring(0, 100) + '...'
+      } : 'MISSING')
+      
+      console.log('📤 Final request data to be sent:')
+      console.log('  - message:', requestData.message)
+      console.log('  - videoId:', requestData.videoId)
+      console.log('  - historyLength:', requestData.history.length)
+      console.log('  - transcript in request:', requestData.transcript ? {
+        type: typeof requestData.transcript,
+        length: requestData.transcript.length,
+        preview: requestData.transcript.substring(0, 100) + '...'
+      } : 'MISSING')
+      console.log('  - summary in request:', requestData.summary ? {
+        type: typeof requestData.summary,
+        length: requestData.summary.length,
+        preview: requestData.summary.substring(0, 100) + '...'
+      } : 'MISSING')
+      console.log('🚀 === CLIENT SENDING REQUEST ===\n')
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -149,8 +188,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
   // Generate smart deep dive questions based on video content
   const generateSmartQuestions = () => {
     // Prioritize summary over transcript for better question generation
-    const primaryContent = safeSummary || ''
-    const secondaryContent = safeTranscript || ''
+    const primaryContent = hasValidSummary ? safeSummary : ''
+    const secondaryContent = hasValidTranscript ? safeTranscript : ''
     const title = videoTitle || ''
     
     const smartQuestions: string[] = []
@@ -406,11 +445,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         {messages.length === 0 ? (
           <div className="space-y-4">
             <p className="text-gray-500 text-center">
-              {!safeTranscript && !safeSummary ? "Upload a video first to start chatting..." : "Start a conversation about the video..."}
+              {!hasValidTranscript && !hasValidSummary ? "Upload a video first to start chatting..." : "Start a conversation about the video..."}
             </p>
             
             {/* Sample Deep Dive Questions - only show when we have transcript/summary */}
-            {(safeTranscript || safeSummary) && (
+            {(hasValidTranscript || hasValidSummary) && (
               <div className="bg-app-background rounded-lg p-4 border border-app-light">
                 <h3 className="text-sm font-semibold text-app-primary mb-3">💡 深掘り質問サンプル</h3>
                 <div className="flex flex-wrap gap-2">
@@ -466,7 +505,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       </div>
       
       {/* Sample Questions (visible when there are messages and we have transcript/summary) */}
-      {messages.length > 0 && (safeTranscript || safeSummary) && (
+      {messages.length > 0 && (hasValidTranscript || hasValidSummary) && (
         <div className="mb-3 bg-app-background rounded-lg p-3 border border-app-light">
           <div className="flex flex-wrap gap-1">
             {sampleQuestions.slice(0, 3).map((question, index) => (
@@ -488,13 +527,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={!safeTranscript && !safeSummary ? "Upload a video first to start chatting..." : "Ask about the video..."}
+          placeholder={!hasValidTranscript && !hasValidSummary ? "Upload a video first to start chatting..." : "Ask about the video..."}
           className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500"
-          disabled={loading || (!safeTranscript && !safeSummary)}
+          disabled={loading || (!hasValidTranscript && !hasValidSummary)}
         />
         <button
           type="submit"
-          disabled={loading || !input.trim() || (!safeTranscript && !safeSummary)}
+          disabled={loading || !input.trim() || (!hasValidTranscript && !hasValidSummary)}
           className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
         >
           Send
