@@ -843,12 +843,12 @@ const AnalyzePage: React.FC = () => {
                       onChange={(e) => setModel(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
                     >
-                      <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
-                      <option value="gpt-4o">GPT-4o (Balanced)</option>
-                      <option value="gpt-4">GPT-4 (Premium)</option>
-                      <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra Fast)</option>
-                      <option value="gpt-4.1-mini">GPT-4.1 Mini (Fast)</option>
-                      <option value="gpt-4.1">GPT-4.1 (Advanced)</option>
+                      <option value="gpt-4o-mini">GPT-4o Mini (Fast) - $0.60/$2.40/1M</option>
+                      <option value="gpt-4o">GPT-4o (Balanced) - $5.00/$15.00/1M</option>
+                      <option value="gpt-4">GPT-4 (Premium) - $10.00/$30.00/1M</option>
+                      <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra Fast) - $0.10/$0.40/1M</option>
+                      <option value="gpt-4.1-mini">GPT-4.1 Mini (Fast) - $0.40/$1.60/1M</option>
+                      <option value="gpt-4.1">GPT-4.1 (Advanced) - $2.00/$8.00/1M</option>
                     </select>
                   </div>
 
