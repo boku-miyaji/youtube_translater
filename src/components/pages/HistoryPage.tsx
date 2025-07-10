@@ -91,14 +91,14 @@ const HistoryPage: React.FC = () => {
         {/* Filter Summary */}
         {(searchTerm || selectedChannel) && (
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-gray-700">Active filters:</span>
+            <span className="text-sm font-medium text-gray-600">Active filters:</span>
             <div className="flex flex-wrap items-center gap-2">
               {searchTerm && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 border border-gray-200">
+                <span className="inline-flex items-center px-3 py-1 rounded-md text-sm bg-blue-50 text-blue-800 border border-blue-200">
                   🔍 "{searchTerm}"
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="ml-2 text-gray-500 hover:text-gray-700 text-lg leading-none"
+                    className="ml-2 w-4 h-4 rounded-full bg-blue-200 hover:bg-blue-300 text-blue-800 hover:text-blue-900 text-xs flex items-center justify-center transition-colors"
                     title="Remove search filter"
                   >
                     ×
@@ -106,11 +106,11 @@ const HistoryPage: React.FC = () => {
                 </span>
               )}
               {selectedChannel && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 border border-gray-200">
+                <span className="inline-flex items-center px-3 py-1 rounded-md text-sm bg-green-50 text-green-800 border border-green-200">
                   📺 {selectedChannel}
                   <button
                     onClick={() => setSelectedChannel('')}
-                    className="ml-2 text-gray-500 hover:text-gray-700 text-lg leading-none"
+                    className="ml-2 w-4 h-4 rounded-full bg-green-200 hover:bg-green-300 text-green-800 hover:text-green-900 text-xs flex items-center justify-center transition-colors"
                     title="Remove channel filter"
                   >
                     ×
@@ -122,7 +122,7 @@ const HistoryPage: React.FC = () => {
                   setSearchTerm('')
                   setSelectedChannel('')
                 }}
-                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+                className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
                 title="Clear all filters"
               >
                 Clear all
