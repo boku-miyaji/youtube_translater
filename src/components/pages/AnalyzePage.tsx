@@ -846,6 +846,9 @@ const AnalyzePage: React.FC = () => {
                       <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
                       <option value="gpt-4o">GPT-4o (Balanced)</option>
                       <option value="gpt-4">GPT-4 (Premium)</option>
+                      <option value="gpt-4.1-nano">GPT-4.1 Nano (Ultra Fast)</option>
+                      <option value="gpt-4.1-mini">GPT-4.1 Mini (Fast)</option>
+                      <option value="gpt-4.1">GPT-4.1 (Advanced)</option>
                     </select>
                   </div>
 
