@@ -268,6 +268,7 @@ const AnalyzePage: React.FC = () => {
                           ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
                           : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
                       }`}
+                      autoComplete="off"
                       required
                     />
                     
@@ -381,6 +382,7 @@ const AnalyzePage: React.FC = () => {
                           ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
                           : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
                       }`}
+                      autoComplete="off"
                       data-testid="url-input"
                       required
                     />
