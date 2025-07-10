@@ -96,9 +96,9 @@ describe('AnalyzePage Autocomplete Feature', () => {
     
     // Wait for suggestions to appear
     await waitFor(() => {
-      expect(screen.getByText('Test Video 1')).toBeInTheDocument()
-      expect(screen.getByText('Another Test Video')).toBeInTheDocument()
-      expect(screen.getByText('Third Video Test')).toBeInTheDocument()
+      expect(screen.getByText('🎬 Test Video 1')).toBeInTheDocument()
+      expect(screen.getByText('🎬 Another Test Video')).toBeInTheDocument()
+      expect(screen.getByText('🎬 Third Video Test')).toBeInTheDocument()
     })
   })
 
@@ -113,9 +113,9 @@ describe('AnalyzePage Autocomplete Feature', () => {
     
     // Only matching suggestion should appear
     await waitFor(() => {
-      expect(screen.getByText('Another Test Video')).toBeInTheDocument()
-      expect(screen.queryByText('Test Video 1')).not.toBeInTheDocument()
-      expect(screen.queryByText('Third Video Test')).not.toBeInTheDocument()
+      expect(screen.getByText('🎬 Another Test Video')).toBeInTheDocument()
+      expect(screen.queryByText('🎬 Test Video 1')).not.toBeInTheDocument()
+      expect(screen.queryByText('🎬 Third Video Test')).not.toBeInTheDocument()
     })
   })
 
@@ -128,11 +128,11 @@ describe('AnalyzePage Autocomplete Feature', () => {
     fireEvent.focus(urlInput)
     
     await waitFor(() => {
-      const suggestions = screen.getAllByText(/Test Video|Another Test Video|Third Video Test/)
+      const suggestions = screen.getAllByText(/🎬.*Test Video|🎬.*Another Test Video|🎬.*Third Video Test/)
       // Check order - most recent should be first
-      expect(suggestions[0]).toHaveTextContent('Test Video 1')
-      expect(suggestions[1]).toHaveTextContent('Another Test Video')
-      expect(suggestions[2]).toHaveTextContent('Third Video Test')
+      expect(suggestions[0]).toHaveTextContent('🎬 Test Video 1')
+      expect(suggestions[1]).toHaveTextContent('🎬 Another Test Video')
+      expect(suggestions[2]).toHaveTextContent('🎬 Third Video Test')
     })
   })
 
@@ -157,7 +157,7 @@ describe('AnalyzePage Autocomplete Feature', () => {
     fireEvent.focus(urlInput)
     
     await waitFor(() => {
-      const suggestions = screen.getAllByText(/Video \d/)
+      const suggestions = screen.getAllByText(/🎬 Video \d/)
       expect(suggestions).toHaveLength(5)
     })
   })
@@ -171,7 +171,7 @@ describe('AnalyzePage Autocomplete Feature', () => {
     fireEvent.focus(urlInput)
     
     await waitFor(() => {
-      const suggestion = screen.getByText('Test Video 1')
+      const suggestion = screen.getByText('🎬 Test Video 1')
       fireEvent.click(suggestion.closest('div')!)
     })
     
@@ -187,13 +187,13 @@ describe('AnalyzePage Autocomplete Feature', () => {
     fireEvent.focus(urlInput)
     
     await waitFor(() => {
-      expect(screen.getByText('Test Video 1')).toBeInTheDocument()
+      expect(screen.getByText('🎬 Test Video 1')).toBeInTheDocument()
     })
     
     fireEvent.blur(urlInput)
     
     await waitFor(() => {
-      expect(screen.queryByText('Test Video 1')).not.toBeInTheDocument()
+      expect(screen.queryByText('🎬 Test Video 1')).not.toBeInTheDocument()
     }, { timeout: 500 })
   })
 
@@ -207,8 +207,8 @@ describe('AnalyzePage Autocomplete Feature', () => {
     fireEvent.focus(urlInput)
     
     await waitFor(() => {
-      expect(screen.getByText('Test Video 1')).toBeInTheDocument()
-      expect(screen.queryByText('Another Test Video')).not.toBeInTheDocument()
+      expect(screen.getByText('🎬 Test Video 1')).toBeInTheDocument()
+      expect(screen.queryByText('🎬 Another Test Video')).not.toBeInTheDocument()
     })
   })
 
@@ -221,9 +221,9 @@ describe('AnalyzePage Autocomplete Feature', () => {
     fireEvent.focus(urlInput)
     
     await waitFor(() => {
-      expect(screen.queryByText('Test Video 1')).not.toBeInTheDocument()
-      expect(screen.queryByText('Another Test Video')).not.toBeInTheDocument()
-      expect(screen.queryByText('Third Video Test')).not.toBeInTheDocument()
+      expect(screen.queryByText('🎬 Test Video 1')).not.toBeInTheDocument()
+      expect(screen.queryByText('🎬 Another Test Video')).not.toBeInTheDocument()
+      expect(screen.queryByText('🎬 Third Video Test')).not.toBeInTheDocument()
     })
   })
 
@@ -241,7 +241,7 @@ describe('AnalyzePage Autocomplete Feature', () => {
     
     // No suggestions should appear
     await waitFor(() => {
-      expect(screen.queryByText(/Test Video/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/🎬.*Test Video/)).not.toBeInTheDocument()
     })
   })
 
@@ -259,7 +259,7 @@ describe('AnalyzePage Autocomplete Feature', () => {
     
     // No suggestions should appear and no errors
     await waitFor(() => {
-      expect(screen.queryByText(/Test Video/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/🎬.*Test Video/)).not.toBeInTheDocument()
     })
   })
 })

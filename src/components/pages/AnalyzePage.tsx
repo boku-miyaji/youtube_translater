@@ -327,31 +327,52 @@ const AnalyzePage: React.FC = () => {
                     
                     {/* Suggestions Dropdown */}
                     {showSuggestions && filteredSuggestions.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                        <div className="p-2 bg-gray-50 border-b border-gray-200">
+                          <div className="text-xs text-gray-600 font-medium">📚 過去の動画履歴 ({filteredSuggestions.length}件)</div>
+                        </div>
                         {filteredSuggestions.map((suggestion, index) => (
                           <div
                             key={suggestion.id || index}
                             onClick={() => handleSuggestionClick(suggestion)}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-center gap-3"
+                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-start gap-3 transition-colors"
                           >
                             <img
                               src={suggestion.thumbnail || suggestion.metadata?.basic?.thumbnail || `https://img.youtube.com/vi/${suggestion.id}/default.jpg`}
                               alt="Video thumbnail"
-                              className="w-12 h-9 object-cover rounded shadow-sm flex-shrink-0"
+                              className="w-16 h-12 object-cover rounded shadow-sm flex-shrink-0"
                               onError={(e) => {
-                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="36" fill=""%23e5e7eb""%3E%3Crect width="48" height="36"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill=""%23676767"" font-size="10"%3E📹%3C/text%3E%3C/svg%3E'
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="48" fill="%23e5e7eb"%3E%3Crect width="64" height="48"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23676767" font-size="12"%3E📹%3C/text%3E%3C/svg%3E'
                               }}
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-900 truncate">
-                                {suggestion.title || suggestion.metadata?.basic?.title || 'Unknown Title'}
+                              <div className="text-sm font-semibold text-gray-900 leading-5 mb-1">
+                                🎬 {suggestion.title || suggestion.metadata?.basic?.title || 'タイトル不明'}
                               </div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {suggestion.url}
+                              <div className="text-xs text-blue-600 truncate mb-1 font-mono">
+                                🔗 {suggestion.url}
                               </div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                {new Date(suggestion.timestamp).toLocaleDateString('ja-JP')}
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  📅 {new Date(suggestion.timestamp).toLocaleDateString('ja-JP', {
+                                    year: 'numeric',
+                                    month: 'short', 
+                                    day: 'numeric'
+                                  })}
+                                </span>
+                                <span className="text-gray-300">•</span>
+                                <span className="flex items-center gap-1">
+                                  ⏰ {new Date(suggestion.timestamp).toLocaleTimeString('ja-JP', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
                               </div>
+                            </div>
+                            <div className="flex items-center text-gray-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
                             </div>
                           </div>
                         ))}
@@ -476,31 +497,52 @@ const AnalyzePage: React.FC = () => {
                     
                     {/* Suggestions Dropdown */}
                     {showSuggestions && filteredSuggestions.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                        <div className="p-2 bg-gray-50 border-b border-gray-200">
+                          <div className="text-xs text-gray-600 font-medium">📚 過去の動画履歴 ({filteredSuggestions.length}件)</div>
+                        </div>
                         {filteredSuggestions.map((suggestion, index) => (
                           <div
                             key={suggestion.id || index}
                             onClick={() => handleSuggestionClick(suggestion)}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-center gap-3"
+                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-start gap-3 transition-colors"
                           >
                             <img
                               src={suggestion.thumbnail || suggestion.metadata?.basic?.thumbnail || `https://img.youtube.com/vi/${suggestion.id}/default.jpg`}
                               alt="Video thumbnail"
-                              className="w-12 h-9 object-cover rounded shadow-sm flex-shrink-0"
+                              className="w-16 h-12 object-cover rounded shadow-sm flex-shrink-0"
                               onError={(e) => {
-                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="36" fill=""%23e5e7eb""%3E%3Crect width="48" height="36"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill=""%23676767"" font-size="10"%3E📹%3C/text%3E%3C/svg%3E'
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="48" fill="%23e5e7eb"%3E%3Crect width="64" height="48"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23676767" font-size="12"%3E📹%3C/text%3E%3C/svg%3E'
                               }}
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-900 truncate">
-                                {suggestion.title || suggestion.metadata?.basic?.title || 'Unknown Title'}
+                              <div className="text-sm font-semibold text-gray-900 leading-5 mb-1">
+                                🎬 {suggestion.title || suggestion.metadata?.basic?.title || 'タイトル不明'}
                               </div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {suggestion.url}
+                              <div className="text-xs text-blue-600 truncate mb-1 font-mono">
+                                🔗 {suggestion.url}
                               </div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                {new Date(suggestion.timestamp).toLocaleDateString('ja-JP')}
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  📅 {new Date(suggestion.timestamp).toLocaleDateString('ja-JP', {
+                                    year: 'numeric',
+                                    month: 'short', 
+                                    day: 'numeric'
+                                  })}
+                                </span>
+                                <span className="text-gray-300">•</span>
+                                <span className="flex items-center gap-1">
+                                  ⏰ {new Date(suggestion.timestamp).toLocaleTimeString('ja-JP', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
                               </div>
+                            </div>
+                            <div className="flex items-center text-gray-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
                             </div>
                           </div>
                         ))}
