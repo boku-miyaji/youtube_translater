@@ -22,6 +22,8 @@ const AnalyzePage: React.FC = () => {
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [formCollapsed, setFormCollapsed] = useState(false)
   const [showCostInfo, setShowCostInfo] = useState(true)
+  const [costEstimation, setCostEstimation] = useState<any>(null)
+  const [loadingCostEstimation, setLoadingCostEstimation] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -74,11 +76,19 @@ const AnalyzePage: React.FC = () => {
     setUrl(value)
     setUrlError('')
     setVideoPreview(null)
+    setCostEstimation(null)
     
     if (value.trim()) {
       if (validateYouTubeUrl(value.trim())) {
         // Generate instant preview for valid URLs
         generateVideoPreview(value.trim())
+        // Estimate cost for valid URLs with a delay
+        const timeoutId = setTimeout(() => {
+          estimateCostForUrl(value.trim())
+        }, 1000)
+        
+        // Store timeout ID for cleanup
+        return () => clearTimeout(timeoutId)
       } else {
         setUrlError('Please enter a valid YouTube URL')
       }
@@ -93,11 +103,77 @@ const AnalyzePage: React.FC = () => {
     }
   }
 
+  // Estimate cost for YouTube URL
+  const estimateCostForUrl = async (url: string) => {
+    if (!validateYouTubeUrl(url.trim())) return
+    
+    setLoadingCostEstimation(true)
+    setCostEstimation(null)
+    
+    try {
+      const response = await fetch('/api/estimate-cost-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: url.trim(),
+          gptModel: model,
+          generateSummary: true,
+          generateArticle: false
+        }),
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCostEstimation(data)
+      } else {
+        console.error('Failed to estimate cost')
+      }
+    } catch (error) {
+      console.error('Error estimating cost:', error)
+    } finally {
+      setLoadingCostEstimation(false)
+    }
+  }
+
+  // Estimate cost for video file
+  const estimateCostForFile = async (file: VideoFile) => {
+    setLoadingCostEstimation(true)
+    setCostEstimation(null)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file.file)
+      formData.append('gptModel', model)
+      formData.append('generateSummary', 'true')
+      formData.append('generateArticle', 'false')
+      
+      const response = await fetch('/api/estimate-cost-file', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCostEstimation(data)
+      } else {
+        console.error('Failed to estimate cost for file')
+      }
+    } catch (error) {
+      console.error('Error estimating cost for file:', error)
+    } finally {
+      setLoadingCostEstimation(false)
+    }
+  }
+
   // Handle video file selection
   const handleFileSelected = (file: VideoFile) => {
     setVideoFile(file)
     setFileError('')
     setUploadProgress(0)
+    // Estimate cost for the selected file
+    estimateCostForFile(file)
   }
 
   // Handle input type change
@@ -110,6 +186,8 @@ const AnalyzePage: React.FC = () => {
     setFileError('')
     setVideoPreview(null)
     setUploadProgress(0)
+    setCostEstimation(null)
+    setLoadingCostEstimation(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -283,6 +361,59 @@ const AnalyzePage: React.FC = () => {
     setFormCollapsed(!formCollapsed)
   }
 
+  // Render cost estimation display
+  const renderCostEstimation = () => {
+    if (loadingCostEstimation) {
+      return (
+        <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+          <div className="flex items-center gap-2 text-blue-800">
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-medium">想定コストを計算中...</span>
+          </div>
+        </div>
+      )
+    }
+
+    if (costEstimation && costEstimation.success) {
+      const costs = costEstimation.estimatedCosts
+      return (
+        <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+          <div className="flex items-start gap-2">
+            <span className="text-green-600 text-lg">💰</span>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-green-800 mb-1">
+                想定コスト（概算）
+              </div>
+              <div className="text-xs text-green-700 space-y-1">
+                <div className="flex justify-between">
+                  <span>動画時間:</span>
+                  <span className="font-mono">{costEstimation.durationFormatted}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>文字起こし:</span>
+                  <span className="font-mono">${costs.transcription.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>要約生成:</span>
+                  <span className="font-mono">${costs.summary.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t border-green-300 pt-1">
+                  <span>合計:</span>
+                  <span className="font-mono">${costs.total.toFixed(4)}</span>
+                </div>
+              </div>
+              <div className="text-xs text-green-600 mt-1">
+                ※実際のコストは使用するモデルやトークン数により変動します
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return null
+  }
+
 
   // Debug current video data
   useEffect(() => {
@@ -381,6 +512,9 @@ const AnalyzePage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Cost Estimation Display in Collapsed State */}
+                {inputType === 'url' && renderCostEstimation()}
 
                 <div className="flex items-center justify-between gap-3">
                   <button
@@ -537,6 +671,9 @@ const AnalyzePage: React.FC = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Cost Estimation Display for URL */}
+                    {renderCostEstimation()}
                   </div>
                 ) : (
                   /* Video File Upload */
@@ -554,6 +691,9 @@ const AnalyzePage: React.FC = () => {
                       uploadProgress={uploadProgress}
                       error={fileError}
                     />
+
+                    {/* Cost Estimation Display for File */}
+                    {renderCostEstimation()}
                   </div>
                 )}
 

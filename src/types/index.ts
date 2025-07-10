@@ -318,3 +318,41 @@ export interface ApiSuccessResponse<T = unknown> {
   data?: T;
   message?: string;
 }
+
+// Cost estimation types
+export interface CostEstimationRequest {
+  url?: string;
+  gptModel?: string;
+  generateSummary?: boolean;
+  generateArticle?: boolean;
+}
+
+export interface CostEstimationResponse {
+  success: boolean;
+  title?: string;
+  duration?: number;  // seconds
+  durationFormatted?: string;
+  estimatedCosts?: {
+    transcription: number;
+    summary: number;
+    article: number;
+    total: number;
+  };
+  error?: string;
+  message?: string;
+}
+
+export interface FileCostEstimationResponse {
+  success: boolean;
+  filename?: string;
+  duration?: number;  // seconds
+  durationFormatted?: string;
+  estimatedCosts?: {
+    transcription: number;
+    summary: number;
+    article: number;
+    total: number;
+  };
+  error?: string;
+  message?: string;
+}

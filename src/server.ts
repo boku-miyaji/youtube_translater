@@ -30,7 +30,10 @@ import {
   PromptsConfig,
   TranscriptionResult,
   SubtitlesResult,
-  UploadVideoFileResponse
+  UploadVideoFileResponse,
+  CostEstimationRequest,
+  CostEstimationResponse,
+  FileCostEstimationResponse
 } from './types/index';
 
 const app = express();
@@ -314,6 +317,43 @@ async function cleanupTempFile(filePath: string, delay: number = 60000): Promise
 
 function calculateWhisperCost(durationMinutes: number): number {
   return durationMinutes * pricing.whisper;
+}
+
+// Format duration to human readable format
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}時間${minutes}分${secs}秒`;
+  } else if (minutes > 0) {
+    return `${minutes}分${secs}秒`;
+  } else {
+    return `${secs}秒`;
+  }
+}
+
+// Estimate GPT costs for summary and article
+function estimateGPTCosts(durationMinutes: number, gptModel: string, generateSummary: boolean = true, generateArticle: boolean = false): { summary: number; article: number } {
+  const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
+  
+  // Rough estimates based on video length
+  // These are conservative estimates - actual costs may vary
+  const baseInputTokens = Math.min(4000, durationMinutes * 15); // Estimate based on transcript length
+  const summaryOutputTokens = generateSummary ? Math.min(1000, durationMinutes * 8) : 0;
+  const articleOutputTokens = generateArticle ? Math.min(2000, durationMinutes * 12) : 0;
+  
+  const summaryCost = generateSummary ? 
+    (baseInputTokens * modelPricing.input) + (summaryOutputTokens * modelPricing.output) : 0;
+  
+  const articleCost = generateArticle ? 
+    ((baseInputTokens + summaryOutputTokens) * modelPricing.input) + (articleOutputTokens * modelPricing.output) : 0;
+  
+  return {
+    summary: summaryCost,
+    article: articleCost
+  };
 }
 
 function loadHistory(): HistoryEntry[] {
@@ -2659,6 +2699,136 @@ app.post('/reset-session-costs', (_req: Request, res: Response) => {
 });
 
 // Server startup
+// Cost estimation for YouTube URL
+app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
+  console.log('📊 Cost estimation request for URL');
+  
+  try {
+    const { url, gptModel = 'gpt-4o-mini', generateSummary = true, generateArticle = false }: CostEstimationRequest = req.body;
+    
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL is required'
+      } as CostEstimationResponse);
+    }
+    
+    // Validate YouTube URL
+    if (!ytdl.validateURL(url)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid YouTube URL'
+      } as CostEstimationResponse);
+    }
+    
+    // Get video info from YouTube
+    const info = await ytdl.getInfo(url);
+    const videoDetails = info.videoDetails;
+    const duration = parseInt(videoDetails.lengthSeconds || '0');
+    const durationMinutes = Math.ceil(duration / 60);
+    
+    // Calculate costs
+    const transcriptionCost = calculateWhisperCost(durationMinutes);
+    const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
+    const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
+    
+    console.log(`📊 Cost estimation for "${videoDetails.title}": ${duration}s, $${totalCost.toFixed(4)}`);
+    
+    const response: CostEstimationResponse = {
+      success: true,
+      title: videoDetails.title,
+      duration,
+      durationFormatted: formatDuration(duration),
+      estimatedCosts: {
+        transcription: transcriptionCost,
+        summary: gptCosts.summary,
+        article: gptCosts.article,
+        total: totalCost
+      },
+      message: 'Cost estimation completed'
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error estimating cost for URL:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error during cost estimation'
+    } as CostEstimationResponse);
+  }
+});
+
+// Cost estimation for uploaded file
+app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, res: Response) => {
+  console.log('📊 Cost estimation request for file');
+  
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'No file uploaded'
+    } as FileCostEstimationResponse);
+  }
+  
+  const filePath = req.file.path;
+  const originalName = req.file.originalname;
+  const gptModel = req.body.gptModel || 'gpt-4o-mini';
+  const generateSummary = req.body.generateSummary === 'true';
+  const generateArticle = req.body.generateArticle === 'true';
+  
+  try {
+    // Extract video metadata
+    const videoMeta = await extractVideoMetadata(filePath);
+    const duration = videoMeta.duration;
+    const durationMinutes = Math.ceil(duration / 60);
+    
+    // Calculate costs
+    const transcriptionCost = calculateWhisperCost(durationMinutes);
+    const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
+    const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
+    
+    console.log(`📊 Cost estimation for "${originalName}": ${duration}s, $${totalCost.toFixed(4)}`);
+    
+    // Clean up temporary file
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    const response: FileCostEstimationResponse = {
+      success: true,
+      filename: originalName,
+      duration,
+      durationFormatted: formatDuration(duration),
+      estimatedCosts: {
+        transcription: transcriptionCost,
+        summary: gptCosts.summary,
+        article: gptCosts.article,
+        total: totalCost
+      },
+      message: 'Cost estimation completed'
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error estimating cost for file:', error);
+    
+    // Clean up file on error
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up file after estimation error:', cleanupError);
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error during cost estimation'
+    } as FileCostEstimationResponse);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   // Reset session costs on server startup
