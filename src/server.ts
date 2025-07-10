@@ -215,14 +215,15 @@ async function transcribeVideoFile(filePath: string): Promise<{ text: string; se
   try {
     console.log('🎵 Starting Whisper transcription for:', filePath);
     
-    // Convert video to audio using ffmpeg
-    const audioPath = filePath.replace(/\.(mp4|mov|avi)$/i, '.mp3');
+    // Convert video to audio using ffmpeg - use WAV format with PCM encoding for better compatibility
+    const audioPath = filePath.replace(/\.(mp4|mov|avi)$/i, '.wav');
     
     await new Promise<void>((resolve, reject) => {
       ffmpeg(filePath)
         .output(audioPath)
-        .audioCodec('mp3')
-        .audioBitrate(128)
+        .audioCodec('pcm_s16le') // Use PCM 16-bit little-endian, which is universally supported
+        .audioFrequency(16000)   // 16kHz sample rate for Whisper (recommended)
+        .audioChannels(1)        // Mono for better transcription accuracy
         .on('end', () => {
           console.log('Audio extraction completed');
           resolve();
