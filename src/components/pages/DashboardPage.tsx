@@ -90,7 +90,17 @@ const DashboardPage: React.FC = () => {
     
     // Handle both HistoryEntry and direct video data structures
     const transcript = video.transcript || video.metadata?.transcript || ''
-    const summary = video.summary?.content || video.summary || ''
+    
+    // Ensure summary is always a string
+    let summary = ''
+    if (video.summary?.content && typeof video.summary.content === 'string') {
+      summary = video.summary.content
+    } else if (typeof video.summary === 'string') {
+      summary = video.summary
+    } else if (video.summary && typeof video.summary === 'object' && video.summary.content) {
+      summary = String(video.summary.content)
+    }
+    
     const timestampedSegments = video.timestampedSegments || video.metadata?.timestampedSegments || []
     
     // Calculate detailed costs from history data (same logic as HistoryTable)

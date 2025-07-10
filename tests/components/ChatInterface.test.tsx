@@ -181,4 +181,62 @@ describe('ChatInterface Component', () => {
     // a helpful message is shown instead of making an API call
     expect(screen.getByText('Upload a video first to start chatting...')).toBeInTheDocument()
   })
+
+  it('should handle non-string transcript and summary data', () => {
+    const propsWithObjectData = {
+      videoId: 'test-video-id',
+      videoTitle: 'Test Video',
+      transcript: { content: 'Transcript content as object' } as any,
+      summary: { content: 'Summary content as object' } as any
+    }
+    
+    render(<ChatInterface {...propsWithObjectData} />)
+    
+    // Should still show as enabled because objects will be converted to strings
+    const input = screen.getByPlaceholderText('Ask about the video...')
+    const sendButton = screen.getByRole('button', { name: /send/i })
+    
+    expect(input).not.toBeDisabled()
+    expect(sendButton).not.toBeDisabled()
+  })
+
+  it('should convert object data to strings for API requests', async () => {
+    const mockResponse = {
+      ok: true,
+      json: async () => ({ response: 'Test response' })
+    }
+    ;(global.fetch as jest.Mock).mockResolvedValue(mockResponse)
+
+    const propsWithObjectData = {
+      videoId: 'test-video-id',
+      videoTitle: 'Test Video',
+      transcript: { content: 'Transcript content' },
+      summary: { content: 'Summary content' }
+    } as any
+    
+    render(<ChatInterface {...propsWithObjectData} />)
+    
+    const input = screen.getByPlaceholderText('Ask about the video...')
+    const sendButton = screen.getByRole('button', { name: /send/i })
+    
+    // Type a message and send it
+    fireEvent.change(input, { target: { value: 'Test message' } })
+    fireEvent.click(sendButton)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: 'Test message',
+          videoId: 'test-video-id',
+          history: [],
+          transcript: '[object Object]',
+          summary: '[object Object]',
+        }),
+      })
+    })
+  })
 })
