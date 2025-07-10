@@ -151,12 +151,12 @@ const pricing: Pricing = {
   whisper: 0.006, // $0.006 per minute
   models: {
     'gpt-4o-mini': {
-      input: 0.60 / 1000000, // $0.60 per 1M tokens
-      output: 2.40 / 1000000  // $2.40 per 1M tokens
+      input: 0.15 / 1000000, // $0.15 per 1M tokens
+      output: 0.60 / 1000000  // $0.60 per 1M tokens
     },
     'gpt-4o': {
-      input: 5.00 / 1000000, // $5.00 per 1M tokens
-      output: 15.00 / 1000000  // $15.00 per 1M tokens
+      input: 2.50 / 1000000, // $2.50 per 1M tokens
+      output: 10.00 / 1000000  // $10.00 per 1M tokens
     },
     'gpt-4-turbo': {
       input: 10.00 / 1000000, // $10.00 per 1M tokens
@@ -166,25 +166,13 @@ const pricing: Pricing = {
       input: 0.50 / 1000000, // $0.50 per 1M tokens
       output: 1.50 / 1000000  // $1.50 per 1M tokens
     },
-    'gpt-4.1-nano': {
-      input: 0.10 / 1000000, // $0.10 per 1M tokens
-      output: 0.40 / 1000000  // $0.40 per 1M tokens
+    'gpt-4': {
+      input: 30.00 / 1000000, // $30.00 per 1M tokens
+      output: 60.00 / 1000000  // $60.00 per 1M tokens
     },
-    'gpt-4.1-mini': {
-      input: 0.40 / 1000000, // $0.40 per 1M tokens
-      output: 1.60 / 1000000  // $1.60 per 1M tokens
-    },
-    'gpt-4.1': {
-      input: 2.00 / 1000000, // $2.00 per 1M tokens
-      output: 8.00 / 1000000  // $8.00 per 1M tokens
-    },
-    'gpt-o3': {
-      input: 2.00 / 1000000, // $2.00 per 1M tokens
-      output: 8.00 / 1000000  // $8.00 per 1M tokens
-    },
-    'gpt-4o-mini-new': {
-      input: 1.10 / 1000000, // $1.10 per 1M tokens
-      output: 4.40 / 1000000  // $4.40 per 1M tokens
+    'gpt-4-32k': {
+      input: 60.00 / 1000000, // $60.00 per 1M tokens
+      output: 120.00 / 1000000  // $120.00 per 1M tokens
     }
   }
 };
