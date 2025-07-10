@@ -48,53 +48,119 @@ const VideoFileUpload: React.FC<VideoFileUploadProps> = ({
 
   // Generate video preview
   const generateVideoPreview = useCallback((file: File): Promise<VideoFile> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const videoElement = document.createElement('video')
       const fileUrl = URL.createObjectURL(file)
       
-      videoElement.src = fileUrl
-      videoElement.addEventListener('loadedmetadata', () => {
-        // Generate thumbnail from video
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        
-        canvas.width = 320
-        canvas.height = 180
-        
-        videoElement.currentTime = Math.min(5, videoElement.duration / 2) // 5 seconds or middle
-        
-        videoElement.addEventListener('seeked', () => {
-          if (ctx) {
-            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height)
-            const thumbnail = canvas.toDataURL('image/jpeg', 0.7)
-            
-            const videoFile: VideoFile = {
-              file,
-              id: Date.now().toString(),
-              name: file.name,
-              size: file.size,
-              duration: videoElement.duration,
-              thumbnail
-            }
-            
-            URL.revokeObjectURL(fileUrl)
-            resolve(videoFile)
-          }
-        }, { once: true })
-      }, { once: true })
+      // Set up cleanup function
+      const cleanup = () => {
+        try {
+          URL.revokeObjectURL(fileUrl)
+          videoElement.remove()
+        } catch (error) {
+          console.warn('Error during cleanup:', error)
+        }
+      }
 
-      // Fallback if metadata loading fails
-      videoElement.addEventListener('error', () => {
-        const videoFile: VideoFile = {
+      // Set up timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        cleanup()
+        // Resolve with basic info if preview generation fails
+        resolve({
           file,
           id: Date.now().toString(),
           name: file.name,
           size: file.size
+        })
+      }, 10000) // 10 second timeout
+
+      videoElement.preload = 'metadata'
+      videoElement.muted = true // Required for some browsers
+      
+      videoElement.addEventListener('loadedmetadata', () => {
+        try {
+          // Generate thumbnail from video
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          
+          if (!ctx) {
+            clearTimeout(timeout)
+            cleanup()
+            resolve({
+              file,
+              id: Date.now().toString(),
+              name: file.name,
+              size: file.size,
+              duration: videoElement.duration
+            })
+            return
+          }
+          
+          canvas.width = 320
+          canvas.height = 180
+          
+          // Seek to a good position for thumbnail
+          const seekTime = Math.min(1, videoElement.duration * 0.1) // 10% into video or 1 second
+          videoElement.currentTime = seekTime
+          
+          videoElement.addEventListener('seeked', () => {
+            try {
+              ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height)
+              const thumbnail = canvas.toDataURL('image/jpeg', 0.7)
+              
+              const videoFile: VideoFile = {
+                file,
+                id: Date.now().toString(),
+                name: file.name,
+                size: file.size,
+                duration: videoElement.duration,
+                thumbnail
+              }
+              
+              clearTimeout(timeout)
+              cleanup()
+              resolve(videoFile)
+            } catch (error) {
+              console.warn('Error generating thumbnail:', error)
+              clearTimeout(timeout)
+              cleanup()
+              resolve({
+                file,
+                id: Date.now().toString(),
+                name: file.name,
+                size: file.size,
+                duration: videoElement.duration
+              })
+            }
+          }, { once: true })
+        } catch (error) {
+          console.warn('Error in loadedmetadata handler:', error)
+          clearTimeout(timeout)
+          cleanup()
+          resolve({
+            file,
+            id: Date.now().toString(),
+            name: file.name,
+            size: file.size
+          })
         }
-        
-        URL.revokeObjectURL(fileUrl)
-        resolve(videoFile)
       }, { once: true })
+
+      // Enhanced error handling
+      videoElement.addEventListener('error', (e) => {
+        console.warn('Video loading error:', e)
+        clearTimeout(timeout)
+        cleanup()
+        resolve({
+          file,
+          id: Date.now().toString(),
+          name: file.name,
+          size: file.size
+        })
+      }, { once: true })
+
+      // Set the source last to trigger loading
+      videoElement.src = fileUrl
     })
   }, [])
 
