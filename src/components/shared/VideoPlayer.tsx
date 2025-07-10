@@ -39,6 +39,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady, onSeek 
   // Determine video type
   const isYouTubeVideo = Boolean(video.basic?.videoId)
   const isLocalVideo = Boolean(video.basic?.videoPath)
+  
+  // Debug logging for video type determination
+  console.log('VideoPlayer debug:', { 
+    videoId: video.basic?.videoId, 
+    videoPath: video.basic?.videoPath, 
+    isYouTubeVideo, 
+    isLocalVideo 
+  })
 
   // Expose seek function
   const seekTo = (time: number, autoplay: boolean = true) => {
@@ -105,10 +113,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, onPlayerReady, onSeek 
         }
       }
 
+      const handleVideoError = (error: Event) => {
+        console.error('Video loading error:', error, {
+          videoPath: video.basic?.videoPath,
+          videoSrc: videoElement.src
+        })
+      }
+
       videoElement.addEventListener('loadedmetadata', handleLoadedMetadata)
+      videoElement.addEventListener('error', handleVideoError)
       
       return () => {
         videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata)
+        videoElement.removeEventListener('error', handleVideoError)
       }
     }
   }, [video.basic?.videoId, video.basic?.videoPath, onPlayerReady, isYouTubeVideo, isLocalVideo])

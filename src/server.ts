@@ -30,7 +30,6 @@ import {
   PromptsConfig,
   TranscriptionResult,
   SubtitlesResult,
-  UploadVideoFileRequest,
   UploadVideoFileResponse
 } from './types/index';
 
@@ -194,6 +193,14 @@ const costsFile = path.join('history', 'costs.json');
 // Video file processing utilities
 async function extractVideoMetadata(filePath: string): Promise<{ duration: number; title: string }> {
   return new Promise((resolve, reject) => {
+    // Validate input file exists
+    if (!fs.existsSync(filePath)) {
+      reject(new Error(`Video file not found: ${filePath}`));
+      return;
+    }
+    
+    console.log('📊 Extracting video metadata from:', filePath);
+    
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err) {
         console.error('Error extracting video metadata:', err);
@@ -203,6 +210,12 @@ async function extractVideoMetadata(filePath: string): Promise<{ duration: numbe
 
       const duration = metadata.format.duration || 0;
       const filename = path.basename(filePath, path.extname(filePath));
+      
+      console.log('📊 Video metadata extracted:', { 
+        duration: Math.round(duration), 
+        filename,
+        format: metadata.format 
+      });
       
       resolve({
         duration: Math.round(duration),
@@ -216,8 +229,15 @@ async function transcribeVideoFile(filePath: string): Promise<{ text: string; se
   try {
     console.log('🎵 Starting Whisper transcription for:', filePath);
     
+    // Validate input file exists
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Video file not found: ${filePath}`);
+    }
+    
     // Convert video to audio using ffmpeg - use WAV format with PCM encoding for better compatibility
     const audioPath = filePath.replace(/\.(mp4|mov|avi)$/i, '.wav');
+    
+    console.log('🎵 Audio extraction path:', audioPath);
     
     await new Promise<void>((resolve, reject) => {
       ffmpeg(filePath)
@@ -225,6 +245,9 @@ async function transcribeVideoFile(filePath: string): Promise<{ text: string; se
         .audioCodec('pcm_s16le') // Use PCM 16-bit little-endian, which is universally supported
         .audioFrequency(16000)   // 16kHz sample rate for Whisper (recommended)
         .audioChannels(1)        // Mono for better transcription accuracy
+        .on('progress', (progress) => {
+          console.log('Audio extraction progress:', progress.percent + '% done');
+        })
         .on('end', () => {
           console.log('Audio extraction completed');
           resolve();
@@ -236,6 +259,13 @@ async function transcribeVideoFile(filePath: string): Promise<{ text: string; se
         .run();
     });
 
+    // Validate audio file exists
+    if (!fs.existsSync(audioPath)) {
+      throw new Error(`Audio file not found after extraction: ${audioPath}`);
+    }
+    
+    console.log('🎵 Starting Whisper API transcription...');
+    
     // Transcribe using Whisper API
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(audioPath),
@@ -243,6 +273,8 @@ async function transcribeVideoFile(filePath: string): Promise<{ text: string; se
       response_format: 'verbose_json',
       timestamp_granularities: ['segment']
     });
+    
+    console.log('🎵 Whisper API transcription completed');
 
     // Clean up audio file
     if (fs.existsSync(audioPath)) {

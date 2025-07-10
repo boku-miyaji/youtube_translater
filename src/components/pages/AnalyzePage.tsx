@@ -207,7 +207,8 @@ const AnalyzePage: React.FC = () => {
           uploadDate: data.metadata?.basic?.uploadDate,
           publishDate: data.metadata?.basic?.publishDate,
           category: data.metadata?.basic?.category,
-          description: data.metadata?.basic?.description
+          description: data.metadata?.basic?.description,
+          videoPath: data.metadata?.basic?.videoPath // Include videoPath for local video playback
         },
         chapters: data.metadata?.chapters || [],
         captions: data.metadata?.captions || [],
