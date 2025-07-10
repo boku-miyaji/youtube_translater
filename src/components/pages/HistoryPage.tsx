@@ -90,39 +90,44 @@ const HistoryPage: React.FC = () => {
         
         {/* Filter Summary */}
         {(searchTerm || selectedChannel) && (
-          <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
-            <span>Filters:</span>
-            {searchTerm && (
-              <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800">
-                🔍 "{searchTerm}"
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="ml-1 text-blue-600 hover:text-blue-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            {selectedChannel && (
-              <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800">
-                📺 {selectedChannel}
-                <button
-                  onClick={() => setSelectedChannel('')}
-                  className="ml-1 text-green-600 hover:text-green-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            <button
-              onClick={() => {
-                setSearchTerm('')
-                setSelectedChannel('')
-              }}
-              className="text-gray-500 hover:text-gray-700 underline"
-            >
-              Clear all
-            </button>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Active filters:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {searchTerm && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 border border-gray-200">
+                  🔍 "{searchTerm}"
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="ml-2 text-gray-500 hover:text-gray-700 text-lg leading-none"
+                    title="Remove search filter"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {selectedChannel && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 border border-gray-200">
+                  📺 {selectedChannel}
+                  <button
+                    onClick={() => setSelectedChannel('')}
+                    className="ml-2 text-gray-500 hover:text-gray-700 text-lg leading-none"
+                    title="Remove channel filter"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  setSelectedChannel('')
+                }}
+                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+                title="Clear all filters"
+              >
+                Clear all
+              </button>
+            </div>
           </div>
         )}
       </div>

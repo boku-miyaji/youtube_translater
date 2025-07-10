@@ -130,7 +130,7 @@ describe('HistoryPage Channel Filter Feature', () => {
     fireEvent.change(channelSelect, { target: { value: 'Channel B' } })
     
     await waitFor(() => {
-      expect(screen.getByText('Filters:')).toBeInTheDocument()
+      expect(screen.getByText('Active filters:')).toBeInTheDocument()
       expect(screen.getByText('📺 Channel B')).toBeInTheDocument()
     })
   })
@@ -153,7 +153,7 @@ describe('HistoryPage Channel Filter Feature', () => {
     
     await waitFor(() => {
       expect(screen.getByText('3 videos found')).toBeInTheDocument()
-      expect(screen.queryByText('Filters:')).not.toBeInTheDocument()
+      expect(screen.queryByText('Active filters:')).not.toBeInTheDocument()
     })
   })
 
@@ -175,7 +175,7 @@ describe('HistoryPage Channel Filter Feature', () => {
     })
     
     // Should show both filters
-    expect(screen.getByText('Filters:')).toBeInTheDocument()
+    expect(screen.getByText('Active filters:')).toBeInTheDocument()
     expect(screen.getByText('🔍 "Another"')).toBeInTheDocument()
     expect(screen.getByText('📺 Channel A')).toBeInTheDocument()
   })
@@ -191,7 +191,7 @@ describe('HistoryPage Channel Filter Feature', () => {
     fireEvent.change(channelSelect, { target: { value: 'Channel A' } })
     
     await waitFor(() => {
-      expect(screen.getByText('Filters:')).toBeInTheDocument()
+      expect(screen.getByText('Active filters:')).toBeInTheDocument()
     })
     
     // Clear all filters
@@ -200,7 +200,7 @@ describe('HistoryPage Channel Filter Feature', () => {
     
     await waitFor(() => {
       expect(screen.getByText('3 videos found')).toBeInTheDocument()
-      expect(screen.queryByText('Filters:')).not.toBeInTheDocument()
+      expect(screen.queryByText('Active filters:')).not.toBeInTheDocument()
     })
   })
 
