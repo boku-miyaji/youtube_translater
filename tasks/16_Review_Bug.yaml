@@ -1,6 +1,6 @@
 issue: 16
 title: "UI/UX改善: 細かな機能修正"
-updatedAt: "2025-07-10T16:11:57"
+updatedAt: "2025-07-10T16:26:34"
 description: |
   細かな機能修正
   - サイドバーを閉じるボタンがわかりにくい。サイドバーを閉じた時に閉じれていない。アイコンが半分くらい写っている
@@ -103,6 +103,7 @@ implementation:
   filterUIImprovementCommit: d412ccc
   filterXButtonStylingFixCommit: 27a9ca7
   prDocumentationCommit: 0060dc9
+  taskStatusUpdateCommit: a5f6efd
 pullRequest:
   number: 17
   url: "https://github.com/boku-miyaji/youtube_translater/pull/17"
