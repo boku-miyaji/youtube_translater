@@ -6,6 +6,8 @@ import OpenAI from 'openai';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import multer from 'multer';
+import crypto from 'crypto';
 
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
@@ -27,7 +29,9 @@ import {
   Summary,
   PromptsConfig,
   TranscriptionResult,
-  SubtitlesResult
+  SubtitlesResult,
+  UploadVideoFileRequest,
+  UploadVideoFileResponse
 } from './types/index';
 
 const app = express();
@@ -86,8 +90,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// const upload = multer({ dest: 'uploads/' });
-
+// Create necessary directories
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
@@ -97,6 +100,36 @@ if (!fs.existsSync('transcripts')) {
 if (!fs.existsSync('history')) {
   fs.mkdirSync('history');
 }
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + crypto.randomUUID();
+    const extension = path.extname(file.originalname);
+    cb(null, `${uniqueSuffix}${extension}`);
+  }
+});
+
+// File filter for video files only
+const fileFilter = (req: any, file: any, cb: any) => {
+  const allowedMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only video files (MP4, MOV, AVI) are allowed'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB limit
+  },
+  fileFilter: fileFilter
+});
 
 let currentTranscript = '';
 let currentMetadata: VideoMetadata | null = null;
@@ -156,6 +189,98 @@ const pricing: Pricing = {
 // 履歴ファイルのパス
 const historyFile = path.join('history', 'transcripts.json');
 const costsFile = path.join('history', 'costs.json');
+
+// Video file processing utilities
+async function extractVideoMetadata(filePath: string): Promise<{ duration: number; title: string }> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        console.error('Error extracting video metadata:', err);
+        reject(err);
+        return;
+      }
+
+      const duration = metadata.format.duration || 0;
+      const filename = path.basename(filePath, path.extname(filePath));
+      
+      resolve({
+        duration: Math.round(duration),
+        title: filename
+      });
+    });
+  });
+}
+
+async function transcribeVideoFile(filePath: string): Promise<{ text: string; segments: TimestampedSegment[] }> {
+  try {
+    console.log('🎵 Starting Whisper transcription for:', filePath);
+    
+    // Convert video to audio using ffmpeg
+    const audioPath = filePath.replace(/\.(mp4|mov|avi)$/i, '.mp3');
+    
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(filePath)
+        .output(audioPath)
+        .audioCodec('mp3')
+        .audioBitrate(128)
+        .on('end', () => {
+          console.log('Audio extraction completed');
+          resolve();
+        })
+        .on('error', (err) => {
+          console.error('Error extracting audio:', err);
+          reject(err);
+        })
+        .run();
+    });
+
+    // Transcribe using Whisper API
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(audioPath),
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['segment']
+    });
+
+    // Clean up audio file
+    if (fs.existsSync(audioPath)) {
+      fs.unlinkSync(audioPath);
+    }
+
+    // Convert Whisper segments to our format
+    const segments: TimestampedSegment[] = (transcription as any).segments?.map((segment: any) => ({
+      start: segment.start,
+      duration: segment.end - segment.start,
+      text: segment.text.trim()
+    })) || [];
+
+    return {
+      text: transcription.text,
+      segments
+    };
+  } catch (error) {
+    console.error('Error transcribing video file:', error);
+    throw error;
+  }
+}
+
+async function cleanupTempFile(filePath: string, delay: number = 60000): Promise<void> {
+  // Schedule file cleanup after delay
+  setTimeout(() => {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`Cleaned up temporary file: ${filePath}`);
+      }
+    } catch (error) {
+      console.error(`Error cleaning up file ${filePath}:`, error);
+    }
+  }, delay);
+}
+
+function calculateWhisperCost(durationMinutes: number): number {
+  return durationMinutes * pricing.whisper;
+}
 
 function loadHistory(): HistoryEntry[] {
   if (fs.existsSync(historyFile)) {
@@ -1193,6 +1318,211 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error in /api/upload-youtube:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Video file upload endpoint
+app.post('/api/upload-video-file', upload.single('file'), async (req: Request, res: Response) => {
+  console.log('🎬 Video file upload request received');
+  
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'No file uploaded'
+    });
+  }
+
+  const analysisStartTime = new Date();
+  const filePath = req.file.path;
+  const originalName = req.file.originalname;
+  const fileSize = req.file.size;
+  const fileId = path.basename(req.file.filename, path.extname(req.file.filename));
+
+  // Extract request parameters
+  const language = req.body.language || 'original';
+  const gptModel = req.body.gptModel || 'gpt-4o-mini';
+  const shouldGenerateSummary = req.body.generateSummary === 'true';
+  const shouldGenerateArticle = req.body.generateArticle === 'true';
+
+  console.log('📝 Processing video file:', {
+    originalName,
+    fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`,
+    language,
+    gptModel,
+    shouldGenerateSummary,
+    shouldGenerateArticle
+  });
+
+  try {
+    // 1. Extract video metadata
+    console.log('📊 Extracting video metadata...');
+    const videoMeta = await extractVideoMetadata(filePath);
+    
+    // 2. Transcribe video using Whisper
+    console.log('🎵 Starting transcription...');
+    const transcriptionResult = await transcribeVideoFile(filePath);
+    
+    // 3. Calculate costs
+    const durationMinutes = videoMeta.duration / 60;
+    const transcriptionCost = calculateWhisperCost(durationMinutes);
+    
+    let summary = '';
+    let summaryCost = 0;
+    let summaryTokens = { input: 0, output: 0 };
+
+    // 4. Generate summary if requested
+    if (shouldGenerateSummary && transcriptionResult.text) {
+      console.log('📝 Generating summary...');
+      try {
+        const summaryResponse = await generateSummary(
+          transcriptionResult.text,
+          null, // No YouTube metadata for file uploads
+          gptModel,
+          transcriptionResult.segments
+        );
+        
+        if (summaryResponse) {
+          summary = summaryResponse.content;
+          summaryCost = summaryResponse.cost;
+          summaryTokens = summaryResponse.tokens;
+        }
+      } catch (error) {
+        console.error('Error generating summary:', error);
+        // Continue without summary
+      }
+    }
+
+    const analysisEndTime = new Date();
+    const analysisTime = {
+      startTime: analysisStartTime.toISOString(),
+      endTime: analysisEndTime.toISOString(),
+      duration: Math.round((analysisEndTime.getTime() - analysisStartTime.getTime()) / 1000)
+    };
+
+    // 5. Create video metadata
+    const videoMetadata: VideoMetadata = {
+      basic: {
+        title: originalName.replace(/\.[^/.]+$/, ''), // Remove extension
+        duration: videoMeta.duration
+      },
+      chapters: [],
+      captions: [],
+      stats: {
+        formatCount: 1,
+        hasSubtitles: false,
+        keywords: []
+      },
+      transcript: transcriptionResult.text,
+      summary,
+      timestampedSegments: transcriptionResult.segments,
+      transcriptSource: 'whisper',
+      costs: {
+        transcription: transcriptionCost,
+        summary: summaryCost,
+        article: 0,
+        total: transcriptionCost + summaryCost
+      },
+      analysisTime,
+      source: 'file',
+      fileId,
+      originalFilename: originalName,
+      fileSize,
+      uploadedAt: new Date().toISOString()
+    };
+
+    // 6. Save to history
+    const historyEntry: HistoryEntry = {
+      id: fileId,
+      title: videoMetadata.basic.title,
+      url: `file://${originalName}`,
+      transcript: transcriptionResult.text,
+      method: 'whisper',
+      language,
+      gptModel,
+      cost: transcriptionCost + summaryCost,
+      metadata: videoMetadata,
+      summary: summary ? {
+        content: summary,
+        model: gptModel,
+        cost: summaryCost,
+        tokens: summaryTokens
+      } : null,
+      timestampedSegments: transcriptionResult.segments,
+      tags: [],
+      mainTags: [],
+      article: null,
+      timestamp: new Date().toISOString(),
+      analysisTime
+    };
+
+    const history = loadHistory();
+    history.unshift(historyEntry);
+    saveHistory(history);
+
+    // 7. Save cost information
+    const costEntry: CostEntry = {
+      videoId: fileId,
+      title: videoMetadata.basic.title,
+      method: 'whisper',
+      language,
+      gptModel,
+      whisperCost: transcriptionCost,
+      gptCost: summaryCost,
+      totalCost: transcriptionCost + summaryCost,
+      timestamp: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    const costs = loadCosts();
+    costs.unshift(costEntry);
+    saveCosts(costs);
+
+    // 8. Schedule file cleanup (after 1 hour)
+    await cleanupTempFile(filePath, 60 * 60 * 1000);
+
+    // 9. Send response
+    const response: UploadVideoFileResponse = {
+      success: true,
+      fileId,
+      originalName,
+      size: fileSize,
+      duration: videoMeta.duration,
+      status: 'completed',
+      title: videoMetadata.basic.title,
+      transcript: transcriptionResult.text,
+      summary,
+      metadata: videoMetadata,
+      method: 'whisper',
+      language,
+      gptModel,
+      timestampedSegments: transcriptionResult.segments,
+      costs: videoMetadata.costs,
+      analysisTime,
+      message: 'Video file processed successfully'
+    };
+
+    console.log('✅ Video file processing completed successfully');
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Error processing video file:', error);
+    
+    // Clean up file on error
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up file after processing error:', cleanupError);
+    }
+
+    const errorResponse: UploadVideoFileResponse = {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error processing video file',
+      message: 'Failed to process video file'
+    };
+
+    res.status(500).json(errorResponse);
   }
 });
 

@@ -1,11 +1,11 @@
 export interface VideoMetadata {
   basic: {
     title: string;
-    videoId: string;
+    videoId?: string;        // YouTube video ID (optional for file uploads)
     duration: number;
-    channel: string;
-    viewCount: number;
-    likes: number;
+    channel?: string;        // YouTube only
+    viewCount?: number;      // YouTube only
+    likes?: number;          // YouTube only
     uploadDate?: string;
     publishDate?: string;
     category?: string;
@@ -26,6 +26,12 @@ export interface VideoMetadata {
   costs?: DetailedCosts;
   analysisTime?: AnalysisTimeInfo;
   inferenceStats?: InferenceStats;
+  // New fields for file uploads
+  source?: 'youtube' | 'file';
+  fileId?: string;         // File upload ID
+  originalFilename?: string;
+  fileSize?: number;       // bytes
+  uploadedAt?: string;     // ISO timestamp
 }
 
 export interface Chapter {
@@ -239,6 +245,65 @@ export interface MergeArticleRequest {
   aiResponse: string;
   gptModel?: string;
   videoId?: string;
+}
+
+// New types for video file upload
+export interface VideoFile {
+  file: File;
+  id: string;
+  name: string;
+  size: number;
+  duration?: number;
+  thumbnail?: string;
+}
+
+export interface VideoFileUpload {
+  id: string;
+  originalName: string;
+  size: number;
+  mimeType: string;
+  uploadedAt: string;
+  status: 'uploaded' | 'processing' | 'completed' | 'failed' | 'deleted';
+  tempPath: string;
+  processingResult?: ProcessingResult;
+  error?: string;
+}
+
+export interface ProcessingResult {
+  metadata: VideoMetadata;
+  transcript: TimestampedSegment[];
+  summary?: string;
+  article?: string;
+  costs: DetailedCosts;
+  analysisTime: AnalysisTimeInfo;
+}
+
+export interface UploadVideoFileRequest {
+  language?: string;
+  gptModel?: string;
+  generateSummary?: boolean;
+  generateArticle?: boolean;
+}
+
+export interface UploadVideoFileResponse {
+  success: boolean;
+  fileId?: string;
+  originalName?: string;
+  size?: number;
+  duration?: number;
+  status?: 'uploaded' | 'processing' | 'completed' | 'failed';
+  title?: string;
+  transcript?: string;
+  summary?: string;
+  metadata?: VideoMetadata;
+  method?: 'whisper';
+  language?: string;
+  gptModel?: string;
+  timestampedSegments?: TimestampedSegment[];
+  costs?: DetailedCosts;
+  analysisTime?: AnalysisTimeInfo;
+  message?: string;
+  error?: string;
 }
 
 export interface ApiErrorResponse {

@@ -3,13 +3,19 @@ import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
+import VideoFileUpload from '../shared/VideoFileUpload'
+import { VideoFile } from '../../types'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
+  const [inputType, setInputType] = useState<'url' | 'file'>('url')
   const [url, setUrl] = useState('')
+  const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
   const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4o-mini')
   const [urlError, setUrlError] = useState('')
+  const [fileError, setFileError] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [playerRef, setPlayerRef] = useState<any>(null)
   const [prefillQuestion, setPrefillQuestion] = useState<string>('')
   const [videoPreview, setVideoPreview] = useState<{title: string, thumbnail: string} | null>(null)
@@ -87,41 +93,104 @@ const AnalyzePage: React.FC = () => {
     }
   }
 
+  // Handle video file selection
+  const handleFileSelected = (file: VideoFile) => {
+    setVideoFile(file)
+    setFileError('')
+    setUploadProgress(0)
+  }
+
+  // Handle input type change
+  const handleInputTypeChange = (type: 'url' | 'file') => {
+    setInputType(type)
+    // Clear previous selections and errors
+    setUrl('')
+    setVideoFile(null)
+    setUrlError('')
+    setFileError('')
+    setVideoPreview(null)
+    setUploadProgress(0)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!url.trim()) return
-
-    // Validate URL before processing
-    if (!validateYouTubeUrl(url.trim())) {
-      setUrlError('Please enter a valid YouTube URL')
-      return
+    
+    // Validate input based on type
+    if (inputType === 'url') {
+      if (!url.trim()) return
+      if (!validateYouTubeUrl(url.trim())) {
+        setUrlError('Please enter a valid YouTube URL')
+        return
+      }
+    } else if (inputType === 'file') {
+      if (!videoFile) {
+        setFileError('Please select a video file')
+        return
+      }
     }
 
     setLoading(true)
     setUrlError('')
+    setFileError('')
+    setUploadProgress(0)
     // Expand form during analysis
     setFormCollapsed(false)
+    
     try {
-      console.log('Sending request to /api/upload-youtube with:', { url: url.trim(), language, model })
-      const response = await fetch('/api/upload-youtube', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: url.trim(),
-          language,
-          model,
-        }),
-      })
+      let response: Response
+      let data: any
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Video processing failed:', response.status, response.statusText, errorText)
-        throw new Error(`Failed to process video: ${response.status} ${response.statusText}`)
+      if (inputType === 'url') {
+        // Handle YouTube URL processing
+        console.log('Sending request to /api/upload-youtube with:', { url: url.trim(), language, model })
+        response = await fetch('/api/upload-youtube', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: url.trim(),
+            language,
+            model,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('YouTube video processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process YouTube video: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
+      } else {
+        // Handle file upload processing
+        const formData = new FormData()
+        formData.append('file', videoFile!.file)
+        formData.append('language', language)
+        formData.append('gptModel', model)
+        formData.append('generateSummary', 'true')
+        formData.append('generateArticle', 'false')
+
+        console.log('Sending request to /api/upload-video-file with:', { 
+          filename: videoFile!.name, 
+          size: videoFile!.size,
+          language, 
+          model 
+        })
+
+        response = await fetch('/api/upload-video-file', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Video file processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process video file: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
       }
-
-      const data = await response.json()
       
       console.log('🕒 AnalyzePage: Server response analysis time:', data.analysisTime)
       console.log('🕒 AnalyzePage: Metadata analysis time:', data.metadata?.analysisTime)
@@ -130,15 +199,15 @@ const AnalyzePage: React.FC = () => {
       const videoMetadata = {
         basic: {
           title: data.title,
-          videoId: data.metadata?.basic?.videoId || '',
+          videoId: data.metadata?.basic?.videoId,
           duration: data.metadata?.basic?.duration || 0,
-          channel: data.metadata?.basic?.channel || 'Unknown',
-          viewCount: data.metadata?.basic?.viewCount || 0,
-          likes: data.metadata?.basic?.likes || 0,
-          uploadDate: data.metadata?.basic?.uploadDate || '',
-          publishDate: data.metadata?.basic?.publishDate || '',
-          category: data.metadata?.basic?.category || '',
-          description: data.metadata?.basic?.description || ''
+          channel: data.metadata?.basic?.channel,
+          viewCount: data.metadata?.basic?.viewCount,
+          likes: data.metadata?.basic?.likes,
+          uploadDate: data.metadata?.basic?.uploadDate,
+          publishDate: data.metadata?.basic?.publishDate,
+          category: data.metadata?.basic?.category,
+          description: data.metadata?.basic?.description
         },
         chapters: data.metadata?.chapters || [],
         captions: data.metadata?.captions || [],
@@ -157,7 +226,13 @@ const AnalyzePage: React.FC = () => {
           article: 0,
           total: 0
         },
-        analysisTime: data.analysisTime
+        analysisTime: data.analysisTime,
+        // Add file-specific metadata
+        source: inputType,
+        fileId: data.fileId,
+        originalFilename: data.originalName,
+        fileSize: data.size,
+        uploadedAt: data.uploadedAt
       }
       
       console.log('🕒 AnalyzePage: Final videoMetadata analysis time:', videoMetadata.analysisTime)
@@ -168,9 +243,14 @@ const AnalyzePage: React.FC = () => {
     } catch (error) {
       console.error('Error processing video:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Failed to process video: ${errorMessage}`)
+      if (inputType === 'file') {
+        setFileError(`Failed to process video file: ${errorMessage}`)
+      } else {
+        alert(`Failed to process video: ${errorMessage}`)
+      }
     } finally {
       setLoading(false)
+      setUploadProgress(0)
     }
   }
 
@@ -242,7 +322,7 @@ const AnalyzePage: React.FC = () => {
           🎥 Analyze Video
         </h1>
         <p className="mt-3 text-body text-app-secondary max-w-2xl">
-          Transform YouTube videos into insights with AI-powered transcription, summaries, and interactive chat.
+          Transform YouTube videos and local video files into insights with AI-powered transcription, summaries, and interactive chat.
         </p>
       </div>
 
@@ -361,63 +441,120 @@ const AnalyzePage: React.FC = () => {
                   </div>
                 )}
 
-                {/* URL Input with Preview */}
+                {/* Input Type Selection */}
                 <div className="space-y-4">
-                  <div className="relative">
-                    <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
-                      <span className="flex items-center gap-2">
-                        🔗 YouTube URL
-                      </span>
+                  <div>
+                    <label className="block text-sm font-medium text-app-primary mb-3">
+                      📥 Input Type
                     </label>
-                    <input
-                      type="url"
-                      id="url"
-                      ref={inputRef}
-                      value={url}
-                      onChange={(e) => handleUrlChange(e.target.value)}
-                      onPaste={handleUrlPaste}
-                      placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
-                      className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
-                        urlError 
-                          ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
-                          : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
-                      }`}
-                      autoComplete="off"
-                      data-testid="url-input"
-                      required
-                    />
-                    
-                    {urlError && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
-                        ⚠️ {urlError}
+                    <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => handleInputTypeChange('url')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === 'url'
+                            ? 'bg-white text-blue-700 shadow-sm border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          🔗 YouTube URL
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInputTypeChange('file')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === 'file'
+                            ? 'bg-white text-blue-700 shadow-sm border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          📁 Video File
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Conditional Input Section */}
+                {inputType === 'url' ? (
+                  /* URL Input with Preview */
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
+                        <span className="flex items-center gap-2">
+                          🔗 YouTube URL
+                        </span>
+                      </label>
+                      <input
+                        type="url"
+                        id="url"
+                        ref={inputRef}
+                        value={url}
+                        onChange={(e) => handleUrlChange(e.target.value)}
+                        onPaste={handleUrlPaste}
+                        placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
+                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
+                          urlError 
+                            ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
+                            : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
+                        }`}
+                        autoComplete="off"
+                        data-testid="url-input"
+                        required={inputType === 'url'}
+                      />
+                      
+                      {urlError && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                          ⚠️ {urlError}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* URL Preview Card */}
+                    {videoPreview && !urlError && (
+                      <div className="url-preview-card">
+                        <div className="flex items-center gap-4">
+                          <img 
+                            src={videoPreview.thumbnail} 
+                            alt="Video thumbnail"
+                            className="w-20 h-15 object-cover rounded-lg shadow-sm"
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="60" fill="%23e5e7eb"%3E%3Crect width="80" height="60"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%236b7280"%3E📹%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 text-sm text-blue-800">
+                              ✅ Valid YouTube URL detected
+                            </div>
+                            <p className="text-xs text-blue-600 mt-1 opacity-75">
+                              Ready to analyze
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
-
-                  {/* URL Preview Card */}
-                  {videoPreview && !urlError && (
-                    <div className="url-preview-card">
-                      <div className="flex items-center gap-4">
-                        <img 
-                          src={videoPreview.thumbnail} 
-                          alt="Video thumbnail"
-                          className="w-20 h-15 object-cover rounded-lg shadow-sm"
-                          onError={(e) => {
-                            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="60" fill="%23e5e7eb"%3E%3Crect width="80" height="60"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%236b7280"%3E📹%3C/text%3E%3C/svg%3E'
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 text-sm text-blue-800">
-                            ✅ Valid YouTube URL detected
-                          </div>
-                          <p className="text-xs text-blue-600 mt-1 opacity-75">
-                            Ready to analyze
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                ) : (
+                  /* Video File Upload */
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-app-primary mb-2">
+                      <span className="flex items-center gap-2">
+                        📁 Video File Upload
+                      </span>
+                    </label>
+                    <VideoFileUpload
+                      onFileSelected={handleFileSelected}
+                      maxSize={500 * 1024 * 1024} // 500MB
+                      acceptedFormats={['video/mp4', 'video/quicktime']}
+                      isUploading={loading}
+                      uploadProgress={uploadProgress}
+                      error={fileError}
+                    />
+                  </div>
+                )}
 
                 {/* Settings Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -456,18 +593,24 @@ const AnalyzePage: React.FC = () => {
                   <div className="sm:col-span-2 lg:col-span-1 flex items-end">
                     <button
                       type="submit"
-                      disabled={loading || !url.trim() || !!urlError}
+                      disabled={
+                        loading || 
+                        (inputType === 'url' && (!url.trim() || !!urlError)) ||
+                        (inputType === 'file' && (!videoFile || !!fileError))
+                      }
                       className="btn-modern btn-success w-full h-10 text-white font-semibold shadow-elevation-hover"
                       data-testid="analyze-button"
                     >
                       {loading ? (
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span className="text-tabular">Analyzing...</span>
+                          <span className="text-tabular">
+                            {inputType === 'file' ? 'Processing...' : 'Analyzing...'}
+                          </span>
                         </div>
                       ) : (
                         <span className="flex items-center justify-center gap-2">
-                          ⚡ Analyze Video
+                          ⚡ {inputType === 'file' ? 'Process Video' : 'Analyze Video'}
                         </span>
                       )}
                     </button>
