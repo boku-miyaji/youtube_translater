@@ -10,6 +10,7 @@ export interface VideoMetadata {
     publishDate?: string;
     category?: string;
     description?: string;
+    thumbnail?: string;
   };
   chapters: Chapter[];
   captions: Caption[];
@@ -19,6 +20,12 @@ export interface VideoMetadata {
     keywords: string[];
   };
   transcript?: string;
+  summary?: string;
+  timestampedSegments?: TimestampedSegment[];
+  transcriptSource?: 'subtitle' | 'whisper';
+  costs?: DetailedCosts;
+  analysisTime?: AnalysisTimeInfo;
+  inferenceStats?: InferenceStats;
 }
 
 export interface Chapter {
@@ -47,6 +54,27 @@ export interface Summary {
   };
 }
 
+export interface AnalysisTimeInfo {
+  startTime: string;
+  endTime: string;
+  duration: number; // seconds
+}
+
+export interface InferenceStats {
+  apiCallCount: number;
+  totalTokens: { input: number; output: number };
+  modelUsed: string;
+  tokensPerSecond: number;
+  costPerToken: number;
+  efficiencyScore: number;
+  sessionCosts: SessionCosts;
+  callBreakdown: {
+    transcription: { tokens: { input: number; output: number }, cost: number, method: 'subtitle' | 'whisper' };
+    summary: { tokens: { input: number; output: number }, cost: number };
+    article?: { tokens: { input: number; output: number }, cost: number };
+  };
+}
+
 export interface HistoryEntry {
   id: string;
   title: string;
@@ -63,6 +91,8 @@ export interface HistoryEntry {
   mainTags: string[];
   article: string | null;
   timestamp: string;
+  thumbnail?: string;
+  analysisTime?: AnalysisTimeInfo;
 }
 
 export interface SessionCosts {
@@ -121,6 +151,13 @@ export interface ChatResponse {
   };
 }
 
+export interface DetailedCosts {
+  transcription: number;
+  summary: number;
+  article: number;
+  total: number;
+}
+
 export interface UploadResponse {
   success: boolean;
   title?: string;
@@ -133,10 +170,10 @@ export interface UploadResponse {
   detectedLanguage?: string;
   timestampedSegments?: TimestampedSegment[];
   cost?: number;
+  costs?: DetailedCosts;
   message: string;
   error?: string;
   fromHistory?: boolean;
-  costs?: SessionCosts;
 }
 
 export interface PromptTemplate {

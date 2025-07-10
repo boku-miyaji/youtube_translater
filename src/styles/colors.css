@@ -1,0 +1,356 @@
+/* Unified Color System for YouTube Translator App */
+/* Designed for accessibility (WCAG AA compliance) and visual consistency */
+
+:root {
+  /* Primary Colors - Gray-based for professional look */
+  --color-primary-50: #f8fafc;   /* Very light background */
+  --color-primary-100: #f1f5f9;  /* Light background */
+  --color-primary-500: #64748b;  /* Standard primary */
+  --color-primary-600: #475569;  /* Buttons, interactive elements */
+  --color-primary-700: #334155;  /* Hover states */
+  --color-primary-800: #1e293b;  /* Dark text */
+  --color-primary-900: #0f172a;  /* Headers, important text */
+
+  /* Success Colors - Green for positive actions with nuance */
+  --color-success-50: #f0fdf4;   /* Light success background */
+  --color-success-100: #dcfce7;  /* Success notifications */
+  --color-success-500: #22c55e;  /* Standard success */
+  --color-success-600: #16a34a;  /* Success buttons */
+  --color-success-600-alpha: #16a34ab3;  /* Success buttons with transparency */
+  --color-success-700: #15803d;  /* Success hover */
+  --color-success-800: #166534;  /* Success text */
+  --color-success-900: #14532d;  /* Dark success text */
+
+  /* Error Colors - Red for warnings and errors */
+  --color-error-50: #fef2f2;     /* Light error background */
+  --color-error-100: #fee2e2;    /* Error notifications */
+  --color-error-500: #ef4444;    /* Standard error */
+  --color-error-600: #dc2626;    /* Error buttons */
+  --color-error-700: #b91c1c;    /* Error hover */
+  --color-error-800: #991b1b;    /* Error text */
+  --color-error-900: #7f1d1d;    /* Dark error text */
+
+  /* Info Colors - Blue for information and hints */
+  --color-info-50: #eff6ff;      /* Light info background */
+  --color-info-100: #dbeafe;     /* Info notifications */
+  --color-info-500: #3b82f6;     /* Standard info */
+  --color-info-600: #2563eb;     /* Info buttons */
+  --color-info-700: #1d4ed8;     /* Info hover */
+  --color-info-800: #1e40af;     /* Info text */
+  --color-info-900: #1e3a8a;     /* Dark info text */
+
+  /* Modern Accent Colors */
+  --color-accent-purple-50: #faf5ff;
+  --color-accent-purple-100: #f3e8ff;
+  --color-accent-purple-500: #8b5cf6;
+  --color-accent-purple-600: #7c3aed;
+  --color-accent-purple-700: #6d28d9;
+  --color-accent-purple-800: #5b21b6;
+
+  --color-accent-indigo-50: #eef2ff;
+  --color-accent-indigo-100: #e0e7ff;
+  --color-accent-indigo-500: #6366f1;
+  --color-accent-indigo-600: #4f46e5;
+  --color-accent-indigo-700: #4338ca;
+  --color-accent-indigo-800: #3730a3;
+
+  /* Neutral Colors - For text, backgrounds, and borders */
+  --color-neutral-50: #f9fafb;   /* Lightest backgrounds */
+  --color-neutral-100: #f3f4f6;  /* Light backgrounds */
+  --color-neutral-200: #e5e7eb;  /* Borders, dividers */
+  --color-neutral-300: #d1d5db;  /* Inactive borders */
+  --color-neutral-400: #9ca3af;  /* Placeholder text */
+  --color-neutral-500: #6b7280;  /* Secondary text */
+  --color-neutral-600: #4b5563;  /* Primary text */
+  --color-neutral-700: #374151;  /* Emphasized text */
+  --color-neutral-800: #1f2937;  /* Strong text */
+  --color-neutral-900: #111827;  /* Headings */
+  
+  /* Neo-Brutal inspired neutral grays */
+  --color-neutral-50-neo: #f5f5f7;  /* Neo-brutal neutral background */
+
+  /* Semantic Color Assignments */
+  --color-background: var(--color-neutral-50);
+  --color-surface: #ffffff;
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-600);
+  --color-text-muted: var(--color-neutral-500);
+  --color-border-light: var(--color-neutral-200);
+  --color-border-medium: var(--color-neutral-300);
+
+  /* Interactive Elements */
+  --color-button-primary-bg: var(--color-primary-600);
+  --color-button-primary-hover: var(--color-primary-700);
+  --color-button-primary-text: #ffffff;
+  
+  --color-button-success-bg: var(--color-success-600);
+  --color-button-success-hover: var(--color-success-700);
+  --color-button-success-text: #ffffff;
+
+  /* Timestamp and Interactive Elements */
+  --color-timestamp-bg: var(--color-surface);
+  --color-timestamp-text: var(--color-neutral-800);
+  --color-timestamp-border: var(--color-border-medium);
+  --color-timestamp-hover-bg: var(--color-neutral-50);
+
+  /* Question References */
+  --color-question-bg: var(--color-neutral-100);
+  --color-question-text: var(--color-neutral-800);
+  --color-question-border: var(--color-border-medium);
+  --color-question-hover-bg: var(--color-neutral-200);
+
+  /* Deep Dive Hints */
+  --color-hint-bg: var(--color-info-50);
+  --color-hint-text: var(--color-info-800);
+  --color-hint-border: var(--color-info-100);
+
+  /* Tab and Content Styling - Simple Grayscale */
+  --color-tab-active-bg: var(--color-neutral-800);
+  --color-tab-active-text: #ffffff;
+  --color-tab-inactive-text: var(--color-neutral-700);
+  --color-tab-hover-bg: var(--color-neutral-100);
+  --color-tab-hover-text: var(--color-neutral-900);
+
+  /* Empty State Styling */
+  --color-empty-text: var(--color-neutral-600);
+  --color-empty-bg: var(--color-neutral-50);
+
+  /* Action Button Variants - Minimal Color */
+  --color-button-generate-bg: var(--color-neutral-700);
+  --color-button-generate-hover: var(--color-neutral-800);
+  --color-button-regenerate-bg: var(--color-neutral-600);
+  --color-button-regenerate-hover: var(--color-neutral-700);
+}
+
+/* Utility Classes for Easy Application */
+.bg-app-primary { background-color: var(--color-primary-600); }
+.bg-app-primary-light { background-color: var(--color-primary-100); }
+.bg-app-success { background-color: var(--color-success-600); }
+.bg-app-success-light { background-color: var(--color-success-100); }
+.bg-app-error { background-color: var(--color-error-600); }
+.bg-app-error-light { background-color: var(--color-error-100); }
+.bg-app-info { background-color: var(--color-info-600); }
+.bg-app-info-light { background-color: var(--color-info-100); }
+.bg-app-surface { background-color: var(--color-surface); }
+.bg-app-background { background-color: var(--color-background); }
+
+.text-app-primary { color: var(--color-text-primary); }
+.text-app-secondary { color: var(--color-text-secondary); }
+.text-app-muted { color: var(--color-text-muted); }
+.text-app-success { color: var(--color-success-800); }
+.text-app-error { color: var(--color-error-800); }
+.text-app-info { color: var(--color-info-800); }
+
+.border-app-light { border-color: var(--color-border-light); }
+.border-app-medium { border-color: var(--color-border-medium); }
+
+/* Component-specific Classes */
+.timestamp-style {
+  color: var(--color-info-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.timestamp-style:hover {
+  color: var(--color-info-800);
+  text-decoration: underline;
+}
+
+.question-style {
+  background-color: var(--color-question-bg);
+  color: var(--color-question-text);
+  border-color: var(--color-question-border);
+}
+
+.question-style:hover {
+  background-color: var(--color-question-hover-bg);
+}
+
+.hint-style {
+  background-color: var(--color-hint-bg);
+  color: var(--color-hint-text);
+  border-color: var(--color-hint-border);
+}
+
+.btn-primary {
+  background-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-button-primary-hover);
+}
+
+.btn-success {
+  background-color: var(--color-button-success-bg);
+  color: var(--color-button-success-text);
+}
+
+.btn-success:hover {
+  background-color: var(--color-button-success-hover);
+}
+
+/* Simple Tab Styles */
+.tab-active {
+  background-color: var(--color-tab-active-bg);
+  color: var(--color-tab-active-text);
+  border-bottom-color: var(--color-tab-active-bg);
+}
+
+.tab-inactive {
+  color: var(--color-tab-inactive-text);
+  background-color: transparent;
+}
+
+.tab-inactive:hover {
+  background-color: var(--color-tab-hover-bg);
+  color: var(--color-tab-hover-text);
+}
+
+/* Empty State Styles */
+.empty-state {
+  color: var(--color-empty-text);
+  background-color: var(--color-empty-bg);
+}
+
+.empty-state h3 {
+  color: var(--color-neutral-800);
+}
+
+.empty-state p {
+  color: var(--color-neutral-600);
+}
+
+/* Action Button Variants */
+.btn-generate {
+  background-color: var(--color-button-generate-bg);
+  color: #ffffff;
+}
+
+.btn-generate:hover {
+  background-color: var(--color-button-generate-hover);
+}
+
+.btn-regenerate {
+  background-color: var(--color-button-regenerate-bg);
+  color: #ffffff;
+}
+
+.btn-regenerate:hover {
+  background-color: var(--color-button-regenerate-hover);
+}
+
+/* Enhanced Shadow System for Modern Look */
+.shadow-elevation-1 {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-elevation-2 {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-elevation-hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shadow-elevation-hover:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+}
+
+/* Enhanced Typography System */
+.text-display {
+  font-size: 2rem;      /* 32px */
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.text-heading {
+  font-size: 1.5rem;    /* 24px */
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.text-subheading {
+  font-size: 1.25rem;   /* 20px */
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.text-body {
+  font-size: 1rem;      /* 16px */
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+.text-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Focus Ring System for Accessibility */
+.focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.focus-ring:focus {
+  outline: 2px solid var(--color-success-600);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+
+/* Modern Button System */
+.btn-modern {
+  @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg;
+  @apply transition-all duration-200 ease-in-out;
+  @apply focus-ring shadow-elevation-1;
+}
+
+.btn-modern:hover {
+  @apply shadow-elevation-hover;
+}
+
+.btn-modern:disabled {
+  @apply opacity-60 cursor-not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Enhanced Card System */
+.card-modern {
+  @apply bg-white rounded-xl shadow-elevation-1 border border-gray-100;
+  @apply transition-all duration-200 ease-in-out;
+}
+
+.card-modern:hover {
+  @apply shadow-elevation-2;
+}
+
+/* URL Preview Card */
+.url-preview-card {
+  @apply p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg;
+  @apply shadow-elevation-1;
+}
+
+/* Loading Skeleton */
+.skeleton {
+  @apply bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200;
+  @apply animate-pulse rounded;
+  background-size: 200% 100%;
+}
+
+/* Toast Notification */
+.toast {
+  @apply fixed top-4 right-4 z-50 p-4 rounded-lg shadow-elevation-2;
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.toast-success {
+  @apply bg-green-50 border border-green-200 text-green-800;
+}
+
+.toast-error {
+  @apply bg-red-50 border border-red-200 text-red-800;
+}

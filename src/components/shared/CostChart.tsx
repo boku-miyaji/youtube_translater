@@ -24,8 +24,10 @@ const CostChart: React.FC<CostChartProps> = ({ data }) => {
   }, {})
 
   const chartData = Object.entries(dailyCosts)
+    .map(([date, cost]) => ({ date, cost: cost as number, timestamp: new Date(date) }))
+    .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Sort by date (oldest to newest)
     .slice(-30) // Last 30 days
-    .map(([date, cost]) => ({ date, cost: cost as number }))
+    .map(item => ({ date: item.date, cost: item.cost }))
 
   const maxCost = Math.max(...chartData.map(d => d.cost))
 
@@ -36,22 +38,34 @@ const CostChart: React.FC<CostChartProps> = ({ data }) => {
         <span>Max: ${maxCost.toFixed(4)}</span>
       </div>
       
-      <div className="h-64 flex items-end space-x-1">
-        {chartData.map((item, index) => (
-          <div key={index} className="flex-1 flex flex-col items-center">
-            <div
-              className="w-full bg-indigo-500 rounded-t"
-              style={{
-                height: `${(item.cost / maxCost) * 200}px`,
-                minHeight: '2px'
-              }}
-              title={`${item.date}: $${item.cost.toFixed(4)}`}
-            />
-            <div className="text-xs text-gray-500 mt-1 transform -rotate-45 origin-left">
-              {item.date.split('/').slice(0, 2).join('/')}
+      <div className="space-y-2">
+        <div className="h-48 flex items-end space-x-1">
+          {chartData.map((item, index) => (
+            <div key={index} className="flex-1 flex flex-col items-center">
+              <div
+                className="w-full bg-app-primary rounded-t hover:bg-app-primary-light transition-colors"
+                style={{
+                  height: `${(item.cost / maxCost) * 180}px`,
+                  minHeight: '2px'
+                }}
+                title={`${item.date}: $${item.cost.toFixed(4)}`}
+              />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        <div className="flex justify-between text-xs text-gray-600 px-1">
+          {chartData.map((item, index) => {
+            // Show every 3rd date to avoid crowding
+            if (index % 3 === 0 || index === chartData.length - 1) {
+              return (
+                <span key={index} className="text-center font-mono">
+                  {item.date.split('/').slice(0, 2).join('/')}
+                </span>
+              )
+            }
+            return <span key={index} className="invisible">·</span>
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">

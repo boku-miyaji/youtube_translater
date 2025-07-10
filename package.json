@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
+    "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-query": "^5.81.5",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
@@ -32,7 +33,9 @@
     "openai": "^4.20.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.6.3",
+    "remark-gfm": "^4.0.1",
     "tailwindcss": "^3.4.17",
     "youtube-transcript-api": "^3.0.0",
     "zustand": "^5.0.6"
