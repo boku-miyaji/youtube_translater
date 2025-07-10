@@ -2703,12 +2703,15 @@ app.post('/reset-session-costs', (_req: Request, res: Response) => {
 // Server startup
 // Cost estimation for YouTube URL
 app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
-  console.log('📊 Cost estimation request for URL');
+  console.log('📊 Cost estimation request for URL', req.body);
   
   try {
     const { url, gptModel = 'gpt-4o-mini', generateSummary = true, generateArticle = false }: CostEstimationRequest = req.body;
     
+    console.log('📊 Request params:', { url, gptModel, generateSummary, generateArticle });
+    
     if (!url) {
+      console.log('❌ URL is missing from request');
       return res.status(400).json({
         success: false,
         error: 'URL is required'
@@ -2716,7 +2719,9 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
     }
     
     // Validate YouTube URL
+    console.log('📊 Validating YouTube URL:', url);
     if (!ytdl.validateURL(url)) {
+      console.log('❌ Invalid YouTube URL:', url);
       return res.status(400).json({
         success: false,
         error: 'Invalid YouTube URL'
@@ -2724,12 +2729,18 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
     }
     
     // Get video info from YouTube
+    console.log('📊 Getting video info from YouTube for:', url);
     const info = await ytdl.getInfo(url);
+    console.log('📊 Got video info successfully');
+    
     const videoDetails = info.videoDetails;
     const duration = parseInt(videoDetails.lengthSeconds || '0');
     const durationMinutes = Math.ceil(duration / 60);
     
+    console.log('📊 Video details:', { title: videoDetails.title, duration, durationMinutes });
+    
     // Calculate costs
+    console.log('📊 Calculating costs...');
     const transcriptionCost = calculateWhisperCost(durationMinutes);
     const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
     const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
@@ -2753,10 +2764,17 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
     res.json(response);
     
   } catch (error) {
-    console.error('❌ Error estimating cost for URL:', error);
+    console.error('❌ Error estimating cost for URL:');
+    console.error('❌ Error details:', error);
+    console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error during cost estimation';
+    console.error('❌ Error message to client:', errorMessage);
+    
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error during cost estimation'
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined
     } as CostEstimationResponse);
   }
 });

@@ -159,8 +159,22 @@ const AnalyzePage: React.FC = () => {
         console.log('💰 Cost estimation result:', data)
         setCostEstimation(data)
       } else {
-        const errorText = await response.text()
-        console.error('❌ Failed to estimate cost:', response.status, errorText)
+        let errorDetails = ''
+        try {
+          const errorData = await response.json()
+          errorDetails = JSON.stringify(errorData, null, 2)
+          console.error('❌ Failed to estimate cost (JSON):', response.status, errorData)
+        } catch {
+          const errorText = await response.text()
+          errorDetails = errorText
+          console.error('❌ Failed to estimate cost (Text):', response.status, errorText)
+        }
+        // Set error state with details for debugging
+        setCostEstimation({
+          success: false,
+          error: `API Error ${response.status}: ${errorDetails}`,
+          debug: true
+        })
       }
     } catch (error) {
       console.error('❌ Error estimating cost:', error)
@@ -441,6 +455,28 @@ const AnalyzePage: React.FC = () => {
               </div>
               <div className="text-xs text-green-600 mt-1">
                 ※実際のコストは使用するモデルやトークン数により変動します
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (costEstimation && costEstimation.debug) {
+      console.log('🎨 Rendering cost estimation error')
+      return (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+          <div className="flex items-start gap-2">
+            <span className="text-red-600 text-lg">⚠️</span>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-red-800 mb-1">
+                コスト予測エラー
+              </div>
+              <div className="text-xs text-red-700">
+                {costEstimation.error}
+              </div>
+              <div className="text-xs text-red-600 mt-1">
+                詳細はコンソールログを確認してください
               </div>
             </div>
           </div>
