@@ -39,6 +39,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     e.preventDefault()
     if (!input.trim() || loading) return
 
+    // Check if we have transcript content before making API call
+    if (!transcript && !summary) {
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: 'まず動画をアップロードして文字起こしを生成してから質問してください。',
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, {
+        role: 'user',
+        content: input.trim(),
+        timestamp: new Date(),
+      }, errorMessage])
+      setInput('')
+      return
+    }
+
     const userMessage: ChatMessage = {
       role: 'user',
       content: input.trim(),
@@ -50,22 +66,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     setLoading(true)
 
     try {
+      const requestData = {
+        message: input.trim(),
+        videoId,
+        history: messages,
+        transcript,
+        summary,
+      }
+      
+      console.log('Chat API Request:', {
+        message: requestData.message,
+        videoId: requestData.videoId,
+        historyLength: requestData.history.length,
+        hasTranscript: !!requestData.transcript,
+        transcriptLength: requestData.transcript?.length || 0,
+        hasSummary: !!requestData.summary,
+        summaryLength: requestData.summary?.length || 0,
+      })
+      
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message: input.trim(),
-          videoId,
-          history: messages,
-          transcript,
-          summary,
-        }),
+        body: JSON.stringify(requestData),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to send message')
+        let errorMessage = 'Failed to send message'
+        try {
+          const errorData = await response.json()
+          console.error('API Error Response:', errorData)
+          if (errorData.response) {
+            errorMessage = errorData.response
+          }
+        } catch (parseError) {
+          console.error('Error parsing API response:', parseError)
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -362,25 +401,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
         {messages.length === 0 ? (
           <div className="space-y-4">
-            <p className="text-gray-500 text-center">Start a conversation about the video...</p>
+            <p className="text-gray-500 text-center">
+              {!transcript && !summary ? "Upload a video first to start chatting..." : "Start a conversation about the video..."}
+            </p>
             
-            {/* Sample Deep Dive Questions */}
-            <div className="bg-app-background rounded-lg p-4 border border-app-light">
-              <h3 className="text-sm font-semibold text-app-primary mb-3">💡 深掘り質問サンプル</h3>
-              <div className="flex flex-wrap gap-2">
-                {sampleQuestions.map((question, index) => (
-                  <span
-                    key={index}
-                    onClick={() => handleSampleQuestionClick(question)}
-                    className="question-style px-3 py-2 text-xs rounded-lg transition-all cursor-pointer shadow-sm inline-block border"
-                    title="クリックでチャットに質問を入力"
-                  >
-                    {question}
-                  </span>
-                ))}
+            {/* Sample Deep Dive Questions - only show when we have transcript/summary */}
+            {(transcript || summary) && (
+              <div className="bg-app-background rounded-lg p-4 border border-app-light">
+                <h3 className="text-sm font-semibold text-app-primary mb-3">💡 深掘り質問サンプル</h3>
+                <div className="flex flex-wrap gap-2">
+                  {sampleQuestions.map((question, index) => (
+                    <span
+                      key={index}
+                      onClick={() => handleSampleQuestionClick(question)}
+                      className="question-style px-3 py-2 text-xs rounded-lg transition-all cursor-pointer shadow-sm inline-block border"
+                      title="クリックでチャットに質問を入力"
+                    >
+                      {question}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-app-secondary mt-2">質問をクリックして簡単に深掘り！</p>
               </div>
-              <p className="text-xs text-app-secondary mt-2">質問をクリックして簡単に深掘り！</p>
-            </div>
+            )}
           </div>
         ) : (
           messages.map((message, index) => (
@@ -418,8 +461,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         <div ref={messagesEndRef} />
       </div>
       
-      {/* Sample Questions (always visible) */}
-      {messages.length > 0 && (
+      {/* Sample Questions (visible when there are messages and we have transcript/summary) */}
+      {messages.length > 0 && (transcript || summary) && (
         <div className="mb-3 bg-app-background rounded-lg p-3 border border-app-light">
           <div className="flex flex-wrap gap-1">
             {sampleQuestions.slice(0, 3).map((question, index) => (
@@ -441,13 +484,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about the video..."
+          placeholder={!transcript && !summary ? "Upload a video first to start chatting..." : "Ask about the video..."}
           className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500"
-          disabled={loading}
+          disabled={loading || (!transcript && !summary)}
         />
         <button
           type="submit"
-          disabled={loading || !input.trim()}
+          disabled={loading || !input.trim() || (!transcript && !summary)}
           className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
         >
           Send
