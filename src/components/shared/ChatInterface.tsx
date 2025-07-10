@@ -541,7 +541,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 h-96 flex flex-col">
+    <div className="bg-white rounded-lg shadow p-6 h-[600px] flex flex-col">
       <h2 className="text-lg font-medium text-gray-900 mb-4">Chat</h2>
       
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
@@ -553,21 +553,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
             
             {/* Sample Deep Dive Questions - only show when we have transcript/summary */}
             {hasAnyContentForUI && (
-              <div className="bg-app-background rounded-lg p-4 border border-app-light">
-                <h3 className="text-sm font-semibold text-app-primary mb-3">💡 深掘り質問サンプル</h3>
-                <div className="flex flex-wrap gap-2">
-                  {sampleQuestions.map((question, index) => (
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <h3 className="text-xs font-medium text-gray-600 mb-2">💡 質問サンプル</h3>
+                <div className="flex flex-wrap gap-1">
+                  {sampleQuestions.slice(0, 3).map((question, index) => (
                     <span
                       key={index}
                       onClick={() => handleSampleQuestionClick(question)}
-                      className="question-style px-3 py-2 text-xs rounded-lg transition-all cursor-pointer shadow-sm inline-block border"
+                      className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 text-xs rounded cursor-pointer transition-colors"
                       title="クリックでチャットに質問を入力"
                     >
                       {question}
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-app-secondary mt-2">質問をクリックして簡単に深掘り！</p>
+                <p className="text-xs text-gray-500 mt-1">質問をクリックして簡単に深掘り！</p>
               </div>
             )}
           </div>
@@ -578,14 +578,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                className={`max-w-lg px-4 py-3 rounded-lg ${
                   message.role === 'user'
                     ? 'bg-gray-700 text-white'
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <p className="text-sm">{message.content}</p>
-                <p className={`text-xs mt-1 ${
+                <p className="text-base leading-relaxed">{message.content}</p>
+                <p className={`text-xs mt-2 ${
                   message.role === 'user' ? 'text-white opacity-75' : 'text-gray-500'
                 }`}>
                   {message.timestamp.toLocaleTimeString()}
@@ -596,10 +596,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         )}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-900 max-w-xs lg:max-w-md px-4 py-2 rounded-lg">
+            <div className="bg-gray-100 text-gray-900 max-w-lg px-4 py-3 rounded-lg">
               <div className="flex items-center space-x-2">
                 <div className="loading" />
-                <span className="text-sm">Thinking...</span>
+                <span className="text-base">Thinking...</span>
               </div>
             </div>
           </div>
@@ -607,23 +607,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         <div ref={messagesEndRef} />
       </div>
       
-      {/* Sample Questions (visible when there are messages and we have transcript/summary) */}
-      {messages.length > 0 && hasAnyContentForUI && (
-        <div className="mb-3 bg-app-background rounded-lg p-3 border border-app-light">
-          <div className="flex flex-wrap gap-1">
-            {sampleQuestions.slice(0, 3).map((question, index) => (
-              <span
-                key={index}
-                onClick={() => handleSampleQuestionClick(question)}
-                className="question-style px-2 py-1 text-xs rounded transition-all cursor-pointer inline-block border"
-                title="クリックでチャットに質問を入力"
-              >
-                {question}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       <form onSubmit={sendMessage} className="flex space-x-2">
         <input
@@ -631,13 +614,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={!hasAnyContentForUI ? "Upload a video first to start chatting..." : "Ask about the video..."}
-          className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500"
+          className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500 text-base px-4 py-2"
           disabled={loading || !hasAnyContentForUI}
         />
         <button
           type="submit"
           disabled={loading || !input.trim() || !hasAnyContentForUI}
-          className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+          className="px-6 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 text-base"
         >
           Send
         </button>
