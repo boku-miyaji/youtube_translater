@@ -1502,7 +1502,8 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     // 🔍 COMPREHENSIVE DEBUG LOGGING
     console.log('\n🔍 === CHAT API DEBUG START ===')
     console.log('📥 Request body keys:', Object.keys(req.body))
-    console.log('📥 Request body:', {
+    console.log('📥 Full request body (stringified):', JSON.stringify(req.body, null, 2))
+    console.log('📥 Request body analysis:', {
       message: message ? `"${message.substring(0, 50)}..."` : 'MISSING',
       videoId: videoId || 'MISSING',
       historyLength: history?.length || 0,
@@ -1510,12 +1511,18 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       transcript: transcript ? {
         type: typeof transcript,
         length: typeof transcript === 'string' ? transcript.length : 'NOT_STRING',
-        preview: typeof transcript === 'string' ? transcript.substring(0, 100) + '...' : JSON.stringify(transcript).substring(0, 100) + '...'
+        preview: typeof transcript === 'string' ? transcript.substring(0, 100) + '...' : JSON.stringify(transcript).substring(0, 100) + '...',
+        isEmptyString: transcript === '',
+        isTruthy: !!transcript,
+        trimmedLength: typeof transcript === 'string' ? transcript.trim().length : 'NOT_STRING'
       } : 'MISSING',
       summary: summary ? {
         type: typeof summary,
         length: typeof summary === 'string' ? summary.length : 'NOT_STRING',
-        preview: typeof summary === 'string' ? summary.substring(0, 100) + '...' : JSON.stringify(summary).substring(0, 100) + '...'
+        preview: typeof summary === 'string' ? summary.substring(0, 100) + '...' : JSON.stringify(summary).substring(0, 100) + '...',
+        isEmptyString: summary === '',
+        isTruthy: !!summary,
+        trimmedLength: typeof summary === 'string' ? summary.trim().length : 'NOT_STRING'
       } : 'MISSING'
     })
     
@@ -1538,7 +1545,14 @@ app.post('/api/chat', async (req: Request, res: Response) => {
 
     // Check for transcript availability - prioritize transcript from request
     console.log('🔍 Transcript validation:')
-    console.log('  - transcript from request:', transcript ? `${typeof transcript} (${typeof transcript === 'string' ? transcript.length : 'not string'} chars)` : 'MISSING')
+    console.log('  - transcript from request:', transcript !== undefined ? {
+      value: transcript,
+      type: typeof transcript,
+      length: typeof transcript === 'string' ? transcript.length : 'not string',
+      isEmptyString: transcript === '',
+      isTruthy: !!transcript,
+      trimmedLength: typeof transcript === 'string' ? transcript.trim().length : 'not string'
+    } : 'UNDEFINED')
     console.log('  - currentTranscript global:', currentTranscript ? `${currentTranscript.length} chars` : 'MISSING')
     
     // Proper validation for non-empty strings
@@ -1548,15 +1562,25 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     console.log('  - hasValidTranscript:', hasValidTranscript)
     console.log('  - hasValidCurrentTranscript:', hasValidCurrentTranscript)
     
-    let transcriptContent = hasValidTranscript ? transcript : (hasValidCurrentTranscript ? currentTranscript : '')
-    console.log('  - transcriptContent after proper validation:', transcriptContent ? `${typeof transcriptContent} (${transcriptContent.length} chars)` : 'MISSING')
+    // Priority order: 1) Valid request transcript, 2) Global currentTranscript, 3) currentVideo.transcript
+    let transcriptContent = ''
     
-    // If no valid transcript from request or global, try to get it from video history
-    if (!transcriptContent && videoId) {
-      console.log('  - No transcriptContent, checking currentVideo...')
+    if (hasValidTranscript) {
+      transcriptContent = transcript
+      console.log('  - ✅ Using transcript from request:', transcriptContent.length, 'chars')
+    } else if (hasValidCurrentTranscript) {
+      transcriptContent = currentTranscript
+      console.log('  - ✅ Using global currentTranscript:', transcriptContent.length, 'chars')
+    } else {
+      // Always check currentVideo as fallback for historical videos
+      console.log('  - No valid transcript from request or global, checking currentVideo...')
       console.log('  - currentVideo exists:', !!currentVideo)
       console.log('  - currentVideo.transcript exists:', !!currentVideo?.transcript)
-      console.log('  - currentVideo.transcript length:', currentVideo?.transcript ? currentVideo.transcript.length : 'N/A')
+      console.log('  - currentVideo.transcript value:', currentVideo?.transcript ? {
+        type: typeof currentVideo.transcript,
+        length: currentVideo.transcript.length,
+        preview: currentVideo.transcript.substring(0, 100) + '...'
+      } : 'MISSING')
       
       // Try to get from currentVideo if available
       const hasValidCurrentVideoTranscript = currentVideo?.transcript && typeof currentVideo.transcript === 'string' && currentVideo.transcript.trim().length > 0
@@ -1582,7 +1606,7 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       }
     }
     
-    console.log('  - Final transcriptContent check:', transcriptContent ? `${typeof transcriptContent} (${transcriptContent.length} chars)` : 'MISSING')
+    console.log('  - Final transcriptContent selected:', transcriptContent ? `${typeof transcriptContent} (${transcriptContent.length} chars)` : 'MISSING')
     
     // Final validation with proper string checking
     const hasValidFinalTranscript = transcriptContent && typeof transcriptContent === 'string' && transcriptContent.trim().length > 0

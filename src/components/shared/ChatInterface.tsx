@@ -33,25 +33,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
   console.log('  - raw transcript prop:', transcript ? {
     type: typeof transcript,
     length: typeof transcript === 'string' ? transcript.length : 'NOT_STRING',
-    preview: typeof transcript === 'string' ? transcript.substring(0, 100) + '...' : JSON.stringify(transcript).substring(0, 100) + '...'
+    preview: typeof transcript === 'string' ? transcript.substring(0, 100) + '...' : JSON.stringify(transcript).substring(0, 100) + '...',
+    isEmptyString: transcript === '',
+    isTruthy: !!transcript
   } : 'MISSING')
   console.log('  - raw summary prop:', summary ? {
     type: typeof summary,
     length: typeof summary === 'string' ? summary.length : 'NOT_STRING',
-    preview: typeof summary === 'string' ? summary.substring(0, 100) + '...' : JSON.stringify(summary).substring(0, 100) + '...'
+    preview: typeof summary === 'string' ? summary.substring(0, 100) + '...' : JSON.stringify(summary).substring(0, 100) + '...',
+    isEmptyString: summary === '',
+    isTruthy: !!summary
   } : 'MISSING')
   console.log('  - safeTranscript:', safeTranscript ? {
     type: typeof safeTranscript,
     length: safeTranscript.length,
-    preview: safeTranscript.substring(0, 100) + '...'
+    preview: safeTranscript.substring(0, 100) + '...',
+    trimLength: safeTranscript.trim().length
   } : 'MISSING')
   console.log('  - safeSummary:', safeSummary ? {
     type: typeof safeSummary,
     length: safeSummary.length,
-    preview: safeSummary.substring(0, 100) + '...'
+    preview: safeSummary.substring(0, 100) + '...',
+    trimLength: safeSummary.trim().length
   } : 'MISSING')
-  console.log('  - hasValidTranscript:', hasValidTranscript)
-  console.log('  - hasValidSummary:', hasValidSummary)
+  console.log('  - hasValidTranscript:', hasValidTranscript, '(safeTranscript &&', !!safeTranscript, 'safeTranscript.trim().length > 0:', safeTranscript ? safeTranscript.trim().length > 0 : 'N/A', ')')
+  console.log('  - hasValidSummary:', hasValidSummary, '(safeSummary &&', !!safeSummary, 'safeSummary.trim().length > 0:', safeSummary ? safeSummary.trim().length > 0 : 'N/A', ')')
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -103,8 +109,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         message: input.trim(),
         videoId,
         history: messages,
-        transcript: hasValidTranscript ? safeTranscript : '',
-        summary: hasValidSummary ? safeSummary : '',
+        transcript: hasValidTranscript ? safeTranscript : undefined,
+        summary: hasValidSummary ? safeSummary : undefined,
         gptModel: gptModel || 'gpt-4o-mini',
       }
       
@@ -133,6 +139,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         preview: safeSummary.substring(0, 100) + '...'
       } : 'MISSING')
       
+      console.log('📤 Validation status:')
+      console.log('  - hasValidTranscript:', hasValidTranscript)
+      console.log('  - hasValidSummary:', hasValidSummary)
+      console.log('  - Condition check - hasValidTranscript ? safeTranscript : "":', hasValidTranscript ? 'USING_TRANSCRIPT' : 'USING_EMPTY_STRING')
+      console.log('  - Condition check - hasValidSummary ? safeSummary : "":', hasValidSummary ? 'USING_SUMMARY' : 'USING_EMPTY_STRING')
+      
       console.log('📤 Final request data to be sent:')
       console.log('  - message:', requestData.message)
       console.log('  - videoId:', requestData.videoId)
@@ -142,13 +154,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       console.log('  - transcript in request:', requestData.transcript ? {
         type: typeof requestData.transcript,
         length: requestData.transcript.length,
-        preview: requestData.transcript.substring(0, 100) + '...'
-      } : 'MISSING')
+        preview: requestData.transcript.substring(0, 100) + '...',
+        isEmptyString: requestData.transcript === '',
+        trimmedLength: requestData.transcript.trim().length
+      } : 'MISSING_OR_FALSY')
       console.log('  - summary in request:', requestData.summary ? {
         type: typeof requestData.summary,
         length: requestData.summary.length,
-        preview: requestData.summary.substring(0, 100) + '...'
-      } : 'MISSING')
+        preview: requestData.summary.substring(0, 100) + '...',
+        isEmptyString: requestData.summary === '',
+        trimmedLength: requestData.summary.trim().length
+      } : 'MISSING_OR_FALSY')
+      
+      console.log('📤 Final JSON to be sent:', JSON.stringify(requestData, null, 2))
       console.log('🚀 === CLIENT SENDING REQUEST ===\n')
       
       const response = await fetch('/api/chat', {
