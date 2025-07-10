@@ -3,11 +3,8 @@ import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
-import { useHistory } from '../../hooks/useHistory'
-
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
-  const { data: history } = useHistory()
   const location = useLocation()
   const [url, setUrl] = useState('')
   const [language, setLanguage] = useState('original')
@@ -19,8 +16,6 @@ const AnalyzePage: React.FC = () => {
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [formCollapsed, setFormCollapsed] = useState(false)
   const [showCostInfo, setShowCostInfo] = useState(true)
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [filteredSuggestions, setFilteredSuggestions] = useState<any[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -73,28 +68,6 @@ const AnalyzePage: React.FC = () => {
     setUrl(value)
     setUrlError('')
     setVideoPreview(null)
-    
-    // Filter suggestions based on input
-    if (value.trim() && history) {
-      const filtered = history
-        .filter((item: any) => {
-          const title = item.title || item.metadata?.basic?.title || ''
-          const url = item.url || ''
-          return title.toLowerCase().includes(value.toLowerCase()) || 
-                 url.toLowerCase().includes(value.toLowerCase())
-        })
-        .sort((a: any, b: any) => {
-          // Sort by timestamp (most recent first)
-          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        })
-        .slice(0, 5) // Limit to 5 suggestions
-      
-      setFilteredSuggestions(filtered)
-      setShowSuggestions(filtered.length > 0)
-    } else {
-      setFilteredSuggestions([])
-      setShowSuggestions(false)
-    }
     
     if (value.trim()) {
       if (validateYouTubeUrl(value.trim())) {
@@ -229,31 +202,6 @@ const AnalyzePage: React.FC = () => {
     setFormCollapsed(!formCollapsed)
   }
 
-  // Handle suggestion selection
-  const handleSuggestionClick = (suggestion: any) => {
-    const suggestionUrl = suggestion.url || ''
-    setUrl(suggestionUrl)
-    setShowSuggestions(false)
-    setFilteredSuggestions([])
-    
-    if (suggestionUrl && validateYouTubeUrl(suggestionUrl)) {
-      generateVideoPreview(suggestionUrl)
-    }
-  }
-
-  // Handle input focus/blur for suggestions
-  const handleInputFocus = () => {
-    if (filteredSuggestions.length > 0) {
-      setShowSuggestions(true)
-    }
-  }
-
-  const handleInputBlur = () => {
-    // Delay hiding suggestions to allow clicking
-    setTimeout(() => {
-      setShowSuggestions(false)
-    }, 200)
-  }
 
   // Debug current video data
   useEffect(() => {
@@ -314,8 +262,6 @@ const AnalyzePage: React.FC = () => {
                       value={url}
                       onChange={(e) => handleUrlChange(e.target.value)}
                       onPaste={handleUrlPaste}
-                      onFocus={handleInputFocus}
-                      onBlur={handleInputBlur}
                       placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
                       className={`w-full px-3 py-2 text-sm rounded-lg border-2 transition-all duration-200 focus-ring font-mono ${
                         urlError 
@@ -324,60 +270,6 @@ const AnalyzePage: React.FC = () => {
                       }`}
                       required
                     />
-                    
-                    {/* Suggestions Dropdown */}
-                    {showSuggestions && filteredSuggestions.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
-                        <div className="p-2 bg-gray-50 border-b border-gray-200">
-                          <div className="text-xs text-gray-600 font-medium">📚 過去の動画履歴 ({filteredSuggestions.length}件)</div>
-                        </div>
-                        {filteredSuggestions.map((suggestion, index) => (
-                          <div
-                            key={suggestion.id || index}
-                            onClick={() => handleSuggestionClick(suggestion)}
-                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-start gap-3 transition-colors"
-                          >
-                            <img
-                              src={suggestion.thumbnail || suggestion.metadata?.basic?.thumbnail || `https://img.youtube.com/vi/${suggestion.id}/default.jpg`}
-                              alt="Video thumbnail"
-                              className="w-16 h-12 object-cover rounded shadow-sm flex-shrink-0"
-                              onError={(e) => {
-                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="48" fill="%23e5e7eb"%3E%3Crect width="64" height="48"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23676767" font-size="12"%3E📹%3C/text%3E%3C/svg%3E'
-                              }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-semibold text-gray-900 leading-5 mb-1">
-                                🎬 {suggestion.title || suggestion.metadata?.basic?.title || 'タイトル不明'}
-                              </div>
-                              <div className="text-xs text-blue-600 truncate mb-1 font-mono">
-                                🔗 {suggestion.url}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  📅 {new Date(suggestion.timestamp).toLocaleDateString('ja-JP', {
-                                    year: 'numeric',
-                                    month: 'short', 
-                                    day: 'numeric'
-                                  })}
-                                </span>
-                                <span className="text-gray-300">•</span>
-                                <span className="flex items-center gap-1">
-                                  ⏰ {new Date(suggestion.timestamp).toLocaleTimeString('ja-JP', {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center text-gray-400">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                     
                     {urlError && (
                       <div className="mt-1 flex items-center gap-1 text-xs text-red-600">
@@ -483,8 +375,6 @@ const AnalyzePage: React.FC = () => {
                       value={url}
                       onChange={(e) => handleUrlChange(e.target.value)}
                       onPaste={handleUrlPaste}
-                      onFocus={handleInputFocus}
-                      onBlur={handleInputBlur}
                       placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
                         urlError 
@@ -494,60 +384,6 @@ const AnalyzePage: React.FC = () => {
                       data-testid="url-input"
                       required
                     />
-                    
-                    {/* Suggestions Dropdown */}
-                    {showSuggestions && filteredSuggestions.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
-                        <div className="p-2 bg-gray-50 border-b border-gray-200">
-                          <div className="text-xs text-gray-600 font-medium">📚 過去の動画履歴 ({filteredSuggestions.length}件)</div>
-                        </div>
-                        {filteredSuggestions.map((suggestion, index) => (
-                          <div
-                            key={suggestion.id || index}
-                            onClick={() => handleSuggestionClick(suggestion)}
-                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-start gap-3 transition-colors"
-                          >
-                            <img
-                              src={suggestion.thumbnail || suggestion.metadata?.basic?.thumbnail || `https://img.youtube.com/vi/${suggestion.id}/default.jpg`}
-                              alt="Video thumbnail"
-                              className="w-16 h-12 object-cover rounded shadow-sm flex-shrink-0"
-                              onError={(e) => {
-                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="48" fill="%23e5e7eb"%3E%3Crect width="64" height="48"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23676767" font-size="12"%3E📹%3C/text%3E%3C/svg%3E'
-                              }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-semibold text-gray-900 leading-5 mb-1">
-                                🎬 {suggestion.title || suggestion.metadata?.basic?.title || 'タイトル不明'}
-                              </div>
-                              <div className="text-xs text-blue-600 truncate mb-1 font-mono">
-                                🔗 {suggestion.url}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  📅 {new Date(suggestion.timestamp).toLocaleDateString('ja-JP', {
-                                    year: 'numeric',
-                                    month: 'short', 
-                                    day: 'numeric'
-                                  })}
-                                </span>
-                                <span className="text-gray-300">•</span>
-                                <span className="flex items-center gap-1">
-                                  ⏰ {new Date(suggestion.timestamp).toLocaleTimeString('ja-JP', {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center text-gray-400">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                     
                     {urlError && (
                       <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
