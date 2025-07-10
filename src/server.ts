@@ -1490,7 +1490,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
 
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
-    const { message, videoId, history, gptModel = 'gpt-4o-mini' } = req.body;
+    const { message, videoId, history, gptModel = 'gpt-4o-mini', transcript, summary } = req.body;
     
     if (!message) {
       return res.status(400).json({ 
@@ -1503,13 +1503,15 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       });
     }
 
-    // Check for transcript availability - be more flexible
-    let transcriptContent = currentTranscript;
+    // Check for transcript availability - prioritize transcript from request
+    let transcriptContent = transcript || currentTranscript;
     
-    // If no current transcript but we have a videoId, try to get it from history
+    // If no transcript from request or global, try to get it from video history
     if (!transcriptContent && videoId) {
-      // For now, we'll work with what we have or provide a helpful message
-      if (!currentVideo?.transcript) {
+      // Try to get from currentVideo if available
+      if (currentVideo?.transcript) {
+        transcriptContent = currentVideo.transcript;
+      } else {
         return res.status(400).json({ 
           success: false,
           response: '動画の文字起こしが見つかりません。まず動画をアップロードしてから質問してください。',
@@ -1519,7 +1521,6 @@ app.post('/api/chat', async (req: Request, res: Response) => {
           tokens: { input: 0, output: 0 }
         });
       }
-      transcriptContent = currentVideo.transcript;
     }
     
     if (!transcriptContent) {

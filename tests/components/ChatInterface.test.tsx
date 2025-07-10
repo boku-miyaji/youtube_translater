@@ -53,6 +53,8 @@ describe('ChatInterface Component', () => {
           message: 'Test message',
           videoId: 'test-video-id',
           history: [],
+          transcript: 'Test transcript content',
+          summary: 'Test summary content',
         }),
       })
     })
