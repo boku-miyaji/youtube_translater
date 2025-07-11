@@ -13,7 +13,7 @@ const AnalyzePage: React.FC = () => {
   const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
   const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4o-mini')
-  const [transcriptionModel, setTranscriptionModel] = useState<'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1'>('whisper-1')
+  const [transcriptionModel, setTranscriptionModel] = useState<'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1'>('gpt-4o-transcribe')
   const [urlError, setUrlError] = useState('')
   const [fileError, setFileError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)

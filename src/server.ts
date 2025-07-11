@@ -317,8 +317,8 @@ function calculateTranscriptionCost(transcriptionModel: string, durationMinutes:
     return durationMinutes * pricing.transcription[model];
   } else if (model === 'gpt-4o-transcribe' || model === 'gpt-4o-mini-transcribe') {
     // GPT-4o models use per-audio-token pricing
-    // Estimate audio tokens: approximately 1 token per 0.5 seconds of audio
-    const estimatedAudioTokens = audioTokens || Math.ceil(durationMinutes * 60 * 2);
+    // Estimate audio tokens: approximately 25 tokens per second of audio
+    const estimatedAudioTokens = audioTokens || Math.ceil(durationMinutes * 60 * 25);
     return estimatedAudioTokens * pricing.transcription[model];
   }
   
