@@ -74,5 +74,8 @@ implementation:
     - hash: fff8dbd
       message: "fix: Set default transcription model to GPT-4o and fix audio token estimation"
       timestamp: "2025-07-11T20:40:58Z"
+    - hash: 46be570
+      message: "fix: Improve input type button visibility for unselected state"
+      timestamp: "2025-07-11T20:44:13Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T20:40:58Z"
+updatedAt: "2025-07-11T20:44:13Z"

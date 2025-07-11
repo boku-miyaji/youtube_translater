@@ -710,14 +710,14 @@ const AnalyzePage: React.FC = () => {
                     <label className="block text-sm font-medium text-app-primary mb-3">
                       📥 Input Type
                     </label>
-                    <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-50">
+                    <div className="flex rounded-lg border border-gray-300 p-1 bg-white">
                       <button
                         type="button"
                         onClick={() => handleInputTypeChange('url')}
                         className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                           inputType === 'url'
-                            ? 'bg-white text-blue-700 shadow-sm border border-blue-200'
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                            ? 'bg-blue-600 text-white shadow-sm border border-blue-600'
+                            : 'text-gray-800 bg-gray-50 hover:bg-gray-100 hover:text-gray-900'
                         }`}
                       >
                         <span className="flex items-center justify-center gap-2">
@@ -729,8 +729,8 @@ const AnalyzePage: React.FC = () => {
                         onClick={() => handleInputTypeChange('file')}
                         className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                           inputType === 'file'
-                            ? 'bg-white text-blue-700 shadow-sm border border-blue-200'
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                            ? 'bg-blue-600 text-white shadow-sm border border-blue-600'
+                            : 'text-gray-800 bg-gray-50 hover:bg-gray-100 hover:text-gray-900'
                         }`}
                       >
                         <span className="flex items-center justify-center gap-2">
