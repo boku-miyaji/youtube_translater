@@ -826,10 +826,11 @@ const AnalyzePage: React.FC = () => {
                 )}
 
                 {/* Settings Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-1">
-                    <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap overflow-hidden text-ellipsis" title="Transcription Language">
-                      🌐 Language
+                    <label htmlFor="language" className="block text-app-primary mb-2">
+                      <div className="text-sm font-medium">🌐 Language</div>
+                      <div className="text-xs text-gray-500">文字起こし言語</div>
                     </label>
                     <select
                       id="language"
@@ -844,8 +845,9 @@ const AnalyzePage: React.FC = () => {
                   </div>
 
                   <div className="lg:col-span-1">
-                    <label htmlFor="transcriptionModel" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap overflow-hidden text-ellipsis" title="Transcription Model">
-                      🎵 Transcription
+                    <label htmlFor="transcriptionModel" className="block text-app-primary mb-2">
+                      <div className="text-sm font-medium">🎵 Transcription</div>
+                      <div className="text-xs text-gray-500">文字起こしモデル</div>
                     </label>
                     <select
                       id="transcriptionModel"
@@ -860,8 +862,9 @@ const AnalyzePage: React.FC = () => {
                   </div>
 
                   <div className="lg:col-span-1">
-                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap overflow-hidden text-ellipsis" title="Summary AI Model">
-                      🤖 Summary AI
+                    <label htmlFor="model" className="block text-app-primary mb-2">
+                      <div className="text-sm font-medium">🤖 Summary AI</div>
+                      <div className="text-xs text-gray-500">要約生成モデル</div>
                     </label>
                     <select
                       id="model"
@@ -876,33 +879,33 @@ const AnalyzePage: React.FC = () => {
                       <option value="gpt-3.5-turbo">GPT-3.5 Turbo - $0.50/$1.50/1M</option>
                     </select>
                   </div>
+                </div>
 
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <div className="h-5 mb-2"></div>
-                    <button
-                      type="submit"
-                      disabled={
-                        loading || 
-                        (inputType === 'url' && (!url.trim() || !!urlError)) ||
-                        (inputType === 'file' && (!videoFile || !!fileError))
-                      }
-                      className="btn-modern btn-success w-full text-white font-semibold shadow-elevation-hover"
-                      data-testid="analyze-button"
-                    >
-                      {loading ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span className="text-tabular">
-                            {inputType === 'file' ? 'Processing...' : 'Analyzing...'}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          ⚡ {inputType === 'file' ? 'Process Video' : 'Analyze Video'}
+                {/* Submit Button - Separate Row */}
+                <div className="mt-4">
+                  <button
+                    type="submit"
+                    disabled={
+                      loading || 
+                      (inputType === 'url' && (!url.trim() || !!urlError)) ||
+                      (inputType === 'file' && (!videoFile || !!fileError))
+                    }
+                    className="btn-modern btn-success w-full text-white font-semibold shadow-elevation-hover"
+                    data-testid="analyze-button"
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span className="text-tabular">
+                          {inputType === 'file' ? 'Processing...' : 'Analyzing...'}
                         </span>
-                      )}
-                    </button>
-                  </div>
+                      </div>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        ⚡ {inputType === 'file' ? 'Process Video' : 'Analyze Video'}
+                      </span>
+                    )}
+                  </button>
                 </div>
               </form>
             </div>
