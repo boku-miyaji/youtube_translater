@@ -148,6 +148,8 @@ let sessionCosts: SessionCosts = {
 
 // 料金設定（2025年1月時点のOpenAI公式価格）
 const pricing: Pricing = {
+  input: 0.50 / 1000000, // Default input price (gpt-3.5-turbo)
+  output: 1.50 / 1000000, // Default output price (gpt-3.5-turbo)
   whisper: 0.006, // $0.006 per minute (for backward compatibility)
   transcription: {
     'whisper-1': 0.006, // $0.006 per minute

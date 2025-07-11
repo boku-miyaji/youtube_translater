@@ -47,7 +47,17 @@ const AnalysisProgress: React.FC<AnalysisProgressProps> = ({ isAnalyzing, estima
   }, [isAnalyzing, startTime, estimatedTime])
   
   // Debug logging
-  console.log('🔍 AnalysisProgress - isAnalyzing:', isAnalyzing, 'estimatedTime:', estimatedTime)
+  console.log('🔍 AnalysisProgress - Props:', {
+    isAnalyzing,
+    estimatedTime,
+    hasEstimatedTime: !!estimatedTime,
+    estimatedTimeDetails: estimatedTime ? {
+      transcription: estimatedTime.transcription,
+      summary: estimatedTime.summary,
+      total: estimatedTime.total,
+      formatted: estimatedTime.formatted
+    } : null
+  })
   
   if (!isAnalyzing || !estimatedTime) {
     return null
@@ -99,16 +109,26 @@ const AnalysisProgress: React.FC<AnalysisProgressProps> = ({ isAnalyzing, estima
   const remainingTime = Math.max(0, estimatedTime.total - elapsedTime)
   
   return (
-    <div className="w-full">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 shadow-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
-            <span className="text-2xl">📊</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Semi-transparent overlay */}
+      <div className="absolute inset-0 bg-black bg-opacity-30" />
+      
+      {/* Progress content */}
+      <div className="relative w-full max-w-2xl mx-4">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 shadow-2xl p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-2xl font-bold text-blue-900 flex items-center gap-3">
+            <span className="text-3xl animate-pulse">📊</span>
             解析進捗状況
           </h3>
-          <span className="text-sm font-medium text-blue-700 bg-white px-3 py-1 rounded-full shadow-sm">
-            残り時間: {formatTime(remainingTime)}
-          </span>
+          <div className="text-right">
+            <div className="text-lg font-bold text-blue-800 bg-white px-4 py-2 rounded-lg shadow-md">
+              残り時間: <span className="text-xl">{formatTime(remainingTime)}</span>
+            </div>
+            <div className="text-xs text-gray-600 mt-1">
+              推定合計時間: {estimatedTime.formatted}
+            </div>
+          </div>
         </div>
         
         {/* Overall Progress */}
@@ -166,6 +186,7 @@ const AnalysisProgress: React.FC<AnalysisProgressProps> = ({ isAnalyzing, estima
             経過: {formatTime(elapsedTime)}
           </span>
         </div>
+      </div>
       </div>
     </div>
   )

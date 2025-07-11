@@ -99,11 +99,11 @@ const AnalyzePage: React.FC = () => {
         generateVideoPreview(value.trim())
         
         // Estimate cost for valid URLs with a delay using ref for cleanup
-        console.log('⏰ Setting timeout for cost estimation in 1000ms')
+        console.log('⏰ Setting timeout for cost estimation in 200ms')
         costEstimationTimeoutRef.current = setTimeout(() => {
           console.log('🔄 Starting cost estimation for URL:', value.trim())
           estimateCostForUrl(value.trim())
-        }, 1000) // Reduced delay to 1 second for faster response
+        }, 200) // Reduced delay to 200ms for faster response
       } else {
         console.log('❌ Invalid YouTube URL')
         setUrlError('Please enter a valid YouTube URL')
@@ -123,7 +123,7 @@ const AnalyzePage: React.FC = () => {
         setTimeout(() => {
           console.log('🔄 Starting cost estimation for pasted URL:', pastedText)
           estimateCostForUrl(pastedText)
-        }, 1000) // Consistent 1 second delay
+        }, 200) // Consistent 200ms delay
       }, 100)
     }
   }
@@ -273,8 +273,35 @@ const AnalyzePage: React.FC = () => {
       }
     }
 
+    // Get estimated processing time from state or cost estimation
+    let processingTime = estimatedProcessingTime || costEstimation?.estimatedProcessingTime
+    
+    // If no processing time is available, set a default based on typical durations
+    if (!processingTime) {
+      console.log('⚠️ No processing time available, setting default')
+      // Default: assume 5 minutes video, with typical processing speeds
+      const defaultTime = {
+        transcription: 30, // 30 seconds for transcription
+        summary: 60,       // 60 seconds for summary
+        total: 90,         // 90 seconds total
+        formatted: '1 min 30 sec'
+      }
+      processingTime = defaultTime
+      setEstimatedProcessingTime(defaultTime)
+    }
+    
     // Debug log for estimated processing time
-    console.log('🚀 Starting analysis with estimatedProcessingTime:', estimatedProcessingTime)
+    console.log('🚀 Starting analysis with processing time:', {
+      estimatedProcessingTime,
+      costEstimationTime: costEstimation?.estimatedProcessingTime,
+      finalProcessingTime: processingTime
+    })
+    
+    // If we have cost estimation with processing time, ensure it's set
+    if (costEstimation?.estimatedProcessingTime && !estimatedProcessingTime) {
+      console.log('📋 Setting processing time from cost estimation')
+      setEstimatedProcessingTime(costEstimation.estimatedProcessingTime)
+    }
     
     setLoading(true)
     setUrlError('')
@@ -451,7 +478,10 @@ const AnalyzePage: React.FC = () => {
     }
 
     if (costEstimation && costEstimation.success) {
-      console.log('🎨 Rendering cost estimation result')
+      console.log('🎨 Rendering cost estimation result', {
+        costs: costEstimation.estimatedCosts,
+        processingTime: costEstimation.estimatedProcessingTime
+      })
       const costs = costEstimation.estimatedCosts
       const processingTime = costEstimation.estimatedProcessingTime
       return (
@@ -500,14 +530,14 @@ const AnalyzePage: React.FC = () => {
           
           {/* Processing Time Estimation */}
           {processingTime && (
-            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-              <div className="flex items-start gap-2">
-                <span className="text-blue-600 text-lg">⏱️</span>
+            <div className="p-4 rounded-lg bg-gradient-to-r from-blue-100 to-indigo-100 border-2 border-blue-300 shadow-md">
+              <div className="flex items-start gap-3">
+                <span className="text-blue-700 text-2xl animate-pulse">⏱️</span>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-blue-800 mb-2">
+                  <div className="text-base font-bold text-blue-900 mb-3">
                     想定処理時間（概算）
                   </div>
-                  <div className="text-xs text-blue-700 space-y-1">
+                  <div className="text-sm text-blue-800 space-y-2 font-medium">
                     <div className="flex justify-between">
                       <span>文字起こし時間:</span>
                       <span className="font-mono">{Math.ceil(processingTime.transcription / 60)} min</span>
@@ -516,12 +546,12 @@ const AnalyzePage: React.FC = () => {
                       <span>要約生成時間:</span>
                       <span className="font-mono">{Math.ceil(processingTime.summary / 60)} min</span>
                     </div>
-                    <div className="flex justify-between font-semibold border-t border-blue-300 pt-1">
+                    <div className="flex justify-between font-bold text-base border-t-2 border-blue-400 pt-2 mt-2">
                       <span>合計処理時間:</span>
-                      <span className="font-mono">{processingTime.formatted}</span>
+                      <span className="font-mono text-lg text-blue-900">{processingTime.formatted}</span>
                     </div>
                   </div>
-                  <div className="text-xs text-blue-600 mt-1">
+                  <div className="text-xs text-blue-700 mt-2 font-semibold">
                     ※実際の処理時間はサーバー負荷により変動します
                   </div>
                 </div>
@@ -633,12 +663,34 @@ const AnalyzePage: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       {/* Header Section */}
       <div className="text-center lg:text-left">
-        <h1 className="text-display text-app-primary flex items-center justify-center lg:justify-start gap-3">
-          🎥 Analyze Video
-        </h1>
-        <p className="mt-3 text-body text-app-secondary max-w-2xl">
-          Transform YouTube videos and local video files into insights with AI-powered transcription, summaries, and interactive chat.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-display text-app-primary flex items-center justify-center lg:justify-start gap-3">
+              🎥 Analyze Video
+            </h1>
+            <p className="mt-3 text-body text-app-secondary max-w-2xl">
+              Transform YouTube videos and local video files into insights with AI-powered transcription, summaries, and interactive chat.
+            </p>
+          </div>
+          
+          {/* Test Button for Development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+                  setUrl(testUrl)
+                  handleUrlChange(testUrl)
+                }}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+              >
+                🧪 Test URL
+              </button>
+              <div className="text-xs text-gray-500 text-center">Dev Mode</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Control Bar - Collapsible Form */}

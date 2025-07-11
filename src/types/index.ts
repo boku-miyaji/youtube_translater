@@ -39,6 +39,7 @@ export interface VideoMetadata {
     category?: string;
     description?: string;
     videoPath?: string;  // Path to local video file
+    thumbnail?: string;  // YouTube thumbnail URL
   };
   chapters?: Array<{ title: string; start: number }>;
   captions?: string[];
@@ -105,6 +106,7 @@ export interface ApiResponse {
       category?: string;
       description?: string;
       videoPath?: string;
+      thumbnail?: string;
     };
     chapters?: Array<{ title: string; start: number }>;
     captions?: string[];
@@ -239,14 +241,84 @@ export interface SessionCosts {
   total: number;
 }
 
+// History entry for stored videos
+export interface HistoryEntry {
+  id: string;
+  videoId?: string;
+  title: string;
+  channel?: string;
+  uploadDate?: string;
+  savedAt: string;
+  transcript?: string;
+  summary?: string;
+  article?: string;
+  metadata?: VideoMetadata;
+  costs?: DetailedCosts;
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
+  source?: 'url' | 'file';
+  fileId?: string;
+  originalFilename?: string;
+  fileSize?: number;
+}
+
+// Cost entry for tracking individual costs
+export interface CostEntry {
+  date: string;
+  service: 'whisper' | 'gpt' | 'total';
+  cost: number;
+}
+
+// Article history entry
+export interface ArticleHistoryEntry {
+  date: string;
+  article: string;
+}
+
+// Summary interface  
+export interface Summary {
+  text: string;
+  sections?: Array<{
+    title: string;
+    content: string;
+  }>;
+}
+
+// Upload video file response
+export interface UploadVideoFileResponse {
+  title: string;
+  metadata: VideoMetadata;
+  transcript: string;
+  summary: string;
+  timestampedSegments: TimestampedSegment[];
+  method: 'subtitle' | 'whisper';
+  detectedLanguage?: string;
+  costs: DetailedCosts;
+  analysisTime: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
+}
+
 // Pricing configuration
 export interface Pricing {
   input: number;
   output: number;
-  transcription: {
+  whisper?: number;  // per minute
+  transcription?: {
     'whisper-1': number;  // per minute
     'gpt-4o-transcribe': number;  // per 1M tokens
     'gpt-4o-mini-transcribe': number;  // per 1M tokens
+  };
+  models?: {
+    [key: string]: {
+      input: number;
+      output: number;
+    };
   };
 }
 
@@ -254,6 +326,7 @@ export interface TimestampedSegment {
   start: number;
   end: number;
   text: string;
+  duration?: number;
 }
 
 export interface DetailedCosts {
