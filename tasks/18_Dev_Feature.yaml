@@ -59,5 +59,8 @@ implementation:
     - hash: 12ca619
       message: "fix: Improve transcription model UI layout and label width"
       timestamp: "2025-07-11T20:16:51Z"
+    - hash: 623e667
+      message: "feat: Improve cost estimation display and clarify model usage labels"
+      timestamp: "2025-07-11T20:23:27Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T20:16:51Z"
+updatedAt: "2025-07-11T20:23:27Z"

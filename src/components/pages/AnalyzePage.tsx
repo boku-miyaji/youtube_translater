@@ -827,9 +827,9 @@ const AnalyzePage: React.FC = () => {
 
                 {/* Settings Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2">
-                      🌐 Transcription Language
+                  <div className="lg:col-span-1">
+                    <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap">
+                      🌐 Transcription Lang
                     </label>
                     <select
                       id="language"
@@ -844,7 +844,7 @@ const AnalyzePage: React.FC = () => {
                   </div>
 
                   <div className="lg:col-span-1">
-                    <label htmlFor="transcriptionModel" className="block text-sm font-medium text-app-primary mb-2 whitespace-nowrap">
+                    <label htmlFor="transcriptionModel" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap">
                       🎵 Transcription
                     </label>
                     <select
@@ -860,8 +860,8 @@ const AnalyzePage: React.FC = () => {
                   </div>
 
                   <div className="lg:col-span-1">
-                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2 whitespace-nowrap">
-                      🤖 Summary AI Model
+                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap">
+                      🤖 Summary AI
                     </label>
                     <select
                       id="model"
@@ -877,7 +877,8 @@ const AnalyzePage: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="sm:col-span-2 lg:col-span-1 flex items-end">
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <div className="h-5 mb-2"></div>
                     <button
                       type="submit"
                       disabled={
@@ -885,7 +886,7 @@ const AnalyzePage: React.FC = () => {
                         (inputType === 'url' && (!url.trim() || !!urlError)) ||
                         (inputType === 'file' && (!videoFile || !!fileError))
                       }
-                      className="btn-modern btn-success w-full h-10 text-white font-semibold shadow-elevation-hover"
+                      className="btn-modern btn-success w-full text-white font-semibold shadow-elevation-hover"
                       data-testid="analyze-button"
                     >
                       {loading ? (
