@@ -1,0 +1,57 @@
+issue: 18
+title: "動画ファイル対応: MOV/MP4形式の動画解析サポート"
+description: |
+  youtubeの動画のみではなく、movやmp4などの動画ファイルも対象にいれ、同様の解析ができるようにする
+type: Feature
+state: Dev
+design: tasks/design/18_Feature.md
+implementation:
+  branch: feature/implement-18
+  commits:
+    - hash: e54064fbb81899da990536dffe3a6e7eb4968cb8
+      message: "fix: Replace MP3 codec with PCM WAV for universal audio extraction compatibility"
+      timestamp: "2025-07-10T11:00:00Z"
+    - hash: c0f1a0b
+      message: "feat: Add video playback support for uploaded MOV/MP4 files"
+      timestamp: "2025-07-10T20:37:00Z"
+    - hash: 2da25e5
+      message: "fix: Resolve video playbook and blob URL issues for uploaded files"
+      timestamp: "2025-07-10T20:45:00Z"
+    - hash: cd2c006
+      message: "fix: Resolve video analysis and playback issues for MP4/MOV files"
+      timestamp: "2025-07-10T23:55:00Z"
+    - hash: 855f7f1
+      message: "fix: Prioritize local video playback over YouTube for MOV/MP4 files"
+      timestamp: "2025-07-11T00:05:00Z"
+    - hash: 4bd29df
+      message: "feat: Add pre-analysis cost estimation for videos and YouTube URLs"
+      timestamp: "2025-07-11T00:10:00Z"
+    - hash: 2cdd47c
+      message: "fix: Improve cost estimation timing and debugging for URL input"
+      timestamp: "2025-07-11T00:15:00Z"
+    - hash: 7187266
+      message: "fix: Enhance error handling and debugging for cost estimation API"
+      timestamp: "2025-07-11T00:25:03Z"
+    - hash: 07b6def
+      message: "feat: Add GPT model display and auto-recalculation for cost estimation"
+      timestamp: "2025-07-11T00:40:36Z"
+    - hash: 00aee05
+      message: "feat: Add GPT-4.1 models (nano, mini, advanced) to model selection dropdown"
+      timestamp: "2025-07-10T15:53:47Z"
+    - hash: 3e4020c
+      message: "feat: Add pricing information to model selection dropdown"
+      timestamp: "2025-07-10T16:01:30Z"
+    - hash: bccf794
+      message: "fix: Correct GPT model pricing to match OpenAI official rates"
+      timestamp: "2025-07-10T16:11:09Z"
+    - hash: 16f3ecf
+      message: "feat: Replace standard GPT models with GPT-4.1 series"
+      timestamp: "2025-07-10T17:34:33Z"
+    - hash: 62f1d61
+      message: "fix: Remove non-existent GPT-4.1 models and restore valid OpenAI models"
+      timestamp: "2025-07-11T04:03:00Z"
+    - hash: 4697d98
+      message: "fix: Fix Response body stream already read error in cost estimation"
+      timestamp: "2025-07-11T04:30:00Z"
+createdAt: "2025-07-10T10:24:21Z"
+updatedAt: "2025-07-11T04:30:00Z"

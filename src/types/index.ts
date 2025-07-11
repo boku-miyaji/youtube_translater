@@ -114,7 +114,10 @@ export interface ModelPricing {
 }
 
 export interface Pricing {
-  whisper: number;
+  whisper: number; // For backward compatibility
+  transcription: {
+    [key in TranscriptionModel]: number;
+  };
   models: {
     [key: string]: ModelPricing;
   };
@@ -205,11 +208,15 @@ export interface SubtitlesResult {
   timestampedSegments: TimestampedSegment[];
 }
 
+// Transcription models
+export type TranscriptionModel = 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1';
+
 // Express request extensions
 export interface UploadYouTubeRequest {
   url: string;
   language?: string;
   gptModel?: string;
+  transcriptionModel?: TranscriptionModel;
   mainTags?: string[];
   tags?: string;
   forceRegenerate?: boolean;
@@ -282,6 +289,7 @@ export interface ProcessingResult {
 export interface UploadVideoFileRequest {
   language?: string;
   gptModel?: string;
+  transcriptionModel?: TranscriptionModel;
   generateSummary?: boolean;
   generateArticle?: boolean;
 }
@@ -323,6 +331,7 @@ export interface ApiSuccessResponse<T = unknown> {
 export interface CostEstimationRequest {
   url?: string;
   gptModel?: string;
+  transcriptionModel?: TranscriptionModel;
   generateSummary?: boolean;
   generateArticle?: boolean;
 }

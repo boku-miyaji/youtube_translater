@@ -13,6 +13,7 @@ const AnalyzePage: React.FC = () => {
   const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
   const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4o-mini')
+  const [transcriptionModel, setTranscriptionModel] = useState<'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1'>('whisper-1')
   const [urlError, setUrlError] = useState('')
   const [fileError, setFileError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -148,6 +149,7 @@ const AnalyzePage: React.FC = () => {
         body: JSON.stringify({
           url: url.trim(),
           gptModel: model,
+          transcriptionModel: transcriptionModel,
           generateSummary: true,
           generateArticle: false
         }),
@@ -194,6 +196,7 @@ const AnalyzePage: React.FC = () => {
       const formData = new FormData()
       formData.append('file', file.file)
       formData.append('gptModel', model)
+      formData.append('transcriptionModel', transcriptionModel)
       formData.append('generateSummary', 'true')
       formData.append('generateArticle', 'false')
       
@@ -278,6 +281,7 @@ const AnalyzePage: React.FC = () => {
             url: url.trim(),
             language,
             model,
+            transcriptionModel,
           }),
         })
 
@@ -294,6 +298,7 @@ const AnalyzePage: React.FC = () => {
         formData.append('file', videoFile!.file)
         formData.append('language', language)
         formData.append('gptModel', model)
+        formData.append('transcriptionModel', transcriptionModel)
         formData.append('generateSummary', 'true')
         formData.append('generateArticle', 'false')
 
@@ -509,7 +514,7 @@ const AnalyzePage: React.FC = () => {
 
   // Auto re-calculate cost estimation when model changes
   useEffect(() => {
-    console.log('🔄 Model changed to:', model)
+    console.log('🔄 Model changed to:', model, 'Transcription model:', transcriptionModel)
     
     // Skip the first render to avoid initial calculation
     if (isFirstModelChange.current) {
@@ -531,7 +536,7 @@ const AnalyzePage: React.FC = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model]) // Only depend on model changes to avoid infinite loops
+  }, [model, transcriptionModel]) // Depend on both model changes to avoid infinite loops
 
   // Debug current video data
   useEffect(() => {
@@ -816,7 +821,7 @@ const AnalyzePage: React.FC = () => {
                 )}
 
                 {/* Settings Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2">
                       🌐 Language
@@ -851,7 +856,23 @@ const AnalyzePage: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="sm:col-span-2 lg:col-span-1 flex items-end">
+                  <div>
+                    <label htmlFor="transcriptionModel" className="block text-sm font-medium text-app-primary mb-2">
+                      🎵 Transcription Model
+                    </label>
+                    <select
+                      id="transcriptionModel"
+                      value={transcriptionModel}
+                      onChange={(e) => setTranscriptionModel(e.target.value as 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1')}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                    >
+                      <option value="gpt-4o-transcribe">GPT-4o Transcribe (High Accuracy) - $6/1M audio tokens</option>
+                      <option value="gpt-4o-mini-transcribe">GPT-4o Mini Transcribe (Fast & Cheap) - $3/1M audio tokens</option>
+                      <option value="whisper-1">Whisper-1 (Standard) - $6/minute</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2 lg:col-span-4 flex items-end">
                     <button
                       type="submit"
                       disabled={

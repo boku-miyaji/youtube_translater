@@ -148,7 +148,12 @@ let sessionCosts: SessionCosts = {
 
 // 料金設定（2025年1月時点のOpenAI公式価格）
 const pricing: Pricing = {
-  whisper: 0.006, // $0.006 per minute
+  whisper: 0.006, // $0.006 per minute (for backward compatibility)
+  transcription: {
+    'whisper-1': 0.006, // $0.006 per minute
+    'gpt-4o-transcribe': 6.0 / 1000000, // $6 per 1M audio tokens
+    'gpt-4o-mini-transcribe': 3.0 / 1000000 // $3 per 1M audio tokens
+  },
   models: {
     'gpt-4o-mini': {
       input: 0.15 / 1000000, // $0.15 per 1M tokens
@@ -212,7 +217,7 @@ async function extractVideoMetadata(filePath: string): Promise<{ duration: numbe
   });
 }
 
-async function transcribeVideoFile(filePath: string): Promise<{ text: string; segments: TimestampedSegment[] }> {
+async function transcribeVideoFile(filePath: string, transcriptionModel: string = 'whisper-1'): Promise<{ text: string; segments: TimestampedSegment[] }> {
   try {
     console.log('🎵 Starting Whisper transcription for:', filePath);
     
@@ -256,7 +261,7 @@ async function transcribeVideoFile(filePath: string): Promise<{ text: string; se
     // Transcribe using Whisper API
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(audioPath),
-      model: 'whisper-1',
+      model: transcriptionModel,
       response_format: 'verbose_json',
       timestamp_granularities: ['segment']
     });
@@ -301,6 +306,24 @@ async function cleanupTempFile(filePath: string, delay: number = 60000): Promise
 
 function calculateWhisperCost(durationMinutes: number): number {
   return durationMinutes * pricing.whisper;
+}
+
+// Calculate transcription cost based on model
+function calculateTranscriptionCost(transcriptionModel: string, durationMinutes: number, audioTokens?: number): number {
+  const model = transcriptionModel as keyof typeof pricing.transcription;
+  
+  if (model === 'whisper-1') {
+    // Whisper-1 uses per-minute pricing
+    return durationMinutes * pricing.transcription[model];
+  } else if (model === 'gpt-4o-transcribe' || model === 'gpt-4o-mini-transcribe') {
+    // GPT-4o models use per-audio-token pricing
+    // Estimate audio tokens: approximately 1 token per 0.5 seconds of audio
+    const estimatedAudioTokens = audioTokens || Math.ceil(durationMinutes * 60 * 2);
+    return estimatedAudioTokens * pricing.transcription[model];
+  }
+  
+  // Fallback to whisper pricing
+  return durationMinutes * pricing.transcription['whisper-1'];
 }
 
 // Format duration to human readable format
@@ -823,21 +846,21 @@ async function downloadYouTubeAudio(url: string, outputPath: string): Promise<vo
   });
 }
 
-async function transcribeAudio(audioPath: string, language: string = 'original'): Promise<TranscriptionResult> {
+async function transcribeAudio(audioPath: string, language: string = 'original', transcriptionModel: string = 'whisper-1'): Promise<TranscriptionResult> {
   const stats = fs.statSync(audioPath);
   const fileSizeInBytes = stats.size;
   const maxSize = 25 * 1024 * 1024; // 25MB
   
   if (fileSizeInBytes > maxSize) {
     // Split processing for large files
-    return await transcribeLargeAudio(audioPath, language);
+    return await transcribeLargeAudio(audioPath, language, transcriptionModel);
   }
   
   const audioFile = fs.createReadStream(audioPath);
   
   const transcriptionParams: any = {
     file: audioFile,
-    model: 'whisper-1',
+    model: transcriptionModel,
     response_format: 'verbose_json',
     timestamp_granularities: ['segment']
   };
@@ -859,7 +882,7 @@ async function transcribeAudio(audioPath: string, language: string = 'original')
   };
 }
 
-async function transcribeLargeAudio(audioPath: string, language: string = 'original'): Promise<TranscriptionResult> {
+async function transcribeLargeAudio(audioPath: string, language: string = 'original', transcriptionModel: string = 'whisper-1'): Promise<TranscriptionResult> {
   const segmentDuration = 600; // Split every 10 minutes
   const segmentPaths: string[] = [];
   
@@ -896,7 +919,7 @@ async function transcribeLargeAudio(audioPath: string, language: string = 'origi
           
           const transcriptionParams: any = {
             file: audioFile,
-            model: 'whisper-1',
+            model: transcriptionModel,
             response_format: 'verbose_json',
             timestamp_granularities: ['segment']
           };
@@ -1180,7 +1203,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
   try {
     const analysisStartTime = new Date().toISOString();
     console.log('API server: /api/upload-youtube called at', analysisStartTime);
-    const { url, language = 'original', model = 'gpt-4o-mini' } = req.body;
+    const { url, language = 'original', model = 'gpt-4o-mini', transcriptionModel = 'whisper-1' } = req.body;
     
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
@@ -1218,7 +1241,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         const audioPath = path.join('uploads', `${Date.now()}_audio.mp3`);
         await downloadYouTubeAudio(url, audioPath);
         
-        const transcriptionResult = await transcribeAudio(audioPath, language);
+        const transcriptionResult = await transcribeAudio(audioPath, language, transcriptionModel);
         transcript = transcriptionResult.text;
         timestampedSegments = transcriptionResult.timestampedSegments;
         method = 'whisper';
@@ -1400,6 +1423,7 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
   // Extract request parameters
   const language = req.body.language || 'original';
   const gptModel = req.body.gptModel || 'gpt-4o-mini';
+  const transcriptionModel = req.body.transcriptionModel || 'whisper-1';
   const shouldGenerateSummary = req.body.generateSummary === 'true';
   const shouldGenerateArticle = req.body.generateArticle === 'true';
 
@@ -1419,11 +1443,11 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
     
     // 2. Transcribe video using Whisper
     console.log('🎵 Starting transcription...');
-    const transcriptionResult = await transcribeVideoFile(filePath);
+    const transcriptionResult = await transcribeVideoFile(filePath, transcriptionModel);
     
     // 3. Calculate costs
     const durationMinutes = videoMeta.duration / 60;
-    const transcriptionCost = calculateWhisperCost(durationMinutes);
+    const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
     
     let summary = '';
     let summaryCost = 0;
@@ -1591,7 +1615,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
     console.log('TypeScript server: /upload-youtube called');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     
-    const { url, language = 'original', gptModel = 'gpt-4o-mini', mainTags = [], tags = '', forceRegenerate = false } = req.body;
+    const { url, language = 'original', gptModel = 'gpt-4o-mini', transcriptionModel = 'whisper-1', mainTags = [], tags = '', forceRegenerate = false } = req.body;
     
     console.log('Parsed parameters:', { url, language, gptModel, mainTags, tags, forceRegenerate });
     
@@ -1793,7 +1817,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
       sessionCosts.whisper += cost;
       sessionCosts.total += cost;
 
-      const transcriptionResult = await transcribeAudio(audioPath, language);
+      const transcriptionResult = await transcribeAudio(audioPath, language, transcriptionModel);
       transcript = transcriptionResult.text;
       timestampedSegments = transcriptionResult.timestampedSegments || [];
       method = 'whisper';
@@ -2690,7 +2714,7 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
   console.log('📊 Cost estimation request for URL', req.body);
   
   try {
-    const { url, gptModel = 'gpt-4o-mini', generateSummary = true, generateArticle = false }: CostEstimationRequest = req.body;
+    const { url, gptModel = 'gpt-4o-mini', transcriptionModel = 'whisper-1', generateSummary = true, generateArticle = false }: CostEstimationRequest = req.body;
     
     console.log('📊 Request params:', { url, gptModel, generateSummary, generateArticle });
     
@@ -2725,7 +2749,7 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
     
     // Calculate costs
     console.log('📊 Calculating costs...');
-    const transcriptionCost = calculateWhisperCost(durationMinutes);
+    const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
     const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
     const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
     
@@ -2778,6 +2802,7 @@ app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, 
   const filePath = req.file.path;
   const originalName = req.file.originalname;
   const gptModel = req.body.gptModel || 'gpt-4o-mini';
+  const transcriptionModel = req.body.transcriptionModel || 'whisper-1';
   const generateSummary = req.body.generateSummary === 'true';
   const generateArticle = req.body.generateArticle === 'true';
   
@@ -2788,7 +2813,7 @@ app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, 
     const durationMinutes = Math.ceil(duration / 60);
     
     // Calculate costs
-    const transcriptionCost = calculateWhisperCost(durationMinutes);
+    const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
     const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
     const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
     
