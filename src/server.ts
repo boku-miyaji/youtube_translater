@@ -146,7 +146,7 @@ let sessionCosts: SessionCosts = {
   total: 0
 };
 
-// 料金設定（2024年12月時点の最新公式価格）
+// 料金設定（2025年1月時点のOpenAI公式価格）
 const pricing: Pricing = {
   whisper: 0.006, // $0.006 per minute
   models: {
@@ -158,17 +158,17 @@ const pricing: Pricing = {
       input: 2.50 / 1000000, // $2.50 per 1M tokens
       output: 10.00 / 1000000  // $10.00 per 1M tokens
     },
-    'gpt-4.1-nano': {
-      input: 0.10 / 1000000, // $0.10 per 1M tokens
-      output: 0.40 / 1000000  // $0.40 per 1M tokens
+    'gpt-4-turbo': {
+      input: 10.00 / 1000000, // $10.00 per 1M tokens
+      output: 30.00 / 1000000  // $30.00 per 1M tokens
     },
-    'gpt-4.1-mini': {
-      input: 0.40 / 1000000, // $0.40 per 1M tokens
-      output: 1.60 / 1000000  // $1.60 per 1M tokens
+    'gpt-4': {
+      input: 30.00 / 1000000, // $30.00 per 1M tokens
+      output: 60.00 / 1000000  // $60.00 per 1M tokens
     },
-    'gpt-4.1': {
-      input: 2.00 / 1000000, // $2.00 per 1M tokens
-      output: 8.00 / 1000000  // $8.00 per 1M tokens
+    'gpt-3.5-turbo': {
+      input: 0.50 / 1000000, // $0.50 per 1M tokens
+      output: 1.50 / 1000000  // $1.50 per 1M tokens
     }
   }
 };
