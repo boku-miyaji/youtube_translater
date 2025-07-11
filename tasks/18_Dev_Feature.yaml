@@ -71,5 +71,8 @@ implementation:
     - hash: e06ea47
       message: "feat: Improve form layout with descriptive labels and separate button row"
       timestamp: "2025-07-11T20:35:30Z"
+    - hash: fff8dbd
+      message: "fix: Set default transcription model to GPT-4o and fix audio token estimation"
+      timestamp: "2025-07-11T20:40:58Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T20:35:30Z"
+updatedAt: "2025-07-11T20:40:58Z"
