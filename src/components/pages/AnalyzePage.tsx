@@ -162,7 +162,7 @@ const AnalyzePage: React.FC = () => {
       } else {
         let errorDetails = ''
         try {
-          const errorData = await response.json()
+          const errorData = await response.clone().json()
           errorDetails = JSON.stringify(errorData, null, 2)
           console.error('❌ Failed to estimate cost (JSON):', response.status, errorData)
         } catch {
