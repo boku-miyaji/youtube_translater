@@ -1,21 +1,48 @@
-export interface VideoMetadata {
-  basic: {
+export interface YouTubeMetadata {
+  title: string;
+  channel: string;
+  viewCount: number;
+  likes: number;
+  duration: number;
+  uploadDate: string;
+  publishDate: string;
+  category: string;
+  description: string;
+  chapters: Array<{
     title: string;
-    videoId?: string;        // YouTube video ID (optional for file uploads)
-    duration: number;
-    channel?: string;        // YouTube only
-    viewCount?: number;      // YouTube only
-    likes?: number;          // YouTube only
+    start: number;
+  }>;
+  captions: string[];
+  stats: {
+    formatCount: number;
+    hasSubtitles: boolean;
+    keywords: string[];
+  };
+}
+
+export interface YouTubeApiError {
+  status: 'error';
+  message: string;
+  code?: string;
+}
+
+export interface VideoMetadata {
+  basic?: {
+    title?: string;
+    videoId?: string;
+    duration?: number;
+    channel?: string;
+    viewCount?: number;
+    likes?: number;
     uploadDate?: string;
     publishDate?: string;
     category?: string;
     description?: string;
-    thumbnail?: string;
-    videoPath?: string;      // Path to uploaded video file (for local files)
+    videoPath?: string;  // Path to local video file
   };
-  chapters: Chapter[];
-  captions: Caption[];
-  stats: {
+  chapters?: Array<{ title: string; start: number }>;
+  captions?: string[];
+  stats?: {
     formatCount: number;
     hasSubtitles: boolean;
     keywords: string[];
@@ -24,159 +51,77 @@ export interface VideoMetadata {
   summary?: string;
   timestampedSegments?: TimestampedSegment[];
   transcriptSource?: 'subtitle' | 'whisper';
+  // Computed properties
   costs?: DetailedCosts;
-  analysisTime?: AnalysisTimeInfo;
-  inferenceStats?: InferenceStats;
-  // New fields for file uploads
-  source?: 'youtube' | 'file';
-  fileId?: string;         // File upload ID
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
+  // File-specific properties
+  source?: 'url' | 'file';
+  fileId?: string;
   originalFilename?: string;
-  fileSize?: number;       // bytes
-  uploadedAt?: string;     // ISO timestamp
+  fileSize?: number;
+  uploadedAt?: string;
 }
 
-export interface Chapter {
-  timestamp: string;
-  title: string;
-}
-
-export interface Caption {
-  language: string;
-  name: string;
-}
-
-export interface TimestampedSegment {
-  start: number;
-  duration: number;
-  text: string;
-}
-
-export interface Summary {
-  content: string;
-  model: string;
-  cost: number;
-  tokens: {
-    input: number;
-    output: number;
-  };
-}
-
-export interface AnalysisTimeInfo {
-  startTime: string;
-  endTime: string;
-  duration: number; // seconds
-}
-
-export interface InferenceStats {
-  apiCallCount: number;
-  totalTokens: { input: number; output: number };
-  modelUsed: string;
-  tokensPerSecond: number;
-  costPerToken: number;
-  efficiencyScore: number;
-  sessionCosts: SessionCosts;
-  callBreakdown: {
-    transcription: { tokens: { input: number; output: number }, cost: number, method: 'subtitle' | 'whisper' };
-    summary: { tokens: { input: number; output: number }, cost: number };
-    article?: { tokens: { input: number; output: number }, cost: number };
-  };
-}
-
-export interface HistoryEntry {
+export interface VideoListItem {
   id: string;
   title: string;
-  url: string;
-  transcript: string;
-  method: 'subtitle' | 'whisper';
-  language: string;
-  gptModel: string;
-  cost: number;
-  metadata: VideoMetadata | null;
-  summary: Summary | null;
-  timestampedSegments: TimestampedSegment[];
-  tags: string[];
-  mainTags: string[];
-  article: string | null;
-  timestamp: string;
-  thumbnail?: string;
-  analysisTime?: AnalysisTimeInfo;
-}
-
-export interface SessionCosts {
-  whisper: number;
-  gpt: number;
-  total: number;
-}
-
-export interface ModelPricing {
-  input: number;
-  output: number;
-}
-
-export interface Pricing {
-  whisper: number; // For backward compatibility
-  transcription: {
-    [key in TranscriptionModel]: number;
-  };
-  models: {
-    [key: string]: ModelPricing;
+  channel: string;
+  uploadDate: string;
+  viewCount: number;
+  likes: number;
+  savedAt: string;
+  analyzedAt?: string;
+  previewImage?: string;  // YouTube thumbnail URL or file preview
+  source: 'youtube' | 'file';  // Source of the video
+  fileDetails?: {  // Additional details for uploaded files
+    originalName: string;
+    size: number;
+    mimeType: string;
   };
 }
 
-export interface CostEntry {
-  videoId: string;
-  title: string;
-  method: 'subtitle' | 'whisper';
-  language: string;
-  gptModel: string;
-  whisperCost: number;
-  gptCost: number;
-  totalCost: number;
-  timestamp: string;
-  date: string;
+export interface HistoryListResponse {
+  videos: VideoListItem[];
+  totalCount: number;
 }
 
-export interface ArticleHistoryEntry {
-  article: string;
-  type: 'generated' | 'merged' | 'pre-merge' | 'edited';
-  timestamp: string;
-  id: string;
-}
-
-export interface ChatMessage {
-  message: string;
-  gptModel?: string;
-}
-
-export interface ChatResponse {
-  success: boolean;
-  response?: string;
-  error?: string;
-  model: string;
-  cost: number;
-  costs: SessionCosts;
-  tokens: {
-    input: number;
-    output: number;
-  };
-}
-
-export interface DetailedCosts {
-  transcription: number;
-  summary: number;
-  article: number;
-  total: number;
-}
-
-export interface UploadResponse {
-  success: boolean;
+export interface ApiResponse {
   title?: string;
+  videoId?: string;
+  metadata?: {
+    basic?: {
+      title?: string;
+      videoId?: string;
+      duration?: number;
+      channel?: string;
+      viewCount?: number;
+      likes?: number;
+      uploadDate?: string;
+      publishDate?: string;
+      category?: string;
+      description?: string;
+      videoPath?: string;
+    };
+    chapters?: Array<{ title: string; start: number }>;
+    captions?: string[];
+    stats?: {
+      formatCount: number;
+      hasSubtitles: boolean;
+      keywords: string[];
+    };
+    analysisTime?: {
+      transcription: number;
+      summary: number;
+      total: number;
+    };
+  };
   transcript?: string;
   summary?: string;
-  metadata?: VideoMetadata;
   method?: 'subtitle' | 'whisper';
-  language?: string;
-  gptModel?: string;
   detectedLanguage?: string;
   timestampedSegments?: TimestampedSegment[];
   cost?: number;
@@ -258,35 +203,15 @@ export interface MergeArticleRequest {
 // New types for video file upload
 export interface VideoFile {
   file: File;
-  id: string;
   name: string;
   size: number;
-  duration?: number;
-  thumbnail?: string;
+  type: string;
+  lastModified: number;
+  preview?: string;  // Data URL for preview
 }
 
-export interface VideoFileUpload {
-  id: string;
-  originalName: string;
-  size: number;
-  mimeType: string;
-  uploadedAt: string;
-  status: 'uploaded' | 'processing' | 'completed' | 'failed' | 'deleted';
-  tempPath: string;
-  processingResult?: ProcessingResult;
-  error?: string;
-}
-
-export interface ProcessingResult {
-  metadata: VideoMetadata;
-  transcript: TimestampedSegment[];
-  summary?: string;
-  article?: string;
-  costs: DetailedCosts;
-  analysisTime: AnalysisTimeInfo;
-}
-
-export interface UploadVideoFileRequest {
+export interface VideoUploadRequest {
+  file: File;
   language?: string;
   gptModel?: string;
   transcriptionModel?: TranscriptionModel;
@@ -294,42 +219,53 @@ export interface UploadVideoFileRequest {
   generateArticle?: boolean;
 }
 
-export interface UploadVideoFileResponse {
-  success: boolean;
+export interface VideoUploadResponse extends ApiResponse {
   fileId?: string;
   originalName?: string;
   size?: number;
-  duration?: number;
-  status?: 'uploaded' | 'processing' | 'completed' | 'failed';
-  title?: string;
-  transcript?: string;
-  summary?: string;
-  metadata?: VideoMetadata;
-  method?: 'whisper';
-  language?: string;
-  gptModel?: string;
-  timestampedSegments?: TimestampedSegment[];
-  costs?: DetailedCosts;
-  analysisTime?: AnalysisTimeInfo;
-  message?: string;
-  error?: string;
+  mimeType?: string;
+  uploadedAt?: string;
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
 }
 
-export interface ApiErrorResponse {
-  success: false;
-  error: string;
-  details?: string;
+// Session cost tracking
+export interface SessionCosts {
+  whisper: number;
+  gpt: number;
+  total: number;
 }
 
-export interface ApiSuccessResponse<T = unknown> {
-  success: true;
-  data?: T;
-  message?: string;
+// Pricing configuration
+export interface Pricing {
+  input: number;
+  output: number;
+  transcription: {
+    'whisper-1': number;  // per minute
+    'gpt-4o-transcribe': number;  // per 1M tokens
+    'gpt-4o-mini-transcribe': number;  // per 1M tokens
+  };
+}
+
+export interface TimestampedSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface DetailedCosts {
+  transcription: number;
+  summary: number;
+  article: number;
+  total: number;
 }
 
 // Cost estimation types
 export interface CostEstimationRequest {
-  url?: string;
+  url: string;
   gptModel?: string;
   transcriptionModel?: TranscriptionModel;
   generateSummary?: boolean;
@@ -348,6 +284,12 @@ export interface CostEstimationResponse {
     article: number;
     total: number;
   };
+  estimatedProcessingTime?: {
+    transcription: number;  // seconds
+    summary: number;        // seconds
+    total: number;          // seconds
+    formatted: string;      // e.g., "2 min 30 sec"
+  };
   error?: string;
   message?: string;
 }
@@ -364,6 +306,20 @@ export interface FileCostEstimationResponse {
     article: number;
     total: number;
   };
+  estimatedProcessingTime?: {
+    transcription: number;  // seconds
+    summary: number;        // seconds
+    total: number;          // seconds
+    formatted: string;      // e.g., "2 min 30 sec"
+  };
   error?: string;
   message?: string;
+}
+
+// Progress tracking interface
+export interface AnalysisProgress {
+  stage: 'transcription' | 'summary' | 'complete';
+  percentage: number;
+  message: string;
+  estimatedRemainingTime: number;  // seconds
 }

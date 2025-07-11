@@ -178,6 +178,22 @@ const pricing: Pricing = {
   }
 };
 
+// Processing speed for each model (video minutes per real-time minute)
+const processingSpeed = {
+  transcription: {
+    'whisper-1': 10, // Whisper processes ~10 minutes of video per minute
+    'gpt-4o-transcribe': 8, // GPT-4o processes ~8 minutes of video per minute
+    'gpt-4o-mini-transcribe': 12 // GPT-4o Mini processes ~12 minutes of video per minute
+  },
+  summary: {
+    'gpt-4o-mini': 0.5, // Processing time coefficient (lower = slower)
+    'gpt-4o': 0.4,
+    'gpt-4-turbo': 0.3,
+    'gpt-4': 0.25,
+    'gpt-3.5-turbo': 0.6
+  }
+};
+
 // 履歴ファイルのパス
 const historyFile = path.join('history', 'transcripts.json');
 const costsFile = path.join('history', 'costs.json');
@@ -324,6 +340,53 @@ function calculateTranscriptionCost(transcriptionModel: string, durationMinutes:
   
   // Fallback to whisper pricing
   return durationMinutes * pricing.transcription['whisper-1'];
+}
+
+// Calculate estimated processing time based on model and video duration
+function calculateProcessingTime(transcriptionModel: string, gptModel: string, durationMinutes: number): {
+  transcription: number;
+  summary: number;
+  total: number;
+  formatted: string;
+} {
+  // Calculate transcription time (in seconds)
+  const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
+  const transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
+  
+  // Calculate summary generation time (in seconds)
+  const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.5;
+  const summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
+  
+  const totalTime = transcriptionTime + summaryTime;
+  
+  return {
+    transcription: transcriptionTime,
+    summary: summaryTime,
+    total: totalTime,
+    formatted: formatProcessingTime(totalTime)
+  };
+}
+
+// Format processing time to human readable format
+function formatProcessingTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds} sec`;
+  } else if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return remainingSeconds > 0 ? `${minutes} min ${remainingSeconds} sec` : `${minutes} min`;
+  } else {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    if (remainingSeconds > 0) {
+      return `${hours} hr ${minutes} min ${remainingSeconds} sec`;
+    } else if (minutes > 0) {
+      return `${hours} hr ${minutes} min`;
+    } else {
+      return `${hours} hr`;
+    }
+  }
 }
 
 // Format duration to human readable format
@@ -2755,6 +2818,10 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
     
     console.log(`📊 Cost estimation for "${videoDetails.title}": ${duration}s, $${totalCost.toFixed(4)}`);
     
+    // Calculate processing time
+    const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes);
+    console.log(`📊 Estimated processing time: ${processingTime.formatted}`);
+    
     const response: CostEstimationResponse = {
       success: true,
       title: videoDetails.title,
@@ -2767,6 +2834,7 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
         article: gptCosts.article,
         total: totalCost
       },
+      estimatedProcessingTime: processingTime,
       message: 'Cost estimation completed'
     };
     
@@ -2819,6 +2887,10 @@ app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, 
     
     console.log(`📊 Cost estimation for "${originalName}": ${duration}s, $${totalCost.toFixed(4)}`);
     
+    // Calculate processing time
+    const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes);
+    console.log(`📊 Estimated processing time: ${processingTime.formatted}`);
+    
     // Clean up temporary file
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -2836,6 +2908,7 @@ app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, 
         article: gptCosts.article,
         total: totalCost
       },
+      estimatedProcessingTime: processingTime,
       message: 'Cost estimation completed'
     };
     

@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/appStore'
 import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
 import VideoFileUpload from '../shared/VideoFileUpload'
+import AnalysisProgress from '../shared/AnalysisProgress'
 import { VideoFile } from '../../types'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
@@ -25,6 +26,7 @@ const AnalyzePage: React.FC = () => {
   const [showCostInfo, setShowCostInfo] = useState(true)
   const [costEstimation, setCostEstimation] = useState<any>(null)
   const [loadingCostEstimation, setLoadingCostEstimation] = useState(false)
+  const [estimatedProcessingTime, setEstimatedProcessingTime] = useState<any>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const costEstimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isFirstModelChange = useRef(true)
@@ -161,6 +163,9 @@ const AnalyzePage: React.FC = () => {
         const data = await response.json()
         console.log('💰 Cost estimation result:', data)
         setCostEstimation(data)
+        if (data.estimatedProcessingTime) {
+          setEstimatedProcessingTime(data.estimatedProcessingTime)
+        }
       } else {
         let errorDetails = ''
         try {
@@ -208,6 +213,9 @@ const AnalyzePage: React.FC = () => {
       if (response.ok) {
         const data = await response.json()
         setCostEstimation(data)
+        if (data.estimatedProcessingTime) {
+          setEstimatedProcessingTime(data.estimatedProcessingTime)
+        }
       } else {
         console.error('Failed to estimate cost for file')
       }
@@ -239,6 +247,7 @@ const AnalyzePage: React.FC = () => {
     setUploadProgress(0)
     setCostEstimation(null)
     setLoadingCostEstimation(false)
+    setEstimatedProcessingTime(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -383,6 +392,8 @@ const AnalyzePage: React.FC = () => {
     } finally {
       setLoading(false)
       setUploadProgress(0)
+      // Clear estimated processing time after analysis
+      setEstimatedProcessingTime(null)
     }
   }
 
@@ -433,46 +444,81 @@ const AnalyzePage: React.FC = () => {
     if (costEstimation && costEstimation.success) {
       console.log('🎨 Rendering cost estimation result')
       const costs = costEstimation.estimatedCosts
+      const processingTime = costEstimation.estimatedProcessingTime
       return (
-        <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-          <div className="flex items-start gap-2">
-            <span className="text-green-600 text-lg">💰</span>
-            <div className="flex-1">
-              <div className="text-sm font-medium text-green-800 mb-2">
-                想定コスト内訳（概算）
-              </div>
-              <div className="text-xs text-green-700 space-y-1">
-                <div className="flex justify-between">
-                  <span>動画時間:</span>
-                  <span className="font-mono">{costEstimation.durationFormatted}</span>
+        <div className="space-y-3">
+          {/* Cost Estimation */}
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 text-lg">💰</span>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-green-800 mb-2">
+                  想定コスト内訳（概算）
                 </div>
-                <div className="flex justify-between">
-                  <span>文字起こしモデル:</span>
-                  <span className="font-mono text-xs">{transcriptionModel === 'gpt-4o-transcribe' ? 'GPT-4o' : transcriptionModel === 'gpt-4o-mini-transcribe' ? 'GPT-4o Mini' : 'Whisper-1'}</span>
+                <div className="text-xs text-green-700 space-y-1">
+                  <div className="flex justify-between">
+                    <span>動画時間:</span>
+                    <span className="font-mono">{costEstimation.durationFormatted}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>文字起こしモデル:</span>
+                    <span className="font-mono text-xs">{transcriptionModel === 'gpt-4o-transcribe' ? 'GPT-4o' : transcriptionModel === 'gpt-4o-mini-transcribe' ? 'GPT-4o Mini' : 'Whisper-1'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>要約AIモデル:</span>
+                    <span className="font-mono text-xs">{costEstimation.gptModel || model || 'N/A'}</span>
+                  </div>
+                  <div className="border-t border-green-200 mt-1 pt-1"></div>
+                  <div className="flex justify-between">
+                    <span>文字起こし費用:</span>
+                    <span className="font-mono">${costs.transcription.toFixed(4)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>要約生成費用:</span>
+                    <span className="font-mono">${costs.summary.toFixed(4)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t border-green-300 pt-1">
+                    <span>合計:</span>
+                    <span className="font-mono">${costs.total.toFixed(4)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>要約AIモデル:</span>
-                  <span className="font-mono text-xs">{costEstimation.gptModel || model || 'N/A'}</span>
+                <div className="text-xs text-green-600 mt-1">
+                  ※実際のコストは使用するモデルやトークン数により変動します
                 </div>
-                <div className="border-t border-green-200 mt-1 pt-1"></div>
-                <div className="flex justify-between">
-                  <span>文字起こし費用:</span>
-                  <span className="font-mono">${costs.transcription.toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>要約生成費用:</span>
-                  <span className="font-mono">${costs.summary.toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between font-semibold border-t border-green-300 pt-1">
-                  <span>合計:</span>
-                  <span className="font-mono">${costs.total.toFixed(4)}</span>
-                </div>
-              </div>
-              <div className="text-xs text-green-600 mt-1">
-                ※実際のコストは使用するモデルやトークン数により変動します
               </div>
             </div>
           </div>
+          
+          {/* Processing Time Estimation */}
+          {processingTime && (
+            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 text-lg">⏱️</span>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-blue-800 mb-2">
+                    想定処理時間（概算）
+                  </div>
+                  <div className="text-xs text-blue-700 space-y-1">
+                    <div className="flex justify-between">
+                      <span>文字起こし時間:</span>
+                      <span className="font-mono">{Math.ceil(processingTime.transcription / 60)} min</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>要約生成時間:</span>
+                      <span className="font-mono">{Math.ceil(processingTime.summary / 60)} min</span>
+                    </div>
+                    <div className="flex justify-between font-semibold border-t border-blue-300 pt-1">
+                      <span>合計処理時間:</span>
+                      <span className="font-mono">{processingTime.formatted}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    ※実際の処理時間はサーバー負荷により変動します
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )
     }
@@ -1318,6 +1364,12 @@ const AnalyzePage: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* Analysis Progress Indicator */}
+      <AnalysisProgress 
+        isAnalyzing={loading}
+        estimatedTime={estimatedProcessingTime}
+      />
     </div>
   )
 }
