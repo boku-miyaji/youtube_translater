@@ -46,6 +46,9 @@ const AnalysisProgress: React.FC<AnalysisProgressProps> = ({ isAnalyzing, estima
     }
   }, [isAnalyzing, startTime, estimatedTime])
   
+  // Debug logging
+  console.log('🔍 AnalysisProgress - isAnalyzing:', isAnalyzing, 'estimatedTime:', estimatedTime)
+  
   if (!isAnalyzing || !estimatedTime) {
     return null
   }
@@ -96,56 +99,70 @@ const AnalysisProgress: React.FC<AnalysisProgressProps> = ({ isAnalyzing, estima
   const remainingTime = Math.max(0, estimatedTime.total - elapsedTime)
   
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-96 max-w-[calc(100vw-2rem)]">
-      <div className="bg-white rounded-lg shadow-elevation-xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">解析進捗状況</h3>
-          <span className="text-xs text-gray-500">
-            予想残り時間: {formatTime(remainingTime)}
+    <div className="w-full">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 shadow-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+            <span className="text-2xl">📊</span>
+            解析進捗状況
+          </h3>
+          <span className="text-sm font-medium text-blue-700 bg-white px-3 py-1 rounded-full shadow-sm">
+            残り時間: {formatTime(remainingTime)}
           </span>
         </div>
         
         {/* Overall Progress */}
-        <div className="mb-3">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-xs text-gray-600">全体進捗</span>
-            <span className="text-xs font-medium text-gray-900">{Math.round(progress)}%</span>
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-semibold text-gray-700">全体進捗</span>
+            <span className="text-lg font-bold text-blue-700">{Math.round(progress)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
             <div 
-              className="h-full bg-blue-600 transition-all duration-300 ease-out"
+              className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300 ease-out rounded-full shadow-sm"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
         
         {/* Stage Progress */}
-        <div className="mb-2">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-xs text-gray-600">{getStageLabel()}</span>
-            <span className="text-xs font-medium text-gray-900">{Math.round(stageProgress)}%</span>
+        <div className="mb-4 bg-white/70 rounded-lg p-3">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-gray-700">{getStageLabel()}</span>
+            <span className="text-sm font-bold text-green-600">{Math.round(stageProgress)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
             <div 
-              className="h-full bg-green-500 transition-all duration-300 ease-out"
+              className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-300 ease-out rounded-full"
               style={{ width: `${stageProgress}%` }}
             />
           </div>
         </div>
         
         {/* Stage Indicators */}
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center space-x-4">
-            <div className={`flex items-center space-x-1 ${currentStage === 'transcription' ? 'text-blue-600' : 'text-gray-400'}`}>
-              <div className={`w-2 h-2 rounded-full ${currentStage === 'transcription' ? 'bg-blue-600 animate-pulse' : 'bg-gray-400'}`} />
-              <span className="text-xs">文字起こし</span>
+        <div className="flex items-center justify-between bg-white/50 rounded-lg p-3">
+          <div className="flex items-center space-x-6">
+            <div className={`flex items-center space-x-2 ${currentStage === 'transcription' ? 'text-blue-700 font-bold' : 'text-gray-500'}`}>
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${currentStage === 'transcription' ? 'bg-blue-600' : currentStage === 'complete' ? 'bg-green-500' : 'bg-gray-300'}`}>
+                {currentStage === 'transcription' && (
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                )}
+                {currentStage === 'complete' && '✓'}
+              </div>
+              <span className="text-sm">文字起こし</span>
             </div>
-            <div className={`flex items-center space-x-1 ${currentStage === 'summary' ? 'text-blue-600' : currentStage === 'complete' ? 'text-gray-600' : 'text-gray-400'}`}>
-              <div className={`w-2 h-2 rounded-full ${currentStage === 'summary' ? 'bg-blue-600 animate-pulse' : currentStage === 'complete' ? 'bg-gray-600' : 'bg-gray-400'}`} />
-              <span className="text-xs">要約生成</span>
+            <div className="text-gray-300">→</div>
+            <div className={`flex items-center space-x-2 ${currentStage === 'summary' ? 'text-blue-700 font-bold' : currentStage === 'complete' ? 'text-gray-600' : 'text-gray-400'}`}>
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${currentStage === 'summary' ? 'bg-blue-600' : currentStage === 'complete' ? 'bg-green-500' : 'bg-gray-300'}`}>
+                {currentStage === 'summary' && (
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                )}
+                {currentStage === 'complete' && '✓'}
+              </div>
+              <span className="text-sm">要約生成</span>
             </div>
           </div>
-          <span className="text-xs text-gray-500">
+          <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
             経過: {formatTime(elapsedTime)}
           </span>
         </div>

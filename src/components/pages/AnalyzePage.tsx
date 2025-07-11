@@ -164,7 +164,10 @@ const AnalyzePage: React.FC = () => {
         console.log('💰 Cost estimation result:', data)
         setCostEstimation(data)
         if (data.estimatedProcessingTime) {
+          console.log('💡 Setting estimatedProcessingTime:', data.estimatedProcessingTime)
           setEstimatedProcessingTime(data.estimatedProcessingTime)
+        } else {
+          console.log('⚠️ No estimatedProcessingTime in response')
         }
       } else {
         let errorDetails = ''
@@ -214,7 +217,10 @@ const AnalyzePage: React.FC = () => {
         const data = await response.json()
         setCostEstimation(data)
         if (data.estimatedProcessingTime) {
+          console.log('💡 Setting estimatedProcessingTime:', data.estimatedProcessingTime)
           setEstimatedProcessingTime(data.estimatedProcessingTime)
+        } else {
+          console.log('⚠️ No estimatedProcessingTime in response')
         }
       } else {
         console.error('Failed to estimate cost for file')
@@ -267,6 +273,9 @@ const AnalyzePage: React.FC = () => {
       }
     }
 
+    // Debug log for estimated processing time
+    console.log('🚀 Starting analysis with estimatedProcessingTime:', estimatedProcessingTime)
+    
     setLoading(true)
     setUrlError('')
     setFileError('')
@@ -959,9 +968,16 @@ const AnalyzePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Loading State with Skeleton */}
+      {/* Loading State with Progress */}
       {loading && (
         <div className="space-y-6">
+          {/* Analysis Progress Indicator */}
+          <AnalysisProgress 
+            isAnalyzing={loading}
+            estimatedTime={estimatedProcessingTime || costEstimation?.estimatedProcessingTime}
+          />
+          
+          {/* Skeleton Loading */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <div className="skeleton h-64 w-full rounded-xl"></div>
@@ -1364,12 +1380,6 @@ const AnalyzePage: React.FC = () => {
           </div>
         </div>
       )}
-      
-      {/* Analysis Progress Indicator */}
-      <AnalysisProgress 
-        isAnalyzing={loading}
-        estimatedTime={estimatedProcessingTime}
-      />
     </div>
   )
 }
