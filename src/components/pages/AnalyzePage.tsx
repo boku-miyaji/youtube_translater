@@ -828,8 +828,8 @@ const AnalyzePage: React.FC = () => {
                 {/* Settings Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="lg:col-span-1">
-                    <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap">
-                      🌐 Transcription Lang
+                    <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap overflow-hidden text-ellipsis" title="Transcription Language">
+                      🌐 Language
                     </label>
                     <select
                       id="language"
@@ -844,7 +844,7 @@ const AnalyzePage: React.FC = () => {
                   </div>
 
                   <div className="lg:col-span-1">
-                    <label htmlFor="transcriptionModel" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap">
+                    <label htmlFor="transcriptionModel" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap overflow-hidden text-ellipsis" title="Transcription Model">
                       🎵 Transcription
                     </label>
                     <select
@@ -860,7 +860,7 @@ const AnalyzePage: React.FC = () => {
                   </div>
 
                   <div className="lg:col-span-1">
-                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap">
+                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2 h-5 whitespace-nowrap overflow-hidden text-ellipsis" title="Summary AI Model">
                       🤖 Summary AI
                     </label>
                     <select
