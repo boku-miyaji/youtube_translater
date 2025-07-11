@@ -53,5 +53,11 @@ implementation:
     - hash: 4697d98
       message: "fix: Fix Response body stream already read error in cost estimation"
       timestamp: "2025-07-11T04:30:00Z"
+    - hash: 50753cb
+      message: "feat: Add transcription model selection with GPT-4o-Transcribe, GPT-4o-Mini-Transcribe, and Whisper-1"
+      timestamp: "2025-07-11T18:23:00Z"
+    - hash: 12ca619
+      message: "fix: Improve transcription model UI layout and label width"
+      timestamp: "2025-07-11T20:16:51Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T04:30:00Z"
+updatedAt: "2025-07-11T20:16:51Z"

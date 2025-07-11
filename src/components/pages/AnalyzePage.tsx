@@ -438,8 +438,8 @@ const AnalyzePage: React.FC = () => {
           <div className="flex items-start gap-2">
             <span className="text-green-600 text-lg">💰</span>
             <div className="flex-1">
-              <div className="text-sm font-medium text-green-800 mb-1">
-                想定コスト（概算）
+              <div className="text-sm font-medium text-green-800 mb-2">
+                想定コスト内訳（概算）
               </div>
               <div className="text-xs text-green-700 space-y-1">
                 <div className="flex justify-between">
@@ -447,15 +447,20 @@ const AnalyzePage: React.FC = () => {
                   <span className="font-mono">{costEstimation.durationFormatted}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>使用モデル:</span>
-                  <span className="font-mono">{costEstimation.gptModel || 'N/A'}</span>
+                  <span>文字起こしモデル:</span>
+                  <span className="font-mono text-xs">{transcriptionModel === 'gpt-4o-transcribe' ? 'GPT-4o' : transcriptionModel === 'gpt-4o-mini-transcribe' ? 'GPT-4o Mini' : 'Whisper-1'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>文字起こし:</span>
+                  <span>要約AIモデル:</span>
+                  <span className="font-mono text-xs">{costEstimation.gptModel || model || 'N/A'}</span>
+                </div>
+                <div className="border-t border-green-200 mt-1 pt-1"></div>
+                <div className="flex justify-between">
+                  <span>文字起こし費用:</span>
                   <span className="font-mono">${costs.transcription.toFixed(4)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>要約生成:</span>
+                  <span>要約生成費用:</span>
                   <span className="font-mono">${costs.summary.toFixed(4)}</span>
                 </div>
                 <div className="flex justify-between font-semibold border-t border-green-300 pt-1">
@@ -824,7 +829,7 @@ const AnalyzePage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2">
-                      🌐 Language
+                      🌐 Transcription Language
                     </label>
                     <select
                       id="language"
@@ -856,7 +861,7 @@ const AnalyzePage: React.FC = () => {
 
                   <div className="lg:col-span-1">
                     <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2 whitespace-nowrap">
-                      🤖 AI Model
+                      🤖 Summary AI Model
                     </label>
                     <select
                       id="model"
