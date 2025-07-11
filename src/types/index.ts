@@ -255,36 +255,70 @@ export interface HistoryEntry {
   metadata?: VideoMetadata;
   costs?: DetailedCosts;
   analysisTime?: {
-    transcription: number;
-    summary: number;
-    total: number;
+    transcription?: number;
+    summary?: number;
+    total?: number;
+    startTime?: string;
+    endTime?: string;
+    duration?: number;
   };
   source?: 'url' | 'file';
   fileId?: string;
   originalFilename?: string;
   fileSize?: number;
+  // Additional fields used in server
+  url?: string;
+  method?: 'subtitle' | 'whisper';
+  language?: string;
+  gptModel?: string;
+  cost?: number;
+  timestampedSegments?: TimestampedSegment[];
+  tags?: string[];
+  mainTags?: string[];
+  thumbnail?: string;
+  timestamp?: string;
 }
 
 // Cost entry for tracking individual costs
 export interface CostEntry {
   date: string;
-  service: 'whisper' | 'gpt' | 'total';
-  cost: number;
+  service?: 'whisper' | 'gpt' | 'total';
+  cost?: number;
+  // Additional fields used in server
+  videoId?: string;
+  title?: string;
+  method?: 'subtitle' | 'whisper';
+  language?: string;
+  gptModel?: string;
+  whisperCost?: number;
+  gptCost?: number;
+  totalCost?: number;
+  timestamp?: string;
 }
 
 // Article history entry
 export interface ArticleHistoryEntry {
   date: string;
   article: string;
+  id?: string;
+  type?: string;
+  timestamp?: string;
 }
 
 // Summary interface  
 export interface Summary {
-  text: string;
+  text?: string;
+  content?: string;
   sections?: Array<{
     title: string;
     content: string;
   }>;
+  model?: string;
+  cost?: number;
+  tokens?: {
+    input: number;
+    output: number;
+  };
 }
 
 // Upload video file response

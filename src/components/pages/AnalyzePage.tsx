@@ -6,6 +6,7 @@ import ChatInterface from '../shared/ChatInterface'
 import VideoFileUpload from '../shared/VideoFileUpload'
 import AnalysisProgress from '../shared/AnalysisProgress'
 import { VideoFile } from '../../types'
+import { formatProcessingTime } from '../../utils/formatTime'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
@@ -540,11 +541,11 @@ const AnalyzePage: React.FC = () => {
                   <div className="text-sm text-blue-800 space-y-2 font-medium">
                     <div className="flex justify-between">
                       <span>文字起こし時間:</span>
-                      <span className="font-mono">{Math.ceil(processingTime.transcription / 60)} min</span>
+                      <span className="font-mono">{formatProcessingTime(processingTime.transcription)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>要約生成時間:</span>
-                      <span className="font-mono">{Math.ceil(processingTime.summary / 60)} min</span>
+                      <span className="font-mono">{formatProcessingTime(processingTime.summary)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-base border-t-2 border-blue-400 pt-2 mt-2">
                       <span>合計処理時間:</span>
