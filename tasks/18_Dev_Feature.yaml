@@ -83,5 +83,8 @@ implementation:
     - hash: 4e4cccc
       message: "fix: Maximize input type button contrast with white background and clear borders"
       timestamp: "2025-07-11T20:51:21Z"
+    - hash: ca8308b
+      message: "fix: Keep selected input type button blue on hover"
+      timestamp: "2025-07-11T20:54:13Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T20:51:21Z"
+updatedAt: "2025-07-11T20:54:13Z"
