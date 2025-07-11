@@ -838,8 +838,24 @@ const AnalyzePage: React.FC = () => {
                     </select>
                   </div>
 
-                  <div>
-                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2">
+                  <div className="lg:col-span-1">
+                    <label htmlFor="transcriptionModel" className="block text-sm font-medium text-app-primary mb-2 whitespace-nowrap">
+                      🎵 Transcription
+                    </label>
+                    <select
+                      id="transcriptionModel"
+                      value={transcriptionModel}
+                      onChange={(e) => setTranscriptionModel(e.target.value as 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1')}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                    >
+                      <option value="gpt-4o-transcribe">GPT-4o Transcribe - $6/1M tokens</option>
+                      <option value="gpt-4o-mini-transcribe">GPT-4o Mini - $3/1M tokens</option>
+                      <option value="whisper-1">Whisper-1 - $6/minute</option>
+                    </select>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2 whitespace-nowrap">
                       🤖 AI Model
                     </label>
                     <select
@@ -848,31 +864,15 @@ const AnalyzePage: React.FC = () => {
                       onChange={(e) => setModel(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
                     >
-                      <option value="gpt-4o-mini">GPT-4o Mini (Fast) - $0.15/$0.60/1M</option>
-                      <option value="gpt-4o">GPT-4o (Balanced) - $2.50/$10.00/1M</option>
-                      <option value="gpt-4-turbo">GPT-4 Turbo (Advanced) - $10.00/$30.00/1M</option>
-                      <option value="gpt-4">GPT-4 (Premium) - $30.00/$60.00/1M</option>
-                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget) - $0.50/$1.50/1M</option>
+                      <option value="gpt-4o-mini">GPT-4o Mini - $0.15/$0.60/1M</option>
+                      <option value="gpt-4o">GPT-4o - $2.50/$10.00/1M</option>
+                      <option value="gpt-4-turbo">GPT-4 Turbo - $10.00/$30.00/1M</option>
+                      <option value="gpt-4">GPT-4 - $30.00/$60.00/1M</option>
+                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo - $0.50/$1.50/1M</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label htmlFor="transcriptionModel" className="block text-sm font-medium text-app-primary mb-2">
-                      🎵 Transcription Model
-                    </label>
-                    <select
-                      id="transcriptionModel"
-                      value={transcriptionModel}
-                      onChange={(e) => setTranscriptionModel(e.target.value as 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1')}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
-                    >
-                      <option value="gpt-4o-transcribe">GPT-4o Transcribe (High Accuracy) - $6/1M audio tokens</option>
-                      <option value="gpt-4o-mini-transcribe">GPT-4o Mini Transcribe (Fast & Cheap) - $3/1M audio tokens</option>
-                      <option value="whisper-1">Whisper-1 (Standard) - $6/minute</option>
-                    </select>
-                  </div>
-
-                  <div className="sm:col-span-2 lg:col-span-4 flex items-end">
+                  <div className="sm:col-span-2 lg:col-span-1 flex items-end">
                     <button
                       type="submit"
                       disabled={
