@@ -716,7 +716,7 @@ const AnalyzePage: React.FC = () => {
                         onClick={() => handleInputTypeChange('url')}
                         className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                           inputType === 'url'
-                            ? 'bg-blue-600 text-white shadow-sm'
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
                             : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                         }`}
                       >
@@ -729,7 +729,7 @@ const AnalyzePage: React.FC = () => {
                         onClick={() => handleInputTypeChange('file')}
                         className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                           inputType === 'file'
-                            ? 'bg-blue-600 text-white shadow-sm'
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
                             : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                         }`}
                       >
