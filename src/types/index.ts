@@ -396,6 +396,7 @@ export interface CostEstimationResponse {
     summary: number;        // seconds
     total: number;          // seconds
     formatted: string;      // e.g., "2 min 30 sec"
+    isHistoricalEstimate?: boolean;  // true if summary time is based on historical data
   };
   error?: string;
   message?: string;
@@ -418,6 +419,7 @@ export interface FileCostEstimationResponse {
     summary: number;        // seconds
     total: number;          // seconds
     formatted: string;      // e.g., "2 min 30 sec"
+    isHistoricalEstimate?: boolean;  // true if summary time is based on historical data
   };
   error?: string;
   message?: string;

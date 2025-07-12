@@ -1,40 +1,113 @@
-以下では **OpenAI の 3 つの音声→テキストモデル** ― **GPT-4o-Transcribe**、**GPT-4o-Mini-Transcribe**、**Whisper-1** ― を、料金・速度・精度など主な観点でまとめました。
+# Feature Review: PR #18 - Processing Time Estimation and Progress Visualization
 
-| 観点                               | **GPT-4o-Transcribe**                                              | **GPT-4o-Mini-Transcribe**                                                                      | **Whisper-1** (API版)                                |
-| ---------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| **課金**<br>(目安 USD/分)          | **\$0.006** （\$6 / 100 万音声トークン） ([Holori][1])             | **\$0.003** （\$3 / 100 万音声トークン） ([Holori][1])                                          | **\$0.006** （秒単位課金） ([InvertedStone][2])      |
-| **対応エンドポイント**             | バッチ `/audio` ＋ リアルタイム WebSocket                          | 同左                                                                                            | バッチ `/audio` のみ                                 |
-| **ストリーミング遅延**<br>（平均） | ≈ 0.32 秒 最短 0.23 秒 ([OpenAI][3])                               | GPT-4o 比で **さらに低遅延**（Azure 計測で \~1.3–1.5× 高速） ([TECHCOMMUNITY.MICROSOFT.COM][4]) | 5 秒音声→1.1–1.6 秒（=実時間×0.2-0.3） ([Medium][5]) |
-| **英語 WER**<br>(小さいほど高精度) | **≈ 2.5 %**（33 言語平均でも Whisper を上回る） ([VentureBeat][6]) | GPT-4o より **+3–5 pt 程度悪化**（“やや精度低下”と公式説明） ([TECHCOMMUNITY.MICROSOFT.COM][4]) | Whisper large 相当で **≈ 7.6 %** ([kenility.com][7]) |
-| **1 リクエスト上限**               | 音声ファイル 25 MB ([Microsoft Learn][8])                          | 同左                                                                                            | 25 MB ([OpenAI Community][9])                        |
-| **対応言語**                       | 100 +（日本語含む）                                                | 100 +                                                                                           | 100 +                                                |
-| **代表的な不足機能**               | 話者分離・語単位タイムスタンプ未実装 ([Microsoft Learn][8])        | 〃                                                                                              | 〃                                                   |
-| **特徴まとめ**                     | 高精度＋低遅延のフラッグシップ                                     | **半額＆さらに速い** ― モバイル・組込向け                                                       | OSS 版もあり, コスト／セルフホスト自由度◎            |
+## Overview
+PR #18 implements user-requested features for processing time estimation and progress visualization during video analysis. The implementation successfully addresses the requirements to display estimated processing time alongside cost estimation and show real-time progress during analysis.
 
-### 使い分けのヒント
+## Implementation Analysis
 
-| 目的 / 制約                                  | 最適モデル                                                                        |
-| -------------------------------------------- | --------------------------------------------------------------------------------- |
-| **ライブ字幕・音声 UI**<br>遅延 0.5 秒以内   | **GPT-4o-Transcribe**（正確さ重視）<br>または **GPT-4o-Mini**（コストと速度優先） |
-| **既録音ファイルの大量処理**                 | Whisper-1（バッチ処理専用で設定が簡単）                                           |
-| **オンプレ／機密データ**                     | Whisper OSS（`whisper-large-v3` + `faster-whisper` など）                         |
-| **GPU コストを最小化しつつ英語精度も欲しい** | GPT-4o-Mini-Transcribe（Whisper 比 \~50 % 割安で精度も上）                        |
+### 1. Processing Time Estimation ✅
 
-> **ポイント**
->
-> - GPT-4o 系は **ストリーミング／バッチ両対応**。同じモデルで場面ごとに API を切り替えられる。
-> - Whisper-1 は **API ではストリーム非対応**だが、オープンソース版を改造すればリアルタイムも可（研究実装で 3.3 秒遅延報告あり）。 ([arXiv][10])
-> - いずれも 25 MB 制限を超える長尺音声は分割アップロードが必要。
+**Requirement**: Display estimated inference time along with cost estimation
 
-これを踏まえれば、**“超低遅延かつ高精度” が要件 → GPT-4o-Transcribe**、**“とにかく速く安く” → GPT-4o-Mini-Transcribe**、**“バッチ中心で安価・簡単” → Whisper-1** が大まかな選択基準になります。
+**Implementation**:
+- Added `calculateProcessingTime()` function in server.ts:349 that estimates times based on:
+  - Transcription model speed (GPT-4o: 10x, GPT-4o Mini: 15x, Whisper: 5x real-time)
+  - Summary generation speed (GPT-4o: 0.3x, GPT-4o Mini: 0.5x, Claude: 0.4x of video duration)
+- Processing time displayed in cost estimation UI with:
+  - Clear breakdown of transcription vs summary time
+  - Total processing time in human-readable format
+  - Visual enhancement with gradient background and pulsing timer icon
 
-[1]: https://holori.com/openai-pricing-guide/?utm_source=chatgpt.com 'The Ultimate Guide to OpenAI Pricing: Maximize Your AI investment'
-[2]: https://invertedstone.com/calculators/whisper-pricing?utm_source=chatgpt.com 'OpenAI Whisper Pricing Calculator - InvertedStone'
-[3]: https://openai.com/index/hello-gpt-4o/?utm_source=chatgpt.com 'Hello GPT-4o - OpenAI'
-[4]: https://techcommunity.microsoft.com/blog/azure-ai-services-blog/real-time-speech-transcription-with-gpt-4o-transcribe-and-gpt-4o-mini-transcribe/4410353 'Real-time Speech Transcription with GPT-4o-transcribe and GPT-4o-mini-transcribe using WebSocket | Microsoft Community Hub'
-[5]: https://tmmtt.medium.com/whisper-api-speech-to-text-2e7e366f9ec6?utm_source=chatgpt.com 'Whisper API — Speech to text - Teemu Maatta - Medium'
-[6]: https://venturebeat.com/ai/openais-new-voice-ai-models-gpt-4o-transcribe-let-you-add-speech-to-your-existing-text-apps-in-seconds/?utm_source=chatgpt.com "OpenAI's new voice AI model gpt-4o-transcribe lets you add speech ..."
-[7]: https://www.kenility.com/blog/technology/rise-ai-transcription-whisper-vs-google-speech-text 'The Rise of AI Transcription: Whisper vs Google Speech-to-Text | Kenility'
-[8]: https://learn.microsoft.com/en-us/answers/questions/2260666/availability-of-gpt-4o-transcribe-in-azure-ai-spee?utm_source=chatgpt.com 'Availability of GPT-4o-Transcribe in Azure AI Speech? - Microsoft Q&A'
-[9]: https://community.openai.com/t/whisper-api-increase-file-limit-25-mb/566754?utm_source=chatgpt.com 'Whisper API, increase file limit >25 MB'
-[10]: https://arxiv.org/abs/2307.14743?utm_source=chatgpt.com 'Turning Whisper into Real-Time Transcription System'
+**Quality**: Excellent - Clean implementation with realistic speed estimates
+
+### 2. Progress Visualization ✅
+
+**Requirement**: Show percentage progress during analysis aligned with estimated time
+
+**Implementation**:
+- AnalysisProgress component now shows:
+  - Full-screen overlay during processing (src/components/shared/AnalysisProgress.tsx:112)
+  - Overall progress percentage
+  - Stage-specific progress (transcription → summary)
+  - Remaining time countdown
+  - Visual indicators for current processing stage
+- Progress calculation based on elapsed time vs estimated time
+- Smooth animations and professional UI design
+
+**Quality**: Excellent - Highly visible and informative progress tracking
+
+### 3. Default Processing Time Handling ✅
+
+**Implementation**:
+- Smart fallback when cost estimation unavailable (src/components/pages/AnalyzePage.tsx:280-291)
+- Default values: 30s transcription + 60s summary = 90s total
+- Ensures progress bar always functions even without prior estimation
+
+**Quality**: Good - Robust error handling
+
+### 4. UI/UX Enhancements ✅
+
+**Implementation**:
+- Reduced cost estimation delay from 1000ms to 200ms for snappier response
+- Processing time displayed prominently in cost estimation panel
+- Full-screen progress overlay ensures visibility
+- Professional gradient backgrounds and shadow effects
+- Clear stage indicators with animations
+
+**Quality**: Excellent - Significant UX improvement
+
+## Code Quality Assessment
+
+### Strengths:
+1. **Type Safety**: TypeScript interfaces properly updated
+2. **Error Handling**: Graceful fallbacks for missing data
+3. **Performance**: Efficient progress updates (100ms intervals)
+4. **Debugging**: Comprehensive console logging for troubleshooting
+5. **Maintainability**: Clean component structure and clear data flow
+
+### Areas for Improvement:
+1. **Type Safety**: Many `any` types in server.ts (216 ESLint warnings)
+2. **Magic Numbers**: Processing speed multipliers could be configuration constants
+3. **Testing**: No unit tests for new functionality
+
+## Technical Details
+
+### Data Flow:
+1. URL input → Cost estimation API call (200ms debounce)
+2. Server calculates processing time based on model speeds
+3. Client receives estimation with time breakdown
+4. Analysis starts with time data or uses defaults
+5. Progress component tracks real-time vs estimated
+
+### Key Files Modified:
+- `src/components/pages/AnalyzePage.tsx`: Time estimation handling
+- `src/components/shared/AnalysisProgress.tsx`: Progress visualization
+- `src/server.ts`: Processing time calculation
+- `src/types/index.ts`: Type definitions
+
+## Testing Results
+
+- **TypeScript**: ✅ No type errors (`npm run type-check` passes)
+- **ESLint**: ⚠️ 2 errors (unused function), 216 warnings (mostly `any` types)
+- **Runtime**: Feature works as expected based on code review
+
+## Recommendations
+
+1. **High Priority**:
+   - Remove unused `calculateWhisperCost` function (line 326)
+   - Add unit tests for time calculation logic
+
+2. **Medium Priority**:
+   - Replace `any` types with proper interfaces
+   - Extract processing speed constants to configuration
+   - Add integration tests for progress tracking
+
+3. **Low Priority**:
+   - Consider WebSocket for real-time progress updates
+   - Add user preference for hiding/showing progress
+
+## Conclusion
+
+The implementation successfully delivers both requested features with high-quality UI/UX improvements. The processing time estimation provides valuable feedback to users, and the full-screen progress visualization ensures users are always aware of analysis status. While there are minor code quality issues (mainly type safety), the feature is production-ready and significantly enhances the user experience.
+
+**Recommendation**: Approve PR after fixing the unused function error.

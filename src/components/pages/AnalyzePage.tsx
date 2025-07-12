@@ -537,6 +537,11 @@ const AnalyzePage: React.FC = () => {
                 <div className="flex-1">
                   <div className="text-base font-bold text-blue-900 mb-3">
                     想定処理時間（概算）
+                    {processingTime.isHistoricalEstimate && (
+                      <span className="ml-2 text-xs font-normal text-green-700 bg-green-100 px-2 py-1 rounded">
+                        過去の実績から算出
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm text-blue-800 space-y-2 font-medium">
                     <div className="flex justify-between">

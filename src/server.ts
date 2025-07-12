@@ -346,20 +346,78 @@ function calculateTranscriptionCost(transcriptionModel: string, durationMinutes:
   return durationMinutes * pricing.transcription['whisper-1'];
 }
 
+// Calculate average summary time from historical data
+function calculateAverageSummaryTime(gptModel: string, durationMinutes: number): number | null {
+  try {
+    const history = loadHistory();
+    
+    // Filter relevant historical entries with actual summary time data
+    const relevantEntries = history.filter(entry => {
+      return entry.gptModel === gptModel && 
+             entry.analysisTime?.summary && 
+             entry.analysisTime.summary > 0 &&
+             entry.metadata?.basic?.duration;
+    });
+    
+    // Need at least 3 samples for reliable estimation
+    if (relevantEntries.length < 3) {
+      return null;
+    }
+    
+    // Calculate time per minute for each entry
+    const timePerMinuteRatios: number[] = relevantEntries.map(entry => {
+      const videoDurationMinutes = entry.metadata!.basic!.duration! / 60;
+      const summaryTimeMinutes = entry.analysisTime!.summary! / 60;
+      return summaryTimeMinutes / videoDurationMinutes;
+    });
+    
+    // Remove outliers (top and bottom 10%) if we have enough samples
+    if (timePerMinuteRatios.length >= 10) {
+      timePerMinuteRatios.sort((a, b) => a - b);
+      const trimCount = Math.floor(timePerMinuteRatios.length * 0.1);
+      const trimmedRatios = timePerMinuteRatios.slice(trimCount, -trimCount);
+      
+      // Calculate average
+      const avgRatio = trimmedRatios.reduce((sum, ratio) => sum + ratio, 0) / trimmedRatios.length;
+      return Math.ceil(avgRatio * durationMinutes * 60); // Return in seconds
+    } else {
+      // For small sample size, use simple average
+      const avgRatio = timePerMinuteRatios.reduce((sum, ratio) => sum + ratio, 0) / timePerMinuteRatios.length;
+      return Math.ceil(avgRatio * durationMinutes * 60); // Return in seconds
+    }
+  } catch (error) {
+    console.error('Error calculating average summary time:', error);
+    return null;
+  }
+}
+
 // Calculate estimated processing time based on model and video duration
 function calculateProcessingTime(transcriptionModel: string, gptModel: string, durationMinutes: number): {
   transcription: number;
   summary: number;
   total: number;
   formatted: string;
+  isHistoricalEstimate?: boolean;
 } {
   // Calculate transcription time (in seconds)
   const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
   const transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
   
-  // Calculate summary generation time (in seconds)
-  const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.5;
-  const summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
+  // Try to calculate summary time from historical data first
+  const historicalSummaryTime = calculateAverageSummaryTime(gptModel, durationMinutes);
+  let summaryTime: number;
+  let isHistoricalEstimate = false;
+  
+  if (historicalSummaryTime !== null) {
+    summaryTime = historicalSummaryTime;
+    isHistoricalEstimate = true;
+    console.log(`📊 Using historical data for summary time estimation: ${summaryTime}s for ${gptModel}`);
+  } else {
+    // Fall back to default speed coefficients
+    const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.5;
+    summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
+    console.log(`📊 Using default coefficients for summary time estimation: ${summaryTime}s for ${gptModel}`);
+  }
   
   const totalTime = transcriptionTime + summaryTime;
   
@@ -367,7 +425,8 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
     transcription: transcriptionTime,
     summary: summaryTime,
     total: totalTime,
-    formatted: formatProcessingTime(totalTime)
+    formatted: formatProcessingTime(totalTime),
+    isHistoricalEstimate
   };
 }
 
