@@ -119,5 +119,8 @@ implementation:
     - hash: d93ba61
       message: "fix: Add video player support for uploaded MOV/MP4 files"
       timestamp: "2025-07-12T19:46:14Z"
+    - hash: c0b4aba
+      message: "fix: Distinguish between YouTube videos and uploaded files in video player"
+      timestamp: "2025-07-12T19:57:46Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-12T19:46:14Z"
+updatedAt: "2025-07-12T19:57:46Z"
