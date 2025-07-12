@@ -198,6 +198,16 @@ const processingSpeed = {
   }
 };
 
+// Helper function to get the correct response format for transcription models
+function getTranscriptionResponseFormat(model: string): 'verbose_json' | 'json' {
+  // GPT-4o models don't support verbose_json, only json or text
+  if (model === 'gpt-4o-transcribe' || model === 'gpt-4o-mini-transcribe') {
+    return 'json';
+  }
+  // Whisper-1 supports verbose_json which includes timestamps
+  return 'verbose_json';
+}
+
 // 履歴ファイルのパス
 const historyFile = path.join('history', 'transcripts.json');
 const costsFile = path.join('history', 'costs.json');
@@ -282,7 +292,7 @@ async function transcribeVideoFile(filePath: string, transcriptionModel: string 
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(audioPath),
       model: transcriptionModel,
-      response_format: 'verbose_json',
+      response_format: getTranscriptionResponseFormat(transcriptionModel),
       timestamp_granularities: ['segment']
     });
     
@@ -989,7 +999,7 @@ async function transcribeAudio(audioPath: string, language: string = 'original',
   const transcriptionParams: any = {
     file: audioFile,
     model: transcriptionModel,
-    response_format: 'verbose_json',
+    response_format: getTranscriptionResponseFormat(transcriptionModel),
     timestamp_granularities: ['segment']
   };
   
@@ -1048,7 +1058,7 @@ async function transcribeLargeAudio(audioPath: string, language: string = 'origi
           const transcriptionParams: any = {
             file: audioFile,
             model: transcriptionModel,
-            response_format: 'verbose_json',
+            response_format: getTranscriptionResponseFormat(transcriptionModel),
             timestamp_granularities: ['segment']
           };
           
