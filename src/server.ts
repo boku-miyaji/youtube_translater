@@ -288,11 +288,21 @@ async function transcribeVideoFile(filePath: string, transcriptionModel: string 
     
     console.log('🎵 Starting Whisper API transcription...');
     
+    // For video files, always use whisper-1 to ensure we get timestamps
+    // GPT-4o models don't support timestamp_granularities
+    const actualModel = (transcriptionModel === 'gpt-4o-transcribe' || transcriptionModel === 'gpt-4o-mini-transcribe') 
+      ? 'whisper-1' 
+      : transcriptionModel;
+    
+    if (actualModel !== transcriptionModel) {
+      console.log(`⚠️ Using whisper-1 instead of ${transcriptionModel} to ensure timestamp support for video files`);
+    }
+    
     // Transcribe using Whisper API
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(audioPath),
-      model: transcriptionModel,
-      response_format: getTranscriptionResponseFormat(transcriptionModel),
+      model: actualModel,
+      response_format: 'verbose_json', // Always use verbose_json for video files to get timestamps
       timestamp_granularities: ['segment']
     });
     
@@ -996,10 +1006,19 @@ async function transcribeAudio(audioPath: string, language: string = 'original',
   
   const audioFile = fs.createReadStream(audioPath);
   
+  // For audio transcription with timestamps, we need to ensure we use a model that supports it
+  const actualModel = (transcriptionModel === 'gpt-4o-transcribe' || transcriptionModel === 'gpt-4o-mini-transcribe') 
+    ? 'whisper-1' 
+    : transcriptionModel;
+  
+  if (actualModel !== transcriptionModel) {
+    console.log(`⚠️ Using whisper-1 instead of ${transcriptionModel} to ensure timestamp support`);
+  }
+  
   const transcriptionParams: any = {
     file: audioFile,
-    model: transcriptionModel,
-    response_format: getTranscriptionResponseFormat(transcriptionModel),
+    model: actualModel,
+    response_format: 'verbose_json', // Always use verbose_json to get timestamps
     timestamp_granularities: ['segment']
   };
   
@@ -1055,10 +1074,15 @@ async function transcribeLargeAudio(audioPath: string, language: string = 'origi
           // Transcribe segment
           const audioFile = fs.createReadStream(segmentPath);
           
+          // For audio transcription with timestamps, we need to ensure we use a model that supports it
+          const actualModel = (transcriptionModel === 'gpt-4o-transcribe' || transcriptionModel === 'gpt-4o-mini-transcribe') 
+            ? 'whisper-1' 
+            : transcriptionModel;
+          
           const transcriptionParams: any = {
             file: audioFile,
-            model: transcriptionModel,
-            response_format: getTranscriptionResponseFormat(transcriptionModel),
+            model: actualModel,
+            response_format: 'verbose_json', // Always use verbose_json to get timestamps
             timestamp_granularities: ['segment']
           };
           
@@ -1611,7 +1635,11 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
     
     // 3. Calculate costs
     const durationMinutes = videoMeta.duration / 60;
-    const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
+    // Since we force whisper-1 for GPT-4o models in video files, use whisper-1 cost
+    const actualTranscriptionModel = (transcriptionModel === 'gpt-4o-transcribe' || transcriptionModel === 'gpt-4o-mini-transcribe') 
+      ? 'whisper-1' 
+      : transcriptionModel;
+    const transcriptionCost = calculateTranscriptionCost(actualTranscriptionModel, durationMinutes);
     
     let summary = '';
     let summaryCost = 0;
