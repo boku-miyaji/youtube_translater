@@ -152,12 +152,6 @@ const AnalysisPage: React.FC = () => {
               <div className="px-6 py-4">
                 <div className="space-y-4">
                   {(() => {
-                    const processingTimes = history.map(h => h.analysisTime?.duration).filter(Boolean)
-                    const avgTime = processingTimes.length > 0 ? 
-                      processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length : 0
-                    const minTime = processingTimes.length > 0 ? Math.min(...processingTimes) : 0
-                    const maxTime = processingTimes.length > 0 ? Math.max(...processingTimes) : 0
-                    
                     // Calculate processing time per minute of video
                     const processingTimePerMinute = history
                       .filter(h => h.analysisTime?.duration && h.metadata?.basic?.duration)
@@ -183,6 +177,10 @@ const AnalysisPage: React.FC = () => {
                     
                     const avgTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
                       transcriptionTimePerMinute.reduce((a, b) => a + b, 0) / transcriptionTimePerMinute.length : 0
+                    const minTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
+                      Math.min(...transcriptionTimePerMinute) : 0
+                    const maxTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
+                      Math.max(...transcriptionTimePerMinute) : 0
                     
                     // Calculate summary time per minute of video
                     const summaryTimePerMinute = history
@@ -195,66 +193,68 @@ const AnalysisPage: React.FC = () => {
                     
                     const avgSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
                       summaryTimePerMinute.reduce((a, b) => a + b, 0) / summaryTimePerMinute.length : 0
+                    const minSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
+                      Math.min(...summaryTimePerMinute) : 0
+                    const maxSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
+                      Math.max(...summaryTimePerMinute) : 0
                     
                     return (
                       <>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">平均処理時間:</span>
-                          <span className="text-sm font-semibold text-gray-900">
-                            {avgTime < 60 ? `${Math.round(avgTime)}秒` : `${Math.floor(avgTime / 60)}分${Math.round(avgTime % 60)}秒`}
+                          <span className="text-sm font-medium text-gray-700">合計処理時間（平均）:</span>
+                          <span className="text-sm font-bold text-blue-600">
+                            {avgTimePerMinute > 0 ? `${avgTimePerMinute.toFixed(1)}秒/分` : '―'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">最短時間:</span>
+                          <span className="text-sm font-medium text-gray-700">合計処理時間（最短）:</span>
                           <span className="text-sm font-semibold text-gray-900">
-                            {minTime < 60 ? `${minTime}秒` : `${Math.floor(minTime / 60)}分${minTime % 60}秒`}
+                            {minTimePerMinute > 0 ? `${minTimePerMinute.toFixed(1)}秒/分` : '―'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">最長時間:</span>
+                          <span className="text-sm font-medium text-gray-700">合計処理時間（最長）:</span>
                           <span className="text-sm font-semibold text-gray-900">
-                            {maxTime < 60 ? `${maxTime}秒` : `${Math.floor(maxTime / 60)}分${maxTime % 60}秒`}
+                            {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒/分` : '―'}
                           </span>
                         </div>
                         <div className="border-t border-gray-200 pt-2 mt-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">動画1分あたり平均処理時間:</span>
-                            <span className="text-sm font-bold text-blue-600">
-                              {avgTimePerMinute > 0 ? `${avgTimePerMinute.toFixed(1)}秒/分` : '―'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">動画1分あたり最短:</span>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {minTimePerMinute > 0 ? `${minTimePerMinute.toFixed(1)}秒/分` : '―'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">動画1分あたり最長:</span>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒/分` : '―'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="border-t border-gray-200 pt-2 mt-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-indigo-700">文字起こし平均時間:</span>
+                            <span className="text-sm font-medium text-indigo-700">文字起こし（平均）:</span>
                             <span className="text-sm font-bold text-indigo-600">
                               {avgTranscriptionPerMinute > 0 ? `${avgTranscriptionPerMinute.toFixed(1)}秒/分` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-green-700">要約生成平均時間:</span>
+                            <span className="text-sm font-medium text-indigo-700">文字起こし（最短）:</span>
+                            <span className="text-sm font-semibold text-indigo-500">
+                              {minTranscriptionPerMinute > 0 ? `${minTranscriptionPerMinute.toFixed(1)}秒/分` : '―'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-indigo-700">文字起こし（最長）:</span>
+                            <span className="text-sm font-semibold text-indigo-500">
+                              {maxTranscriptionPerMinute > 0 ? `${maxTranscriptionPerMinute.toFixed(1)}秒/分` : '―'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-200 pt-2 mt-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-green-700">要約生成（平均）:</span>
                             <span className="text-sm font-bold text-green-600">
                               {avgSummaryPerMinute > 0 ? `${avgSummaryPerMinute.toFixed(1)}秒/分` : '―'}
                             </span>
                           </div>
-                        </div>
-                        <div className="border-t border-gray-200 pt-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">処理効率:</span>
-                            <span className="text-sm font-bold text-gray-900">
-                              {processingTimes.length > 0 ? `${(processingTimes.length / (avgTime / 60)).toFixed(1)}本/分` : '0本/分'}
+                            <span className="text-sm font-medium text-green-700">要約生成（最短）:</span>
+                            <span className="text-sm font-semibold text-green-500">
+                              {minSummaryPerMinute > 0 ? `${minSummaryPerMinute.toFixed(1)}秒/分` : '―'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-green-700">要約生成（最長）:</span>
+                            <span className="text-sm font-semibold text-green-500">
+                              {maxSummaryPerMinute > 0 ? `${maxSummaryPerMinute.toFixed(1)}秒/分` : '―'}
                             </span>
                           </div>
                         </div>
@@ -291,20 +291,24 @@ const AnalysisPage: React.FC = () => {
             </div>
           )}
 
-          {/* Processing Time Distribution */}
+          {/* Processing Time Distribution (Normalized) */}
           {history && history.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               {(() => {
-                const processingTimes = history
-                  .map(h => h.analysisTime?.duration)
-                  .filter(Boolean) as number[]
+                const normalizedProcessingTimes = history
+                  .filter(h => h.analysisTime?.duration && h.metadata?.basic?.duration)
+                  .map(h => {
+                    const processingTime = h.analysisTime!.duration
+                    const videoDuration = h.metadata!.basic!.duration
+                    return processingTime / (videoDuration / 60) // seconds per minute of video
+                  })
                 
-                return processingTimes.length > 0 ? (
+                return normalizedProcessingTimes.length > 0 ? (
                   <HistogramChart
-                    title="処理時間の分布"
-                    data={processingTimes}
+                    title="処理時間の分布（動画1分あたり）"
+                    data={normalizedProcessingTimes}
                     bins={8}
-                    xAxisLabel="処理時間"
+                    xAxisLabel="処理時間（秒/分）"
                     yAxisLabel="頻度"
                     color="#f59e0b"
                   />

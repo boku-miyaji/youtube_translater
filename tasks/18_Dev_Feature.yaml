@@ -104,5 +104,8 @@ implementation:
     - hash: 7591b7d
       message: "feat: Add individual transcription/summary time display in Data Insights"
       timestamp: "2025-07-11T17:25:00Z"
+    - hash: b229719
+      message: "feat: Show only normalized processing times in Analysis page"
+      timestamp: "2025-07-11T17:31:00Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T17:25:00Z"
+updatedAt: "2025-07-11T17:31:00Z"
