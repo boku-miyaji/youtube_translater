@@ -107,5 +107,11 @@ implementation:
     - hash: b229719
       message: "feat: Show only normalized processing times in Analysis page"
       timestamp: "2025-07-11T17:31:00Z"
+    - hash: 9f2aa0b
+      message: "fix: Use getTranscriptionResponseFormat helper for all transcription API calls"
+      timestamp: "2025-07-12T13:00:38Z"
+    - hash: 717a448
+      message: "docs: Add documentation for GPT-4o-transcribe response format fix"
+      timestamp: "2025-07-12T13:12:06Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T17:31:00Z"
+updatedAt: "2025-07-12T13:12:06Z"
