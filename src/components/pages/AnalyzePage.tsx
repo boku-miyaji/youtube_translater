@@ -376,7 +376,8 @@ const AnalyzePage: React.FC = () => {
       const videoMetadata = {
         basic: {
           title: data.title,
-          videoId: inputType === 'url' ? data.metadata?.basic?.videoId : undefined,
+          // Only set videoId for YouTube videos, not for uploaded files
+          videoId: (inputType === 'url' && data.metadata?.basic?.videoId) ? data.metadata.basic.videoId : undefined,
           duration: data.metadata?.basic?.duration || 0,
           channel: data.metadata?.basic?.channel,
           viewCount: data.metadata?.basic?.viewCount,
@@ -385,7 +386,8 @@ const AnalyzePage: React.FC = () => {
           publishDate: data.metadata?.basic?.publishDate,
           category: data.metadata?.basic?.category,
           description: data.metadata?.basic?.description,
-          videoPath: inputType === 'file' ? data.metadata?.basic?.videoPath : undefined
+          // Set videoPath for uploaded files
+          videoPath: (inputType === 'file' || data.source === 'file') ? (data.metadata?.basic?.videoPath || data.videoPath) : undefined
         },
         chapters: data.metadata?.chapters || [],
         captions: data.metadata?.captions || [],
