@@ -398,10 +398,25 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
   total: number;
   formatted: string;
   isHistoricalEstimate?: boolean;
+  transcriptionRate: string;  // e.g., "10x速" or "0.1分/分"
+  summaryRate: string;        // e.g., "0.5分/分"
+  durationMinutes: number;    // Pass through for UI
 } {
   // Calculate transcription time (in seconds)
   const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
   const transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
+  
+  // Calculate transcription rate
+  const transcriptionMinutesPerVideoMinute = (transcriptionTime / 60) / durationMinutes;
+  let transcriptionRate: string;
+  if (transcriptionMinutesPerVideoMinute < 1) {
+    // If processing is faster than real-time, show as "Xx速"
+    const speedMultiplier = 1 / transcriptionMinutesPerVideoMinute;
+    transcriptionRate = `${speedMultiplier.toFixed(1)}x速`;
+  } else {
+    // Show as minutes per video minute
+    transcriptionRate = `${transcriptionMinutesPerVideoMinute.toFixed(2)}分/分`;
+  }
   
   // Try to calculate summary time from historical data first
   const historicalSummaryTime = calculateAverageSummaryTime(gptModel, durationMinutes);
@@ -419,6 +434,10 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
     console.log(`📊 Using default coefficients for summary time estimation: ${summaryTime}s for ${gptModel}`);
   }
   
+  // Calculate summary rate
+  const summaryMinutesPerVideoMinute = (summaryTime / 60) / durationMinutes;
+  const summaryRate = `${summaryMinutesPerVideoMinute.toFixed(2)}分/分`;
+  
   const totalTime = transcriptionTime + summaryTime;
   
   return {
@@ -426,7 +445,10 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
     summary: summaryTime,
     total: totalTime,
     formatted: formatProcessingTime(totalTime),
-    isHistoricalEstimate
+    isHistoricalEstimate,
+    transcriptionRate,
+    summaryRate,
+    durationMinutes
   };
 }
 

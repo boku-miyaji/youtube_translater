@@ -98,5 +98,8 @@ implementation:
     - hash: 28248eb
       message: "feat: Add historical data-based summary time estimation"
       timestamp: "2025-07-11T17:04:00Z"
+    - hash: 2097958
+      message: "feat: Display processing rates per minute instead of absolute times"
+      timestamp: "2025-07-11T17:12:00Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T17:04:00Z"
+updatedAt: "2025-07-11T17:12:00Z"

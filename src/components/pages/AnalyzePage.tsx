@@ -545,12 +545,12 @@ const AnalyzePage: React.FC = () => {
                   </div>
                   <div className="text-sm text-blue-800 space-y-2 font-medium">
                     <div className="flex justify-between">
-                      <span>文字起こし時間:</span>
-                      <span className="font-mono">{formatProcessingTime(processingTime.transcription)}</span>
+                      <span>文字起こし速度:</span>
+                      <span className="font-mono">{processingTime.transcriptionRate || `${formatProcessingTime(processingTime.transcription)}`}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>要約生成時間:</span>
-                      <span className="font-mono">{formatProcessingTime(processingTime.summary)}</span>
+                      <span>要約生成速度:</span>
+                      <span className="font-mono">{processingTime.summaryRate || `${formatProcessingTime(processingTime.summary)}`}</span>
                     </div>
                     <div className="flex justify-between font-bold text-base border-t-2 border-blue-400 pt-2 mt-2">
                       <span>合計処理時間:</span>
@@ -558,7 +558,7 @@ const AnalyzePage: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-xs text-blue-700 mt-2 font-semibold">
-                    ※実際の処理時間はサーバー負荷により変動します
+                    ※動画1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）
                   </div>
                 </div>
               </div>
