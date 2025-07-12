@@ -172,6 +172,30 @@ const AnalysisPage: React.FC = () => {
                     const minTimePerMinute = processingTimePerMinute.length > 0 ? Math.min(...processingTimePerMinute) : 0
                     const maxTimePerMinute = processingTimePerMinute.length > 0 ? Math.max(...processingTimePerMinute) : 0
                     
+                    // Calculate transcription time per minute of video
+                    const transcriptionTimePerMinute = history
+                      .filter(h => h.analysisTime?.transcription && h.metadata?.basic?.duration)
+                      .map(h => {
+                        const transcriptionTime = h.analysisTime!.transcription
+                        const videoDuration = h.metadata!.basic!.duration
+                        return transcriptionTime / (videoDuration / 60) // seconds per minute of video
+                      })
+                    
+                    const avgTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
+                      transcriptionTimePerMinute.reduce((a, b) => a + b, 0) / transcriptionTimePerMinute.length : 0
+                    
+                    // Calculate summary time per minute of video
+                    const summaryTimePerMinute = history
+                      .filter(h => h.analysisTime?.summary && h.metadata?.basic?.duration)
+                      .map(h => {
+                        const summaryTime = h.analysisTime!.summary
+                        const videoDuration = h.metadata!.basic!.duration
+                        return summaryTime / (videoDuration / 60) // seconds per minute of video
+                      })
+                    
+                    const avgSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
+                      summaryTimePerMinute.reduce((a, b) => a + b, 0) / summaryTimePerMinute.length : 0
+                    
                     return (
                       <>
                         <div className="flex justify-between items-center">
@@ -209,6 +233,20 @@ const AnalysisPage: React.FC = () => {
                             <span className="text-sm font-medium text-gray-700">動画1分あたり最長:</span>
                             <span className="text-sm font-semibold text-gray-900">
                               {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-200 pt-2 mt-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-indigo-700">文字起こし平均時間:</span>
+                            <span className="text-sm font-bold text-indigo-600">
+                              {avgTranscriptionPerMinute > 0 ? `${avgTranscriptionPerMinute.toFixed(1)}秒/分` : '―'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-green-700">要約生成平均時間:</span>
+                            <span className="text-sm font-bold text-green-600">
+                              {avgSummaryPerMinute > 0 ? `${avgSummaryPerMinute.toFixed(1)}秒/分` : '―'}
                             </span>
                           </div>
                         </div>

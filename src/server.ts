@@ -1330,8 +1330,9 @@ function calculateInferenceStats(
 // API version of upload endpoint
 app.post('/api/upload-youtube', async (req: Request, res: Response) => {
   try {
-    const analysisStartTime = new Date().toISOString();
-    console.log('API server: /api/upload-youtube called at', analysisStartTime);
+    const analysisStartTime = new Date();
+    const analysisStartTimeISO = analysisStartTime.toISOString();
+    console.log('API server: /api/upload-youtube called at', analysisStartTimeISO);
     const { url, language = 'original', model = 'gpt-4o-mini', transcriptionModel = 'whisper-1' } = req.body;
     
     if (!url) {
@@ -1352,6 +1353,10 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     let timestampedSegments: TimestampedSegment[] = [];
     let method: 'subtitle' | 'whisper' = 'subtitle';
     let detectedLanguage = language;
+    let transcriptionDuration = 0;
+
+    // Track transcription start time
+    const transcriptionStartTime = new Date();
 
     // Try subtitle first
     console.log('Attempting subtitle extraction...');
@@ -1363,6 +1368,8 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       detectedLanguage = subtitleResult.detectedLanguage;
       method = 'subtitle';
       console.log('Subtitle extraction successful');
+      // Subtitle extraction is fast, estimate 1-2 seconds
+      transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
     } else {
       console.log('Subtitle extraction failed, trying Whisper...');
       try {
@@ -1380,6 +1387,9 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         if (fs.existsSync(audioPath)) {
           fs.unlinkSync(audioPath);
         }
+
+        // Calculate actual transcription time
+        transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
       } catch (whisperError) {
         console.error('Whisper transcription failed:', whisperError);
         throw new Error('Failed to extract transcript using both methods');
@@ -1396,14 +1406,21 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       sessionCosts.total += transcriptionCost;
     }
 
+    // Track summary start time
+    const summaryStartTime = new Date();
+    let summaryDuration = 0;
+
     // Generate summary
     let summaryResult = null;
     try {
       console.log('Generating summary...');
       summaryResult = await generateSummary(transcript, metadata, model, timestampedSegments);
       console.log('Summary generation successful');
+      // Calculate actual summary generation time
+      summaryDuration = Math.round((new Date().getTime() - summaryStartTime.getTime()) / 1000);
     } catch (summaryError) {
       console.warn('Summary generation failed:', summaryError);
+      summaryDuration = Math.round((new Date().getTime() - summaryStartTime.getTime()) / 1000);
     }
 
     // Update current state
@@ -1429,20 +1446,25 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     console.log('Session costs after:', sessionCosts);
     console.log('================================================');
 
-    // Calculate analysis time
-    const analysisEndTime = new Date().toISOString();
-    const analysisDuration = Math.round((new Date(analysisEndTime).getTime() - new Date(analysisStartTime).getTime()) / 1000);
+    // Calculate analysis time with individual component times
+    const analysisEndTime = new Date();
+    const analysisDuration = Math.round((analysisEndTime.getTime() - analysisStartTime.getTime()) / 1000);
     const analysisTimeInfo = {
-      startTime: analysisStartTime,
-      endTime: analysisEndTime,
-      duration: analysisDuration
+      startTime: analysisStartTimeISO,
+      endTime: analysisEndTime.toISOString(),
+      duration: analysisDuration,
+      transcription: transcriptionDuration,
+      summary: summaryDuration,
+      total: transcriptionDuration + summaryDuration
     };
 
     console.log('=== ANALYSIS TIME INFO ===');
-    console.log('Start time:', analysisStartTime);
-    console.log('End time:', analysisEndTime);
-    console.log('Duration:', analysisDuration, 'seconds');
-    console.log('==========================');
+    console.log('Start time:', analysisStartTimeISO);
+    console.log('End time:', analysisEndTime.toISOString());
+    console.log('Total duration:', analysisDuration, 'seconds');
+    console.log('Transcription duration:', transcriptionDuration, 'seconds');
+    console.log('Summary duration:', summaryDuration, 'seconds');
+    console.log('==========================')
 
     // Add to history
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

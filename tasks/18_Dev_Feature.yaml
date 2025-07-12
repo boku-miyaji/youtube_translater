@@ -101,5 +101,8 @@ implementation:
     - hash: 2097958
       message: "feat: Display processing rates per minute instead of absolute times"
       timestamp: "2025-07-11T17:12:00Z"
+    - hash: 7591b7d
+      message: "feat: Add individual transcription/summary time display in Data Insights"
+      timestamp: "2025-07-11T17:25:00Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-11T17:12:00Z"
+updatedAt: "2025-07-11T17:25:00Z"
