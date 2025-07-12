@@ -1094,6 +1094,27 @@ const AnalyzePage: React.FC = () => {
                     allowFullScreen
                   />
                 )}
+                {currentVideo.basic?.videoPath && !currentVideo.basic?.videoId && (
+                  <video
+                    ref={(video) => {
+                      if (video && !playerRef) {
+                        console.log('🎥 Setting video element as playerRef')
+                        setPlayerRef(video as any)
+                      }
+                    }}
+                    src={currentVideo.basic.videoPath}
+                    controls
+                    className="w-full h-full bg-black"
+                    onLoadedMetadata={(e) => {
+                      console.log('📹 Video loaded:', currentVideo.basic.videoPath)
+                    }}
+                    onError={(e) => {
+                      console.error('❌ Video loading error:', e)
+                    }}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                )}
               </div>
               
               {/* Video metadata outside aspect ratio container */}
@@ -1353,20 +1374,20 @@ const AnalyzePage: React.FC = () => {
                 
                 const trySeek = (retryCount = 0) => {
                   if (playerRef) {
-                    console.log('🎥 AnalyzePage: playerRef methods:', {
-                      seekToWithAutoplay: !!playerRef.seekToWithAutoplay,
-                      seekTo: !!playerRef.seekTo,
-                      getPlayerState: !!playerRef.getPlayerState,
-                      playVideo: !!playerRef.playVideo
-                    })
-                    
-                    // Use the enhanced seekTo function with autoplay
-                    if (playerRef.seekToWithAutoplay) {
-                      console.log('🎥 Using seekToWithAutoplay')
-                      playerRef.seekToWithAutoplay(time, true)
-                    } else if (playerRef.seekTo) {
-                      console.log('🎥 Using fallback seekTo method')
-                      // Fallback to original method
+                    // Check if it's an HTML5 video element
+                    if (playerRef.currentTime !== undefined) {
+                      console.log('🎥 Using HTML5 video seek')
+                      playerRef.currentTime = time
+                      // Auto-play if paused
+                      if (playerRef.paused) {
+                        playerRef.play().catch((e: any) => {
+                          console.log('⚠️ Auto-play prevented:', e)
+                        })
+                      }
+                    }
+                    // YouTube player API methods
+                    else if (playerRef.seekTo) {
+                      console.log('🎥 Using YouTube player seek')
                       playerRef.seekTo(time, true)
                       // Auto-play if not already playing
                       setTimeout(() => {
