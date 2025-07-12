@@ -116,5 +116,8 @@ implementation:
     - hash: 60c7a92
       message: "feat: Ensure timestamp support for video file transcriptions"
       timestamp: "2025-07-12T19:16:42Z"
+    - hash: d93ba61
+      message: "fix: Add video player support for uploaded MOV/MP4 files"
+      timestamp: "2025-07-12T19:46:14Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-12T19:16:42Z"
+updatedAt: "2025-07-12T19:46:14Z"
