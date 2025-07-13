@@ -430,9 +430,11 @@ const AnalysisPage: React.FC = () => {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                   💸 詳細コスト分析
+                  <span className="text-xs text-gray-500">（文字起こし・要約別）</span>
                 </h3>
               </div>
-              <div className="px-6 py-4">
+              <div className="px-6 py-4 space-y-6">
+                {/* 総計セクション */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {(() => {
                     const totalCost = costs.reduce((sum, cost) => sum + cost.totalCost, 0)
@@ -466,6 +468,61 @@ const AnalysisPage: React.FC = () => {
                       </>
                     )
                   })()}
+                </div>
+                
+                {/* 文字起こし・要約別の詳細 */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">処理タイプ別コスト内訳</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(() => {
+                      const whisperTotal = costs.reduce((sum, cost) => sum + cost.whisperCost, 0)
+                      const gptTotal = costs.reduce((sum, cost) => sum + cost.gptCost, 0)
+                      const whisperCount = costs.filter(cost => cost.whisperCost > 0).length
+                      const gptCount = costs.filter(cost => cost.gptCost > 0).length
+                      
+                      return (
+                        <>
+                          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="text-sm font-medium text-red-800">📝 文字起こし (Whisper AI)</h5>
+                              <span className="text-xs text-red-600">{whisperCount} 件</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-red-700">合計:</span>
+                                <span className="font-semibold text-red-900">${whisperTotal.toFixed(4)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-red-700">平均:</span>
+                                <span className="font-medium text-red-800">
+                                  ${whisperCount > 0 ? (whisperTotal / whisperCount).toFixed(4) : '0.0000'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="text-sm font-medium text-blue-800">📋 要約生成 (GPT)</h5>
+                              <span className="text-xs text-blue-600">{gptCount} 件</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-blue-700">合計:</span>
+                                <span className="font-semibold text-blue-900">${gptTotal.toFixed(4)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-blue-700">平均:</span>
+                                <span className="font-medium text-blue-800">
+                                  ${gptCount > 0 ? (gptTotal / gptCount).toFixed(4) : '0.0000'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
@@ -520,15 +577,15 @@ const AnalysisPage: React.FC = () => {
                 
                 return (
                   <PieChart
-                    title="コスト内訳"
+                    title="コスト内訳（文字起こし vs 要約）"
                     data={[
                       {
-                        name: 'Whisper AI',
+                        name: '文字起こし (Whisper AI)',
                         value: Math.round(whisperTotal * 10000) / 10000,
                         color: '#ef4444'
                       },
                       {
-                        name: 'GPT',
+                        name: '要約生成 (GPT)',
                         value: Math.round(gptTotal * 10000) / 10000,
                         color: '#3b82f6'
                       }
