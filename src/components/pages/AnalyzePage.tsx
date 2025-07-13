@@ -1242,48 +1242,85 @@ const AnalyzePage: React.FC = () => {
                         {currentVideo.costs && (
                           <div>
                             <h4 className="text-sm font-semibold text-black mb-2 flex items-center gap-1">
-                              💰 分析コスト
+                              💰 分析コスト（実績）
                             </h4>
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-800 font-medium">文字起こし:</span>
-                                <span className="font-semibold text-black">
-                                {currentVideo.costs.transcription > 0 ? 
-                                  `$${currentVideo.costs.transcription.toFixed(4)}` : 
-                                  '無料'
-                                }
-                                {currentVideo.transcriptSource === 'subtitle' && (
-                                  <span className="ml-2 text-sm text-gray-700 font-medium">(YouTube字幕)</span>
-                                )}
-                                {currentVideo.transcriptSource === 'whisper' && (
-                                  <span className="ml-2 text-sm text-gray-700 font-medium">(Whisper AI)</span>
-                                )}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-800 font-medium">要約:</span>
-                              <span className="font-semibold text-black">
-                                ${currentVideo.costs.summary.toFixed(4)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-800 font-medium">記事:</span>
-                              <span className="font-semibold text-black">
-                                {currentVideo.costs.article > 0 ? 
-                                  `$${currentVideo.costs.article.toFixed(4)}` : 
-                                  '未生成'
-                                }
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
-                              <span className="text-black font-semibold">合計:</span>
-                              <span className="font-bold text-black text-base">
-                                ${currentVideo.costs.total.toFixed(4)}
-                              </span>
+                            <div className="space-y-2">
+                              {/* 文字起こしコスト詳細 */}
+                              <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                <div className="text-xs font-semibold text-gray-700 mb-1">📝 文字起こし</div>
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">方法:</span>
+                                    <span className="text-gray-800">
+                                      {currentVideo.transcriptSource === 'subtitle' ? 'YouTube字幕' : 'Whisper AI'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">コスト:</span>
+                                    <span className="font-semibold text-black">
+                                      {currentVideo.costs.transcription > 0 ? 
+                                        `$${currentVideo.costs.transcription.toFixed(4)}` : 
+                                        '無料'
+                                      }
+                                    </span>
+                                  </div>
+                                  {currentVideo.analysisTime?.transcription && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">処理時間:</span>
+                                      <span className="text-gray-800">
+                                        {Math.round(currentVideo.analysisTime.transcription)}秒
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* 要約コスト詳細 */}
+                              <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                <div className="text-xs font-semibold text-gray-700 mb-1">📋 要約生成</div>
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">コスト:</span>
+                                    <span className="font-semibold text-black">
+                                      ${currentVideo.costs.summary.toFixed(4)}
+                                    </span>
+                                  </div>
+                                  {currentVideo.analysisTime?.summary && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">処理時間:</span>
+                                      <span className="text-gray-800">
+                                        {Math.round(currentVideo.analysisTime.summary)}秒
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* 記事生成（もし生成されていれば） */}
+                              {currentVideo.costs.article > 0 && (
+                                <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                  <div className="text-xs font-semibold text-gray-700 mb-1">📄 記事生成</div>
+                                  <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">コスト:</span>
+                                      <span className="font-semibold text-black">
+                                        ${currentVideo.costs.article.toFixed(4)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* 合計 */}
+                              <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
+                                <span className="text-sm text-black font-bold">合計コスト:</span>
+                                <span className="font-bold text-black text-base">
+                                  ${currentVideo.costs.total.toFixed(4)}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Analysis Time Information */}
                       {currentVideo.analysisTime && (
