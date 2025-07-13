@@ -122,5 +122,11 @@ implementation:
     - hash: c0b4aba
       message: "fix: Distinguish between YouTube videos and uploaded files in video player"
       timestamp: "2025-07-12T19:57:46Z"
+    - hash: f947e6e
+      message: "fix: Unify color intensity between cost and processing time displays"
+      timestamp: "2025-07-13T00:00:00Z"
+    - hash: b89f2f7
+      message: "fix: Improve processing time display format to be more intuitive"
+      timestamp: "2025-07-13T00:10:00Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-12T19:57:46Z"
+updatedAt: "2025-07-13T00:10:00Z"
