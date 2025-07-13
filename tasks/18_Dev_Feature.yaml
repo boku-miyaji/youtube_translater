@@ -131,5 +131,8 @@ implementation:
     - hash: 44d1d8b
       message: "fix: Clarify processing time display by specifying 'per video minute'"
       timestamp: "2025-07-13T00:20:00Z"
+    - hash: 225922d
+      message: "feat: Separate transcription and summary costs in analysis details"
+      timestamp: "2025-07-13T00:30:00Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-13T00:20:00Z"
+updatedAt: "2025-07-13T00:30:00Z"
