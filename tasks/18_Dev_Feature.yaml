@@ -137,5 +137,8 @@ implementation:
     - hash: 183b21f
       message: "feat: Clearly separate transcription and summary costs in Analysis page"
       timestamp: "2025-07-13T00:40:00Z"
+    - hash: e09a0c3
+      message: "fix: Improve processing time display clarity in Analysis page"
+      timestamp: "2025-07-13T00:50:00Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-13T00:40:00Z"
+updatedAt: "2025-07-13T00:50:00Z"
