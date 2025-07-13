@@ -533,11 +533,11 @@ const AnalyzePage: React.FC = () => {
           
           {/* Processing Time Estimation */}
           {processingTime && (
-            <div className="p-4 rounded-lg bg-gradient-to-r from-blue-100 to-indigo-100 border-2 border-blue-300 shadow-md">
-              <div className="flex items-start gap-3">
-                <span className="text-blue-700 text-2xl animate-pulse">⏱️</span>
+            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 text-lg">⏱️</span>
                 <div className="flex-1">
-                  <div className="text-base font-bold text-blue-900 mb-3">
+                  <div className="text-sm font-medium text-blue-800 mb-2">
                     想定処理時間（概算）
                     {processingTime.isHistoricalEstimate && (
                       <span className="ml-2 text-xs font-normal text-green-700 bg-green-100 px-2 py-1 rounded">
@@ -545,7 +545,7 @@ const AnalyzePage: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-blue-800 space-y-2 font-medium">
+                  <div className="text-xs text-blue-700 space-y-1">
                     <div className="flex justify-between">
                       <span>文字起こし速度:</span>
                       <span className="font-mono">{processingTime.transcriptionRate || `${formatProcessingTime(processingTime.transcription)}`}</span>
@@ -554,12 +554,13 @@ const AnalyzePage: React.FC = () => {
                       <span>要約生成速度:</span>
                       <span className="font-mono">{processingTime.summaryRate || `${formatProcessingTime(processingTime.summary)}`}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-base border-t-2 border-blue-400 pt-2 mt-2">
+                    <div className="border-t border-blue-200 mt-1 pt-1"></div>
+                    <div className="flex justify-between font-medium">
                       <span>合計処理時間:</span>
-                      <span className="font-mono text-lg text-blue-900">{processingTime.formatted}</span>
+                      <span className="font-mono">{processingTime.formatted}</span>
                     </div>
                   </div>
-                  <div className="text-xs text-blue-700 mt-2 font-semibold">
+                  <div className="text-xs text-blue-600 mt-1">
                     ※動画1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）
                   </div>
                 </div>
