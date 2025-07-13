@@ -128,5 +128,8 @@ implementation:
     - hash: b89f2f7
       message: "fix: Improve processing time display format to be more intuitive"
       timestamp: "2025-07-13T00:10:00Z"
+    - hash: 44d1d8b
+      message: "fix: Clarify processing time display by specifying 'per video minute'"
+      timestamp: "2025-07-13T00:20:00Z"
 createdAt: "2025-07-10T10:24:21Z"
-updatedAt: "2025-07-13T00:10:00Z"
+updatedAt: "2025-07-13T00:20:00Z"
