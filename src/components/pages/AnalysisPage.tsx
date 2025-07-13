@@ -147,6 +147,7 @@ const AnalysisPage: React.FC = () => {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                   ⏱️ 処理時間分析
+                  <span className="text-xs text-gray-500">（動画1分あたりの処理時間）</span>
                 </h3>
               </div>
               <div className="px-6 py-4">
@@ -203,38 +204,38 @@ const AnalysisPage: React.FC = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-gray-700">合計処理時間（平均）:</span>
                           <span className="text-sm font-bold text-blue-600">
-                            {avgTimePerMinute > 0 ? `${avgTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            {avgTimePerMinute > 0 ? `${avgTimePerMinute.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-gray-700">合計処理時間（最短）:</span>
                           <span className="text-sm font-semibold text-gray-900">
-                            {minTimePerMinute > 0 ? `${minTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            {minTimePerMinute > 0 ? `${minTimePerMinute.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-gray-700">合計処理時間（最長）:</span>
                           <span className="text-sm font-semibold text-gray-900">
-                            {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="border-t border-gray-200 pt-2 mt-2">
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-indigo-700">文字起こし（平均）:</span>
                             <span className="text-sm font-bold text-indigo-600">
-                              {avgTranscriptionPerMinute > 0 ? `${avgTranscriptionPerMinute.toFixed(1)}秒/分` : '―'}
+                              {avgTranscriptionPerMinute > 0 ? `${avgTranscriptionPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-indigo-700">文字起こし（最短）:</span>
                             <span className="text-sm font-semibold text-indigo-500">
-                              {minTranscriptionPerMinute > 0 ? `${minTranscriptionPerMinute.toFixed(1)}秒/分` : '―'}
+                              {minTranscriptionPerMinute > 0 ? `${minTranscriptionPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-indigo-700">文字起こし（最長）:</span>
                             <span className="text-sm font-semibold text-indigo-500">
-                              {maxTranscriptionPerMinute > 0 ? `${maxTranscriptionPerMinute.toFixed(1)}秒/分` : '―'}
+                              {maxTranscriptionPerMinute > 0 ? `${maxTranscriptionPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                         </div>
@@ -242,19 +243,19 @@ const AnalysisPage: React.FC = () => {
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-green-700">要約生成（平均）:</span>
                             <span className="text-sm font-bold text-green-600">
-                              {avgSummaryPerMinute > 0 ? `${avgSummaryPerMinute.toFixed(1)}秒/分` : '―'}
+                              {avgSummaryPerMinute > 0 ? `${avgSummaryPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-green-700">要約生成（最短）:</span>
                             <span className="text-sm font-semibold text-green-500">
-                              {minSummaryPerMinute > 0 ? `${minSummaryPerMinute.toFixed(1)}秒/分` : '―'}
+                              {minSummaryPerMinute > 0 ? `${minSummaryPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-green-700">要約生成（最長）:</span>
                             <span className="text-sm font-semibold text-green-500">
-                              {maxSummaryPerMinute > 0 ? `${maxSummaryPerMinute.toFixed(1)}秒/分` : '―'}
+                              {maxSummaryPerMinute > 0 ? `${maxSummaryPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                         </div>
@@ -308,7 +309,7 @@ const AnalysisPage: React.FC = () => {
                     title="処理時間の分布（動画1分あたり）"
                     data={normalizedProcessingTimes}
                     bins={8}
-                    xAxisLabel="処理時間（秒/分）"
+                    xAxisLabel="処理時間（秒）"
                     yAxisLabel="頻度"
                     color="#f59e0b"
                   />

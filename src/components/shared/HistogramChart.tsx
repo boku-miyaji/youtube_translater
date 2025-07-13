@@ -133,8 +133,8 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
                   x={x + barWidth / 2}
                   y={chartHeight + 35}
                   textAnchor="middle"
-                  className="text-xs fill-gray-600"
-                  transform={`rotate(-45 ${x + barWidth / 2} ${chartHeight + 35})`}
+                  className="text-xs fill-gray-600 font-medium"
+                  transform={`rotate(-30 ${x + barWidth / 2} ${chartHeight + 35})`}
                 >
                   {bin.range}
                 </text>
@@ -149,7 +149,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
             textAnchor="middle"
             className="text-xs fill-gray-700 font-medium"
           >
-            {xAxisLabel} (秒)
+            {xAxisLabel}
           </text>
         </svg>
       </div>
