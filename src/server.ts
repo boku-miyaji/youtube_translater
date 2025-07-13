@@ -428,7 +428,7 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
   
   // Calculate transcription rate (seconds per video minute)
   const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
-  const transcriptionRate = `${transcriptionSecondsPerVideoMinute.toFixed(1)}秒/分`;
+  const transcriptionRate = `動画1分あたり${transcriptionSecondsPerVideoMinute.toFixed(1)}秒`;
   
   // Try to calculate summary time from historical data first
   const historicalSummaryTime = calculateAverageSummaryTime(gptModel, durationMinutes);
@@ -448,7 +448,7 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
   
   // Calculate summary rate (seconds per video minute)
   const summarySecondsPerVideoMinute = summaryTime / durationMinutes;
-  const summaryRate = `${summarySecondsPerVideoMinute.toFixed(1)}秒/分`;
+  const summaryRate = `動画1分あたり${summarySecondsPerVideoMinute.toFixed(1)}秒`;
   
   const totalTime = transcriptionTime + summaryTime;
   

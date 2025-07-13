@@ -397,8 +397,8 @@ export interface CostEstimationResponse {
     total: number;          // seconds
     formatted: string;      // e.g., "2 min 30 sec"
     isHistoricalEstimate?: boolean;  // true if summary time is based on historical data
-    transcriptionRate?: string;  // e.g., "30.0秒/分"
-    summaryRate?: string;        // e.g., "60.0秒/分"
+    transcriptionRate?: string;  // e.g., "動画1分あたり30.0秒"
+    summaryRate?: string;        // e.g., "動画1分あたり60.0秒"
     durationMinutes?: number;    // video duration in minutes
   };
   error?: string;
@@ -423,8 +423,8 @@ export interface FileCostEstimationResponse {
     total: number;          // seconds
     formatted: string;      // e.g., "2 min 30 sec"
     isHistoricalEstimate?: boolean;  // true if summary time is based on historical data
-    transcriptionRate?: string;  // e.g., "30.0秒/分"
-    summaryRate?: string;        // e.g., "60.0秒/分"
+    transcriptionRate?: string;  // e.g., "動画1分あたり30.0秒"
+    summaryRate?: string;        // e.g., "動画1分あたり60.0秒"
     durationMinutes?: number;    // video duration in minutes
   };
   error?: string;
