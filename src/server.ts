@@ -426,17 +426,9 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
   const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
   const transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
   
-  // Calculate transcription rate
-  const transcriptionMinutesPerVideoMinute = (transcriptionTime / 60) / durationMinutes;
-  let transcriptionRate: string;
-  if (transcriptionMinutesPerVideoMinute < 1) {
-    // If processing is faster than real-time, show as "Xx速"
-    const speedMultiplier = 1 / transcriptionMinutesPerVideoMinute;
-    transcriptionRate = `${speedMultiplier.toFixed(1)}x速`;
-  } else {
-    // Show as minutes per video minute
-    transcriptionRate = `${transcriptionMinutesPerVideoMinute.toFixed(2)}分/分`;
-  }
+  // Calculate transcription rate (seconds per video minute)
+  const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
+  const transcriptionRate = `${transcriptionSecondsPerVideoMinute.toFixed(1)}秒/分`;
   
   // Try to calculate summary time from historical data first
   const historicalSummaryTime = calculateAverageSummaryTime(gptModel, durationMinutes);
@@ -454,9 +446,9 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
     console.log(`📊 Using default coefficients for summary time estimation: ${summaryTime}s for ${gptModel}`);
   }
   
-  // Calculate summary rate
-  const summaryMinutesPerVideoMinute = (summaryTime / 60) / durationMinutes;
-  const summaryRate = `${summaryMinutesPerVideoMinute.toFixed(2)}分/分`;
+  // Calculate summary rate (seconds per video minute)
+  const summarySecondsPerVideoMinute = summaryTime / durationMinutes;
+  const summaryRate = `${summarySecondsPerVideoMinute.toFixed(1)}秒/分`;
   
   const totalTime = transcriptionTime + summaryTime;
   
