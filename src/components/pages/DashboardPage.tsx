@@ -4,6 +4,8 @@ import { useHistory } from '../../hooks/useHistory'
 import { useCosts } from '../../hooks/useCosts'
 import { useAppStore } from '../../store/appStore'
 import MiniChart from '../shared/MiniChart'
+import VideoFileUpload from '../shared/VideoFileUpload'
+import { VideoFile } from '../../types'
 
 const DashboardPage: React.FC = () => {
   const { data: history, isLoading: historyLoading, error: historyError } = useHistory()
@@ -11,6 +13,9 @@ const DashboardPage: React.FC = () => {
   const { setCurrentVideo } = useAppStore()
   const navigate = useNavigate()
   const [quickUrl, setQuickUrl] = useState('')
+  const [inputType, setInputType] = useState<'url' | 'file'>('url')
+  const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
+  const [fileError, setFileError] = useState('')
 
   const recentVideos = history ? history.slice(0, 5) : []
   
@@ -79,9 +84,25 @@ const DashboardPage: React.FC = () => {
   const processingTimes = [45, 52, 38, 65, 43, 58, 41]
 
   const handleQuickAnalyze = () => {
-    if (quickUrl.trim()) {
+    if (inputType === 'url' && quickUrl.trim()) {
       navigate('/analyze', { state: { url: quickUrl.trim(), autoAnalyze: true } })
+    } else if (inputType === 'file' && videoFile) {
+      // Navigate to analyze page with file information
+      navigate('/analyze', { state: { videoFile, inputType: 'file' } })
     }
+  }
+  
+  const handleFileSelected = (file: VideoFile) => {
+    setVideoFile(file)
+    setFileError('')
+  }
+  
+  const handleInputTypeChange = (type: 'url' | 'file') => {
+    setInputType(type)
+    // Clear previous selections when switching input type
+    setQuickUrl('')
+    setVideoFile(null)
+    setFileError('')
   }
 
   const handleVideoClick = (video: any) => {
@@ -215,22 +236,68 @@ const DashboardPage: React.FC = () => {
               <p className="text-white opacity-90">Transform your videos into text instantly</p>
             </div>
             
-            {/* URL Input */}
+            {/* Input Type Selection */}
             <div className="mb-4">
-              <input
-                type="text"
-                value={quickUrl}
-                onChange={(e) => setQuickUrl(e.target.value)}
-                placeholder="Paste YouTube URL here..."
-                className="w-full px-4 py-3 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50"
-                data-testid="quick-url-input"
-              />
+              <div className="flex rounded-lg border border-white/30 p-1 bg-white/10">
+                <button
+                  type="button"
+                  onClick={() => handleInputTypeChange('url')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    inputType === 'url'
+                      ? 'bg-white text-indigo-600 shadow-sm'
+                      : 'text-white hover:bg-white/20'
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    🔗 YouTube URL
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInputTypeChange('file')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    inputType === 'file'
+                      ? 'bg-white text-indigo-600 shadow-sm'
+                      : 'text-white hover:bg-white/20'
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    📁 Video File
+                  </span>
+                </button>
+              </div>
+            </div>
+            
+            {/* Conditional Input */}
+            <div className="mb-4">
+              {inputType === 'url' ? (
+                <input
+                  type="text"
+                  value={quickUrl}
+                  onChange={(e) => setQuickUrl(e.target.value)}
+                  placeholder="Paste YouTube URL here..."
+                  className="w-full px-4 py-3 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50"
+                  data-testid="quick-url-input"
+                />
+              ) : (
+                <div className="bg-white/10 rounded-xl p-4">
+                  <VideoFileUpload
+                    onFileSelected={handleFileSelected}
+                    maxSize={500 * 1024 * 1024} // 500MB
+                    acceptedFormats={['video/mp4', 'video/quicktime']}
+                    isUploading={false}
+                    uploadProgress={0}
+                    error={fileError}
+                  />
+                </div>
+              )}
             </div>
             
             <div className="space-y-3">
               <button
                 onClick={handleQuickAnalyze}
-                className="btn-primary w-full inline-flex items-center justify-center px-8 py-3 font-bold rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                disabled={(inputType === 'url' && !quickUrl.trim()) || (inputType === 'file' && !videoFile)}
+                className="btn-primary w-full inline-flex items-center justify-center px-8 py-3 font-bold rounded-2xl focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 data-testid="quick-analyze-button"
               >
                 <span className="mr-3 text-xl">⚡</span>

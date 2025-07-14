@@ -35,6 +35,7 @@ const AnalyzePage: React.FC = () => {
   useEffect(() => {
     if (location.state?.url) {
       setUrl(location.state.url)
+      setInputType('url')
       // Auto-submit if autoAnalyze flag is set
       if (location.state.autoAnalyze) {
         // Small delay to allow state to settle
@@ -45,6 +46,10 @@ const AnalyzePage: React.FC = () => {
           }
         }, 100)
       }
+    } else if (location.state?.videoFile && location.state?.inputType === 'file') {
+      // Handle file passed from Dashboard
+      setInputType('file')
+      setVideoFile(location.state.videoFile)
     }
   }, [location.state])
 
