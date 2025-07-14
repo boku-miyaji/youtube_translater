@@ -308,8 +308,8 @@ const AnalysisPage: React.FC = () => {
                   <HistogramChart
                     title="処理時間の分布（動画1分あたり）"
                     data={normalizedProcessingTimes}
-                    bins={8}
-                    xAxisLabel="処理時間（秒）"
+                    bins={6}
+                    xAxisLabel="動画１分あたりの処理時間（秒）"
                     yAxisLabel="頻度"
                     color="#f59e0b"
                   />
