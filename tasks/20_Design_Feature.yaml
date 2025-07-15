@@ -1,0 +1,9 @@
+issue: 20
+title: '入力形式拡張: 音声ファイル・PDF対応'
+description: |
+  入力形式を増やす。音声ファイル、論文のPDFのURLも同様に解析できるようにする。
+type: 'Feature'
+state: Design
+design: tasks/design/20_Feature.md
+createdAt: '2025-07-15T04:21:24Z'
+updatedAt: '2025-07-15T07:24:14Z'

@@ -5,14 +5,16 @@ import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
 import VideoFileUpload from '../shared/VideoFileUpload'
 import AnalysisProgress from '../shared/AnalysisProgress'
-import { VideoFile } from '../../types'
+import { VideoFile, AudioFile, PDFFile, InputType } from '../../types'
 import { formatProcessingTime } from '../../utils/formatTime'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
-  const [inputType, setInputType] = useState<'url' | 'file'>('url')
+  const [inputType, setInputType] = useState<InputType>(InputType.YOUTUBE_URL)
   const [url, setUrl] = useState('')
   const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
+  const [audioFile, setAudioFile] = useState<AudioFile | null>(null)
+  const [pdfFile, setPdfFile] = useState<PDFFile | null>(null)
   const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4o-mini')
   const [transcriptionModel, setTranscriptionModel] = useState<'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1'>('gpt-4o-transcribe')
@@ -35,7 +37,7 @@ const AnalyzePage: React.FC = () => {
   useEffect(() => {
     if (location.state?.url) {
       setUrl(location.state.url)
-      setInputType('url')
+      setInputType(InputType.YOUTUBE_URL)
       // Auto-submit if autoAnalyze flag is set
       if (location.state.autoAnalyze) {
         // Small delay to allow state to settle
@@ -48,7 +50,7 @@ const AnalyzePage: React.FC = () => {
       }
     } else if (location.state?.videoFile && location.state?.inputType === 'file') {
       // Handle file passed from Dashboard
-      setInputType('file')
+      setInputType(InputType.VIDEO_FILE)
       setVideoFile(location.state.videoFile)
     }
   }, [location.state])
@@ -61,6 +63,23 @@ const AnalyzePage: React.FC = () => {
       /^(https?:\/\/)?(www\.)?youtu\.be\/[\w-]+/
     ]
     return patterns.some(pattern => pattern.test(url))
+  }
+
+  // PDF URL validation function
+  const validatePDFUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url)
+      // Check if HTTPS
+      if (parsed.protocol !== 'https:') return false
+      
+      // Check if URL ends with .pdf or common academic domains
+      const isPDFExtension = parsed.pathname.toLowerCase().endsWith('.pdf')
+      const isAcademicDomain = /arxiv\.org|\.edu|doi\.org/.test(parsed.hostname)
+      
+      return isPDFExtension || isAcademicDomain
+    } catch {
+      return false
+    }
   }
 
   // Extract YouTube video ID
@@ -238,9 +257,34 @@ const AnalyzePage: React.FC = () => {
     }
   }
 
-  // Handle video file selection
+  // Handle file selection based on input type
   const handleFileSelected = (file: VideoFile) => {
-    setVideoFile(file)
+    // Determine file type and set appropriate state
+    if (inputType === InputType.VIDEO_FILE) {
+      setVideoFile(file)
+    } else if (inputType === InputType.AUDIO_FILE) {
+      // Convert VideoFile to AudioFile
+      const audioFile: AudioFile = {
+        file: file.file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified,
+        format: file.type.split('/')[1] // e.g., 'audio/mp3' -> 'mp3'
+      }
+      setAudioFile(audioFile)
+    } else if (inputType === InputType.PDF_FILE) {
+      // Convert VideoFile to PDFFile
+      const pdfFile: PDFFile = {
+        file: file.file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      }
+      setPdfFile(pdfFile)
+    }
+    
     setFileError('')
     setUploadProgress(0)
     // Estimate cost for the selected file
@@ -248,11 +292,13 @@ const AnalyzePage: React.FC = () => {
   }
 
   // Handle input type change
-  const handleInputTypeChange = (type: 'url' | 'file') => {
+  const handleInputTypeChange = (type: InputType) => {
     setInputType(type)
     // Clear previous selections and errors
     setUrl('')
     setVideoFile(null)
+    setAudioFile(null)
+    setPdfFile(null)
     setUrlError('')
     setFileError('')
     setVideoPreview(null)
@@ -266,15 +312,31 @@ const AnalyzePage: React.FC = () => {
     e.preventDefault()
     
     // Validate input based on type
-    if (inputType === 'url') {
+    if (inputType === InputType.YOUTUBE_URL) {
       if (!url.trim()) return
       if (!validateYouTubeUrl(url.trim())) {
         setUrlError('Please enter a valid YouTube URL')
         return
       }
-    } else if (inputType === 'file') {
+    } else if (inputType === InputType.VIDEO_FILE) {
       if (!videoFile) {
         setFileError('Please select a video file')
+        return
+      }
+    } else if (inputType === InputType.AUDIO_FILE) {
+      if (!audioFile) {
+        setFileError('Please select an audio file')
+        return
+      }
+    } else if (inputType === InputType.PDF_URL) {
+      if (!url.trim()) return
+      if (!validatePDFUrl(url.trim())) {
+        setUrlError('Please enter a valid PDF URL')
+        return
+      }
+    } else if (inputType === InputType.PDF_FILE) {
+      if (!pdfFile) {
+        setFileError('Please select a PDF file')
         return
       }
     }
@@ -320,7 +382,7 @@ const AnalyzePage: React.FC = () => {
       let response: Response
       let data: any
 
-      if (inputType === 'url') {
+      if (inputType === InputType.YOUTUBE_URL) {
         // Handle YouTube URL processing
         console.log('Sending request to /api/upload-youtube with:', { url: url.trim(), language, model })
         response = await fetch('/api/upload-youtube', {
@@ -343,8 +405,8 @@ const AnalyzePage: React.FC = () => {
         }
 
         data = await response.json()
-      } else {
-        // Handle file upload processing
+      } else if (inputType === InputType.VIDEO_FILE) {
+        // Handle video file upload processing
         const formData = new FormData()
         formData.append('file', videoFile!.file)
         formData.append('language', language)
@@ -359,7 +421,7 @@ const AnalyzePage: React.FC = () => {
           language, 
           model 
         })
-
+        
         response = await fetch('/api/upload-video-file', {
           method: 'POST',
           body: formData,
@@ -372,6 +434,88 @@ const AnalyzePage: React.FC = () => {
         }
 
         data = await response.json()
+      } else if (inputType === InputType.AUDIO_FILE) {
+        // Handle audio file upload processing
+        const formData = new FormData()
+        formData.append('file', audioFile!.file)
+        formData.append('language', language)
+        formData.append('gptModel', model)
+        formData.append('transcriptionModel', transcriptionModel)
+        formData.append('generateSummary', 'true')
+
+        console.log('Sending request to /api/upload-audio-file with:', { 
+          filename: audioFile!.name, 
+          size: audioFile!.size,
+          language, 
+          model 
+        })
+        
+        response = await fetch('/api/upload-audio-file', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Audio file processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process audio file: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
+      } else if (inputType === InputType.PDF_URL) {
+        // Handle PDF URL processing
+        console.log('Sending request to /api/analyze-pdf with:', { url: url.trim(), language, model })
+        response = await fetch('/api/analyze-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: url.trim(),
+            language,
+            gptModel: model,
+            generateSummary: true,
+            extractStructure: true,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('PDF URL processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process PDF URL: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
+      } else if (inputType === InputType.PDF_FILE) {
+        // Handle PDF file upload processing
+        const formData = new FormData()
+        formData.append('file', pdfFile!.file)
+        formData.append('language', language)
+        formData.append('gptModel', model)
+        formData.append('generateSummary', 'true')
+        formData.append('extractStructure', 'true')
+
+        console.log('Sending request to /api/analyze-pdf with:', { 
+          filename: pdfFile!.name, 
+          size: pdfFile!.size,
+          language, 
+          model 
+        })
+
+        response = await fetch('/api/analyze-pdf', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('PDF file processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process PDF file: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
+      } else {
+        throw new Error('Invalid input type')
       }
       
       console.log('🕒 AnalyzePage: Server response analysis time:', data.analysisTime)
@@ -382,7 +526,7 @@ const AnalyzePage: React.FC = () => {
         basic: {
           title: data.title,
           // Only set videoId for YouTube videos, not for uploaded files
-          videoId: (inputType === 'url' && data.metadata?.basic?.videoId) ? data.metadata.basic.videoId : undefined,
+          videoId: (inputType === InputType.YOUTUBE_URL && data.metadata?.basic?.videoId) ? data.metadata.basic.videoId : undefined,
           duration: data.metadata?.basic?.duration || 0,
           channel: data.metadata?.basic?.channel,
           viewCount: data.metadata?.basic?.viewCount,
@@ -392,7 +536,9 @@ const AnalyzePage: React.FC = () => {
           category: data.metadata?.basic?.category,
           description: data.metadata?.basic?.description,
           // Set videoPath for uploaded files
-          videoPath: (inputType === 'file' || data.source === 'file') ? (data.metadata?.basic?.videoPath || data.videoPath) : undefined
+          videoPath: (inputType === InputType.VIDEO_FILE || data.source === 'file') ? (data.metadata?.basic?.videoPath || data.videoPath) : undefined,
+          // Set audioPath for audio files
+          audioPath: (inputType === InputType.AUDIO_FILE) ? (data.metadata?.basic?.audioPath || data.audioPath) : undefined
         },
         chapters: data.metadata?.chapters || [],
         captions: data.metadata?.captions || [],
@@ -428,10 +574,10 @@ const AnalyzePage: React.FC = () => {
     } catch (error) {
       console.error('Error processing video:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      if (inputType === 'file') {
-        setFileError(`Failed to process video file: ${errorMessage}`)
+      if (inputType === InputType.VIDEO_FILE || inputType === InputType.AUDIO_FILE || inputType === InputType.PDF_FILE) {
+        setFileError(`Failed to process file: ${errorMessage}`)
       } else {
-        alert(`Failed to process video: ${errorMessage}`)
+        alert(`Failed to process: ${errorMessage}`)
       }
     } finally {
       setLoading(false)
@@ -763,7 +909,7 @@ const AnalyzePage: React.FC = () => {
                 )}
 
                 {/* Cost Estimation Display in Collapsed State */}
-                {inputType === 'url' && renderCostEstimation()}
+                {inputType === InputType.YOUTUBE_URL && renderCostEstimation()}
 
                 <div className="flex items-center justify-between gap-3">
                   <button
@@ -831,31 +977,80 @@ const AnalyzePage: React.FC = () => {
                     <label className="block text-sm font-medium text-app-primary mb-3">
                       📥 Input Type
                     </label>
-                    <div className="flex rounded-lg border border-gray-300 p-1 bg-white">
+                    <div className="grid grid-cols-5 gap-2 p-1 bg-white rounded-lg border border-gray-300">
                       <button
                         type="button"
-                        onClick={() => handleInputTypeChange('url')}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === 'url'
+                        onClick={() => handleInputTypeChange(InputType.YOUTUBE_URL)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === InputType.YOUTUBE_URL
                             ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
-                            : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                         }`}
+                        title="YouTube URL"
                       >
-                        <span className="flex items-center justify-center gap-2">
-                          🔗 YouTube URL
+                        <span className="flex flex-col items-center gap-1">
+                          <span className="text-lg">🔗</span>
+                          <span className="text-xs">YouTube</span>
                         </span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleInputTypeChange('file')}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === 'file'
+                        onClick={() => handleInputTypeChange(InputType.VIDEO_FILE)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === InputType.VIDEO_FILE
                             ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
-                            : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                         }`}
+                        title="Video File (MP4, MOV)"
                       >
-                        <span className="flex items-center justify-center gap-2">
-                          📁 Video File
+                        <span className="flex flex-col items-center gap-1">
+                          <span className="text-lg">🎬</span>
+                          <span className="text-xs">Video</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInputTypeChange(InputType.AUDIO_FILE)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === InputType.AUDIO_FILE
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                        title="Audio File (MP3, WAV, M4A, etc.)"
+                      >
+                        <span className="flex flex-col items-center gap-1">
+                          <span className="text-lg">🎵</span>
+                          <span className="text-xs">Audio</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInputTypeChange(InputType.PDF_URL)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === InputType.PDF_URL
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                        title="PDF URL"
+                      >
+                        <span className="flex flex-col items-center gap-1">
+                          <span className="text-lg">🔗</span>
+                          <span className="text-xs">PDF URL</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInputTypeChange(InputType.PDF_FILE)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === InputType.PDF_FILE
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                        title="PDF File"
+                      >
+                        <span className="flex flex-col items-center gap-1">
+                          <span className="text-lg">📄</span>
+                          <span className="text-xs">PDF File</span>
                         </span>
                       </button>
                     </div>
@@ -863,8 +1058,8 @@ const AnalyzePage: React.FC = () => {
                 </div>
 
                 {/* Conditional Input Section */}
-                {inputType === 'url' ? (
-                  /* URL Input with Preview */
+                {inputType === InputType.YOUTUBE_URL ? (
+                  /* YouTube URL Input with Preview */
                   <div className="space-y-4">
                     <div className="relative">
                       <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
@@ -887,7 +1082,7 @@ const AnalyzePage: React.FC = () => {
                         }`}
                         autoComplete="off"
                         data-testid="url-input"
-                        required={inputType === 'url'}
+                        required={inputType === InputType.YOUTUBE_URL}
                       />
                       
                       {urlError && (
@@ -924,12 +1119,12 @@ const AnalyzePage: React.FC = () => {
                     {/* Cost Estimation Display for URL */}
                     {renderCostEstimation()}
                   </div>
-                ) : (
+                ) : inputType === InputType.VIDEO_FILE ? (
                   /* Video File Upload */
                   <div className="space-y-4">
                     <label className="block text-sm font-medium text-app-primary mb-2">
                       <span className="flex items-center gap-2">
-                        📁 Video File Upload
+                        🎬 Video File Upload
                       </span>
                     </label>
                     <VideoFileUpload
@@ -944,14 +1139,98 @@ const AnalyzePage: React.FC = () => {
                     {/* Cost Estimation Display for File */}
                     {renderCostEstimation()}
                   </div>
-                )}
+                ) : inputType === InputType.AUDIO_FILE ? (
+                  /* Audio File Upload */
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-app-primary mb-2">
+                      <span className="flex items-center gap-2">
+                        🎵 Audio File Upload
+                      </span>
+                    </label>
+                    <VideoFileUpload
+                      onFileSelected={handleFileSelected}
+                      maxSize={500 * 1024 * 1024} // 500MB
+                      acceptedFormats={['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/flac']}
+                      isUploading={loading}
+                      uploadProgress={uploadProgress}
+                      error={fileError}
+                    />
+
+                    {/* Cost Estimation Display for Audio */}
+                    {renderCostEstimation()}
+                  </div>
+                ) : inputType === InputType.PDF_URL ? (
+                  /* PDF URL Input */
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <label htmlFor="pdfUrl" className="block text-sm font-medium text-app-primary mb-2">
+                        <span className="flex items-center gap-2">
+                          🔗 PDF URL
+                        </span>
+                      </label>
+                      <input
+                        type="url"
+                        id="pdfUrl"
+                        ref={inputRef}
+                        value={url}
+                        onChange={(e) => {
+                          setUrl(e.target.value)
+                          if (e.target.value && !validatePDFUrl(e.target.value)) {
+                            setUrlError('Please enter a valid PDF URL (HTTPS only)')
+                          } else {
+                            setUrlError('')
+                          }
+                        }}
+                        placeholder="https://arxiv.org/pdf/... or other academic PDF URL"
+                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
+                          urlError 
+                            ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
+                            : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
+                        }`}
+                        autoComplete="off"
+                        required={inputType === InputType.PDF_URL}
+                      />
+                      
+                      {urlError && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                          ⚠️ {urlError}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Cost Estimation Display for PDF URL */}
+                    {renderCostEstimation()}
+                  </div>
+                ) : inputType === InputType.PDF_FILE ? (
+                  /* PDF File Upload */
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-app-primary mb-2">
+                      <span className="flex items-center gap-2">
+                        📄 PDF File Upload
+                      </span>
+                    </label>
+                    <VideoFileUpload
+                      onFileSelected={handleFileSelected}
+                      maxSize={50 * 1024 * 1024} // 50MB
+                      acceptedFormats={['application/pdf']}
+                      isUploading={loading}
+                      uploadProgress={uploadProgress}
+                      error={fileError}
+                    />
+
+                    {/* Cost Estimation Display for PDF */}
+                    {renderCostEstimation()}
+                  </div>
+                ) : null}
 
                 {/* Settings Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-1">
                     <label htmlFor="language" className="block text-app-primary mb-2">
                       <div className="text-sm font-medium">🌐 Language</div>
-                      <div className="text-xs text-gray-500">文字起こし言語</div>
+                      <div className="text-xs text-gray-500">
+                        {inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE ? 'PDF言語' : '文字起こし言語'}
+                      </div>
                     </label>
                     <select
                       id="language"
@@ -965,24 +1244,27 @@ const AnalyzePage: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="lg:col-span-1">
-                    <label htmlFor="transcriptionModel" className="block text-app-primary mb-2">
-                      <div className="text-sm font-medium">🎵 Transcription</div>
-                      <div className="text-xs text-gray-500">文字起こしモデル</div>
-                    </label>
-                    <select
-                      id="transcriptionModel"
-                      value={transcriptionModel}
-                      onChange={(e) => setTranscriptionModel(e.target.value as 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1')}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
-                    >
-                      <option value="gpt-4o-transcribe">GPT-4o Transcribe - $6/1M tokens</option>
-                      <option value="gpt-4o-mini-transcribe">GPT-4o Mini - $3/1M tokens</option>
-                      <option value="whisper-1">Whisper-1 - $6/minute</option>
-                    </select>
-                  </div>
+                  {/* Only show transcription model for video/audio files */}
+                  {(inputType === InputType.YOUTUBE_URL || inputType === InputType.VIDEO_FILE || inputType === InputType.AUDIO_FILE) && (
+                    <div className="lg:col-span-1">
+                      <label htmlFor="transcriptionModel" className="block text-app-primary mb-2">
+                        <div className="text-sm font-medium">🎵 Transcription</div>
+                        <div className="text-xs text-gray-500">文字起こしモデル</div>
+                      </label>
+                      <select
+                        id="transcriptionModel"
+                        value={transcriptionModel}
+                        onChange={(e) => setTranscriptionModel(e.target.value as 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1')}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                      >
+                        <option value="gpt-4o-transcribe">GPT-4o Transcribe - $6/1M tokens</option>
+                        <option value="gpt-4o-mini-transcribe">GPT-4o Mini - $3/1M tokens</option>
+                        <option value="whisper-1">Whisper-1 - $6/minute</option>
+                      </select>
+                    </div>
+                  )}
 
-                  <div className="lg:col-span-1">
+                  <div className={inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE ? "lg:col-span-2" : "lg:col-span-1"}>
                     <label htmlFor="model" className="block text-app-primary mb-2">
                       <div className="text-sm font-medium">🤖 Summary AI</div>
                       <div className="text-xs text-gray-500">要約生成モデル</div>
@@ -1008,8 +1290,11 @@ const AnalyzePage: React.FC = () => {
                     type="submit"
                     disabled={
                       loading || 
-                      (inputType === 'url' && (!url.trim() || !!urlError)) ||
-                      (inputType === 'file' && (!videoFile || !!fileError))
+                      (inputType === InputType.YOUTUBE_URL && (!url.trim() || !!urlError)) ||
+                      (inputType === InputType.VIDEO_FILE && (!videoFile || !!fileError)) ||
+                      (inputType === InputType.AUDIO_FILE && (!audioFile || !!fileError)) ||
+                      (inputType === InputType.PDF_URL && (!url.trim() || !!urlError)) ||
+                      (inputType === InputType.PDF_FILE && (!pdfFile || !!fileError))
                     }
                     className="btn-modern btn-success w-full text-white font-semibold shadow-elevation-hover"
                     data-testid="analyze-button"
@@ -1018,12 +1303,21 @@ const AnalyzePage: React.FC = () => {
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         <span className="text-tabular">
-                          {inputType === 'file' ? 'Processing...' : 'Analyzing...'}
+                          {inputType === InputType.VIDEO_FILE || inputType === InputType.AUDIO_FILE || inputType === InputType.PDF_FILE ? 'Processing...' : 'Analyzing...'}
                         </span>
                       </div>
                     ) : (
                       <span className="flex items-center justify-center gap-2">
-                        ⚡ {inputType === 'file' ? 'Process Video' : 'Analyze Video'}
+                        ⚡ {(() => {
+                          switch(inputType) {
+                            case InputType.YOUTUBE_URL: return 'Analyze Video'
+                            case InputType.VIDEO_FILE: return 'Process Video'
+                            case InputType.AUDIO_FILE: return 'Process Audio'
+                            case InputType.PDF_URL: return 'Analyze PDF'
+                            case InputType.PDF_FILE: return 'Process PDF'
+                            default: return 'Analyze'
+                          }
+                        })()}
                       </span>
                     )}
                   </button>

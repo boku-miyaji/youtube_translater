@@ -67,6 +67,63 @@ export interface VideoMetadata {
   uploadedAt?: string;
 }
 
+// Extended metadata for audio files
+export interface AudioMetadata {
+  basic?: {
+    title?: string;
+    artist?: string;
+    album?: string;
+    duration?: number;
+    bitrate?: number;
+    sampleRate?: number;
+    channels?: number;
+    format?: string;
+    audioPath?: string;
+  };
+  transcript?: string;
+  summary?: string;
+  timestampedSegments?: TimestampedSegment[];
+  costs?: DetailedCosts;
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
+  source?: 'file';
+  fileId?: string;
+  originalFilename?: string;
+  fileSize?: number;
+  uploadedAt?: string;
+}
+
+// Metadata for PDF files
+export interface PDFMetadata {
+  title?: string;
+  authors?: string[];
+  publicationDate?: string;
+  doi?: string;
+  journal?: string;
+  pageCount: number;
+  fileSize: number;
+  abstract?: string;
+  keywords?: string[];
+}
+
+export interface PDFContent {
+  fullText: string;
+  sections: PDFSection[];
+  pageCount: number;
+  language: string;
+}
+
+export interface PDFSection {
+  title: string;
+  content: string;
+  pageRange: [number, number];
+  type: 'abstract' | 'introduction' | 'methodology' | 
+        'results' | 'conclusion' | 'references' | 'other';
+}
+
 export interface VideoListItem {
   id: string;
   title: string;
@@ -88,6 +145,34 @@ export interface VideoListItem {
 export interface HistoryListResponse {
   videos: VideoListItem[];
   totalCount: number;
+}
+
+// Analysis result types
+export type AnalysisType = 'youtube' | 'video' | 'audio' | 'pdf';
+
+export interface AnalysisResult {
+  id: string;
+  type: AnalysisType;
+  url?: string;
+  fileName?: string;
+  fileSize?: number;
+  
+  // Common fields
+  summary: Summary;
+  processingTime: ProcessingTime;
+  cost: CostEstimation;
+  
+  // Type-specific fields
+  transcription?: TranscriptionResult;  // video, audio
+  pdfContent?: PDFContent;               // pdf only
+  metadata: VideoMetadata | AudioMetadata | PDFMetadata;
+}
+
+export interface ProcessingTime {
+  transcription?: number;
+  extraction?: number;  // For PDF text extraction
+  summary: number;
+  total: number;
 }
 
 export interface ApiResponse {
@@ -131,6 +216,11 @@ export interface ApiResponse {
   message: string;
   error?: string;
   fromHistory?: boolean;
+  // Extended for new file types
+  analysisType?: AnalysisType;
+  pdfContent?: PDFContent;
+  audioMetadata?: AudioMetadata;
+  pdfMetadata?: PDFMetadata;
 }
 
 export interface PromptTemplate {
@@ -202,6 +292,22 @@ export interface MergeArticleRequest {
   videoId?: string;
 }
 
+// Input type enums
+export enum InputType {
+  YOUTUBE_URL = 'youtube',
+  VIDEO_FILE = 'video',
+  AUDIO_FILE = 'audio',
+  PDF_URL = 'pdf_url',
+  PDF_FILE = 'pdf_file'
+}
+
+// File type detection
+export interface FileTypeInfo {
+  type: 'video' | 'audio' | 'pdf';
+  mimeType: string;
+  extension: string;
+}
+
 // New types for video file upload
 export interface VideoFile {
   file: File;
@@ -212,6 +318,26 @@ export interface VideoFile {
   preview?: string;  // Data URL for preview
 }
 
+// Extended for audio files
+export interface AudioFile {
+  file: File;
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
+  format?: string;
+}
+
+// PDF file interface
+export interface PDFFile {
+  file: File;
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
+  pageCount?: number;
+}
+
 export interface VideoUploadRequest {
   file: File;
   language?: string;
@@ -219,6 +345,25 @@ export interface VideoUploadRequest {
   transcriptionModel?: TranscriptionModel;
   generateSummary?: boolean;
   generateArticle?: boolean;
+}
+
+// Audio upload request
+export interface AudioUploadRequest {
+  file: File;
+  language?: string;
+  gptModel?: string;
+  transcriptionModel?: TranscriptionModel;
+  generateSummary?: boolean;
+}
+
+// PDF upload/URL request
+export interface PDFAnalysisRequest {
+  url?: string;
+  file?: File;
+  language?: string;
+  gptModel?: string;
+  generateSummary?: boolean;
+  extractStructure?: boolean;
 }
 
 export interface VideoUploadResponse extends ApiResponse {
@@ -232,6 +377,25 @@ export interface VideoUploadResponse extends ApiResponse {
     summary: number;
     total: number;
   };
+}
+
+// Audio upload response
+export interface AudioUploadResponse extends ApiResponse {
+  fileId?: string;
+  originalName?: string;
+  size?: number;
+  mimeType?: string;
+  uploadedAt?: string;
+  audioMetadata?: AudioMetadata;
+}
+
+// PDF analysis response
+export interface PDFAnalysisResponse extends ApiResponse {
+  fileId?: string;
+  originalName?: string;
+  size?: number;
+  pdfContent?: PDFContent;
+  pdfMetadata?: PDFMetadata;
 }
 
 // Session cost tracking
