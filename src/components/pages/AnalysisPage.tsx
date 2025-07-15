@@ -91,7 +91,258 @@ const AnalysisPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. 動画処理詳細 (Video Processing Details) */}
+      {/* 2. コスト詳細 (Cost Details) */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-app-primary">💰 コスト詳細</h2>
+          <div className="h-px bg-gray-300 flex-1"></div>
+        </div>
+
+        {/* Cost Trends Chart */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium text-app-primary mb-4">Cost Trends</h3>
+          {isLoading ? (
+            <p className="text-app-muted">Loading chart...</p>
+          ) : error ? (
+            <p className="text-app-error">Error loading cost data</p>
+          ) : (
+            <CostChart data={costs || []} />
+          )}
+        </div>
+
+        {/* Cost Analysis Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Detailed Cost Analysis */}
+          {costs && costs.length > 0 && (
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                  💸 詳細コスト分析
+                  <span className="text-xs text-gray-500">（文字起こし・要約別）</span>
+                </h3>
+              </div>
+              <div className="px-6 py-4 space-y-6">
+                {/* 総計セクション */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {(() => {
+                    const totalCost = costs.reduce((sum, cost) => sum + cost.totalCost, 0)
+                    const avgCost = costs.length > 0 ? totalCost / costs.length : 0
+                    const todayCosts = costs.filter(c => 
+                      new Date(c.timestamp).toDateString() === new Date().toDateString()
+                    )
+                    const todayTotal = todayCosts.reduce((sum, cost) => sum + cost.totalCost, 0)
+                    
+                    return (
+                      <>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-700">総コスト</p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            ${totalCost.toFixed(4)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-700">平均コスト</p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            ${avgCost.toFixed(4)}
+                          </p>
+                          <p className="text-xs text-gray-500">per video</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-700">今日の合計</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            ${todayTotal.toFixed(4)}
+                          </p>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+                
+                {/* 文字起こし・要約別の詳細 */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">処理タイプ別コスト内訳</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(() => {
+                      const whisperTotal = costs.reduce((sum, cost) => sum + cost.whisperCost, 0)
+                      const gptTotal = costs.reduce((sum, cost) => sum + cost.gptCost, 0)
+                      const whisperCount = costs.filter(cost => cost.whisperCost > 0).length
+                      const gptCount = costs.filter(cost => cost.gptCost > 0).length
+                      
+                      return (
+                        <>
+                          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="text-sm font-medium text-red-800">📝 文字起こし (Whisper AI)</h5>
+                              <span className="text-xs text-red-600">{whisperCount} 件</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-red-700">合計:</span>
+                                <span className="font-semibold text-red-900">${whisperTotal.toFixed(4)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-red-700">平均:</span>
+                                <span className="font-medium text-red-800">
+                                  ${whisperCount > 0 ? (whisperTotal / whisperCount).toFixed(4) : '0.0000'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="text-sm font-medium text-blue-800">📋 要約生成 (GPT)</h5>
+                              <span className="text-xs text-blue-600">{gptCount} 件</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-blue-700">合計:</span>
+                                <span className="font-semibold text-blue-900">${gptTotal.toFixed(4)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-blue-700">平均:</span>
+                                <span className="font-medium text-blue-800">
+                                  ${gptCount > 0 ? (gptTotal / gptCount).toFixed(4) : '0.0000'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Model Usage Statistics */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Model Usage Statistics</h3>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {isLoading ? (
+                <div className="px-6 py-4">
+                  <p className="text-gray-500">Loading...</p>
+                </div>
+              ) : Object.keys(modelStats).length > 0 ? (
+                Object.entries(modelStats).map(([model, stats]: [string, any]) => (
+                  <div key={model} className="px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{model}</p>
+                        <p className="text-sm text-gray-500">{stats.count} requests</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-gray-900">
+                          ${stats.totalCost.toFixed(4)}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Avg: ${(stats.totalCost / stats.count).toFixed(4)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-6 py-4">
+                  <p className="text-gray-500">No usage data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Cost Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Cost Breakdown Pie Chart */}
+          {costs && costs.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              {(() => {
+                const whisperTotal = costs.reduce((sum, cost) => sum + cost.whisperCost, 0)
+                const gptTotal = costs.reduce((sum, cost) => sum + cost.gptCost, 0)
+                
+                return (
+                  <PieChart
+                    title="コスト内訳（文字起こし vs 要約）"
+                    data={[
+                      {
+                        name: '文字起こし (Whisper AI)',
+                        value: Math.round(whisperTotal * 10000) / 10000,
+                        color: '#ef4444'
+                      },
+                      {
+                        name: '要約生成 (GPT)',
+                        value: Math.round(gptTotal * 10000) / 10000,
+                        color: '#3b82f6'
+                      }
+                    ]}
+                    size={200}
+                    showLegend={true}
+                  />
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Model Usage Bar Chart */}
+          {costs && Object.keys(modelStats).length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <BarChart
+                title="AIモデル別使用回数"
+                data={Object.entries(modelStats).map(([model, stats]: [string, any]) => ({
+                  label: model,
+                  value: stats.count
+                }))}
+                xAxisLabel="モデル"
+                yAxisLabel="使用回数"
+                color="#8b5cf6"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Cumulative Cost Trend */}
+        {costs && costs.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6">
+            {(() => {
+              // Sort costs by date
+              const sortedCosts = [...costs].sort((a, b) => 
+                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+              )
+              
+              // Calculate cumulative costs
+              let cumulative = 0
+              const cumulativeData = sortedCosts.map(cost => {
+                cumulative += cost.totalCost
+                return {
+                  date: new Date(cost.timestamp).toLocaleDateString('ja-JP', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }),
+                  value: Math.round(cumulative * 10000) / 10000
+                }
+              })
+              
+              // Get last 30 data points (already sorted by date)
+              const recentData = cumulativeData.slice(-30)
+              
+              return (
+                <LineChart
+                  title="累積コストの推移"
+                  data={recentData}
+                  yAxisLabel="累積コスト ($)"
+                  color="#ef4444"
+                  showArea={true}
+                />
+              )
+            })()}
+          </div>
+        )}
+      </section>
+
+      {/* 3. 動画処理詳細 (Video Processing Details) */}
       <section className="space-y-6">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold text-app-primary">🎬 動画処理詳細</h2>
@@ -147,17 +398,12 @@ const AnalysisPage: React.FC = () => {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                   ⏱️ 処理時間分析
+                  <span className="text-xs text-gray-500">（動画1分あたりの処理時間）</span>
                 </h3>
               </div>
               <div className="px-6 py-4">
                 <div className="space-y-4">
                   {(() => {
-                    const processingTimes = history.map(h => h.analysisTime?.duration).filter(Boolean)
-                    const avgTime = processingTimes.length > 0 ? 
-                      processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length : 0
-                    const minTime = processingTimes.length > 0 ? Math.min(...processingTimes) : 0
-                    const maxTime = processingTimes.length > 0 ? Math.max(...processingTimes) : 0
-                    
                     // Calculate processing time per minute of video
                     const processingTimePerMinute = history
                       .filter(h => h.analysisTime?.duration && h.metadata?.basic?.duration)
@@ -172,51 +418,95 @@ const AnalysisPage: React.FC = () => {
                     const minTimePerMinute = processingTimePerMinute.length > 0 ? Math.min(...processingTimePerMinute) : 0
                     const maxTimePerMinute = processingTimePerMinute.length > 0 ? Math.max(...processingTimePerMinute) : 0
                     
+                    // Calculate transcription time per minute of video
+                    const transcriptionTimePerMinute = history
+                      .filter(h => h.analysisTime?.transcription && h.metadata?.basic?.duration)
+                      .map(h => {
+                        const transcriptionTime = h.analysisTime!.transcription
+                        const videoDuration = h.metadata!.basic!.duration
+                        return transcriptionTime / (videoDuration / 60) // seconds per minute of video
+                      })
+                    
+                    const avgTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
+                      transcriptionTimePerMinute.reduce((a, b) => a + b, 0) / transcriptionTimePerMinute.length : 0
+                    const minTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
+                      Math.min(...transcriptionTimePerMinute) : 0
+                    const maxTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
+                      Math.max(...transcriptionTimePerMinute) : 0
+                    
+                    // Calculate summary time per minute of video
+                    const summaryTimePerMinute = history
+                      .filter(h => h.analysisTime?.summary && h.metadata?.basic?.duration)
+                      .map(h => {
+                        const summaryTime = h.analysisTime!.summary
+                        const videoDuration = h.metadata!.basic!.duration
+                        return summaryTime / (videoDuration / 60) // seconds per minute of video
+                      })
+                    
+                    const avgSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
+                      summaryTimePerMinute.reduce((a, b) => a + b, 0) / summaryTimePerMinute.length : 0
+                    const minSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
+                      Math.min(...summaryTimePerMinute) : 0
+                    const maxSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
+                      Math.max(...summaryTimePerMinute) : 0
+                    
                     return (
                       <>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">平均処理時間:</span>
-                          <span className="text-sm font-semibold text-gray-900">
-                            {avgTime < 60 ? `${Math.round(avgTime)}秒` : `${Math.floor(avgTime / 60)}分${Math.round(avgTime % 60)}秒`}
+                          <span className="text-sm font-medium text-gray-700">合計処理時間（平均）:</span>
+                          <span className="text-sm font-bold text-blue-600">
+                            {avgTimePerMinute > 0 ? `${avgTimePerMinute.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">最短時間:</span>
+                          <span className="text-sm font-medium text-gray-700">合計処理時間（最短）:</span>
                           <span className="text-sm font-semibold text-gray-900">
-                            {minTime < 60 ? `${minTime}秒` : `${Math.floor(minTime / 60)}分${minTime % 60}秒`}
+                            {minTimePerMinute > 0 ? `${minTimePerMinute.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">最長時間:</span>
+                          <span className="text-sm font-medium text-gray-700">合計処理時間（最長）:</span>
                           <span className="text-sm font-semibold text-gray-900">
-                            {maxTime < 60 ? `${maxTime}秒` : `${Math.floor(maxTime / 60)}分${maxTime % 60}秒`}
+                            {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="border-t border-gray-200 pt-2 mt-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">動画1分あたり平均処理時間:</span>
-                            <span className="text-sm font-bold text-blue-600">
-                              {avgTimePerMinute > 0 ? `${avgTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            <span className="text-sm font-medium text-indigo-700">文字起こし（平均）:</span>
+                            <span className="text-sm font-bold text-indigo-600">
+                              {avgTranscriptionPerMinute > 0 ? `${avgTranscriptionPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">動画1分あたり最短:</span>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {minTimePerMinute > 0 ? `${minTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            <span className="text-sm font-medium text-indigo-700">文字起こし（最短）:</span>
+                            <span className="text-sm font-semibold text-indigo-500">
+                              {minTranscriptionPerMinute > 0 ? `${minTranscriptionPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">動画1分あたり最長:</span>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒/分` : '―'}
+                            <span className="text-sm font-medium text-indigo-700">文字起こし（最長）:</span>
+                            <span className="text-sm font-semibold text-indigo-500">
+                              {maxTranscriptionPerMinute > 0 ? `${maxTranscriptionPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                         </div>
-                        <div className="border-t border-gray-200 pt-2">
+                        <div className="border-t border-gray-200 pt-2 mt-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">処理効率:</span>
-                            <span className="text-sm font-bold text-gray-900">
-                              {processingTimes.length > 0 ? `${(processingTimes.length / (avgTime / 60)).toFixed(1)}本/分` : '0本/分'}
+                            <span className="text-sm font-medium text-green-700">要約生成（平均）:</span>
+                            <span className="text-sm font-bold text-green-600">
+                              {avgSummaryPerMinute > 0 ? `${avgSummaryPerMinute.toFixed(1)}秒` : '―'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-green-700">要約生成（最短）:</span>
+                            <span className="text-sm font-semibold text-green-500">
+                              {minSummaryPerMinute > 0 ? `${minSummaryPerMinute.toFixed(1)}秒` : '―'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-green-700">要約生成（最長）:</span>
+                            <span className="text-sm font-semibold text-green-500">
+                              {maxSummaryPerMinute > 0 ? `${maxSummaryPerMinute.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                         </div>
@@ -253,20 +543,24 @@ const AnalysisPage: React.FC = () => {
             </div>
           )}
 
-          {/* Processing Time Distribution */}
+          {/* Processing Time Distribution (Normalized) */}
           {history && history.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               {(() => {
-                const processingTimes = history
-                  .map(h => h.analysisTime?.duration)
-                  .filter(Boolean) as number[]
+                const normalizedProcessingTimes = history
+                  .filter(h => h.analysisTime?.duration && h.metadata?.basic?.duration)
+                  .map(h => {
+                    const processingTime = h.analysisTime!.duration
+                    const videoDuration = h.metadata!.basic!.duration
+                    return processingTime / (videoDuration / 60) // seconds per minute of video
+                  })
                 
-                return processingTimes.length > 0 ? (
+                return normalizedProcessingTimes.length > 0 ? (
                   <HistogramChart
-                    title="処理時間の分布"
-                    data={processingTimes}
-                    bins={8}
-                    xAxisLabel="処理時間"
+                    title="処理時間の分布（動画1分あたり）"
+                    data={normalizedProcessingTimes}
+                    bins={6}
+                    xAxisLabel="動画１分あたりの処理時間（秒）"
                     yAxisLabel="頻度"
                     color="#f59e0b"
                   />
@@ -359,200 +653,6 @@ const AnalysisPage: React.FC = () => {
             </div>
           )}
         </div>
-      </section>
-
-      {/* 3. コスト詳細 (Cost Details) */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-app-primary">💰 コスト詳細</h2>
-          <div className="h-px bg-gray-300 flex-1"></div>
-        </div>
-
-        {/* Cost Trends Chart */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-app-primary mb-4">Cost Trends</h3>
-          {isLoading ? (
-            <p className="text-app-muted">Loading chart...</p>
-          ) : error ? (
-            <p className="text-app-error">Error loading cost data</p>
-          ) : (
-            <CostChart data={costs || []} />
-          )}
-        </div>
-
-        {/* Cost Analysis Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Detailed Cost Analysis */}
-          {costs && costs.length > 0 && (
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                  💸 詳細コスト分析
-                </h3>
-              </div>
-              <div className="px-6 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {(() => {
-                    const totalCost = costs.reduce((sum, cost) => sum + cost.totalCost, 0)
-                    const avgCost = costs.length > 0 ? totalCost / costs.length : 0
-                    const todayCosts = costs.filter(c => 
-                      new Date(c.timestamp).toDateString() === new Date().toDateString()
-                    )
-                    const todayTotal = todayCosts.reduce((sum, cost) => sum + cost.totalCost, 0)
-                    
-                    return (
-                      <>
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-gray-700">総コスト</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            ${totalCost.toFixed(4)}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-gray-700">平均コスト</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            ${avgCost.toFixed(4)}
-                          </p>
-                          <p className="text-xs text-gray-500">per video</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-gray-700">今日の合計</p>
-                          <p className="text-2xl font-bold text-blue-600">
-                            ${todayTotal.toFixed(4)}
-                          </p>
-                        </div>
-                      </>
-                    )
-                  })()}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Model Usage Statistics */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Model Usage Statistics</h3>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {isLoading ? (
-                <div className="px-6 py-4">
-                  <p className="text-gray-500">Loading...</p>
-                </div>
-              ) : Object.keys(modelStats).length > 0 ? (
-                Object.entries(modelStats).map(([model, stats]: [string, any]) => (
-                  <div key={model} className="px-6 py-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{model}</p>
-                        <p className="text-sm text-gray-500">{stats.count} requests</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900">
-                          ${stats.totalCost.toFixed(4)}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Avg: ${(stats.totalCost / stats.count).toFixed(4)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="px-6 py-4">
-                  <p className="text-gray-500">No usage data available</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Cost Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Cost Breakdown Pie Chart */}
-          {costs && costs.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              {(() => {
-                const whisperTotal = costs.reduce((sum, cost) => sum + cost.whisperCost, 0)
-                const gptTotal = costs.reduce((sum, cost) => sum + cost.gptCost, 0)
-                
-                return (
-                  <PieChart
-                    title="コスト内訳"
-                    data={[
-                      {
-                        name: 'Whisper AI',
-                        value: Math.round(whisperTotal * 10000) / 10000,
-                        color: '#ef4444'
-                      },
-                      {
-                        name: 'GPT',
-                        value: Math.round(gptTotal * 10000) / 10000,
-                        color: '#3b82f6'
-                      }
-                    ]}
-                    size={200}
-                    showLegend={true}
-                  />
-                )
-              })()}
-            </div>
-          )}
-
-          {/* Model Usage Bar Chart */}
-          {costs && Object.keys(modelStats).length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <BarChart
-                title="AIモデル別使用回数"
-                data={Object.entries(modelStats).map(([model, stats]: [string, any]) => ({
-                  label: model,
-                  value: stats.count
-                }))}
-                xAxisLabel="モデル"
-                yAxisLabel="使用回数"
-                color="#8b5cf6"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Cumulative Cost Trend */}
-        {costs && costs.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            {(() => {
-              // Sort costs by date
-              const sortedCosts = [...costs].sort((a, b) => 
-                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-              )
-              
-              // Calculate cumulative costs
-              let cumulative = 0
-              const cumulativeData = sortedCosts.map(cost => {
-                cumulative += cost.totalCost
-                return {
-                  date: new Date(cost.timestamp).toLocaleDateString('ja-JP', { 
-                    month: 'short', 
-                    day: 'numeric' 
-                  }),
-                  value: Math.round(cumulative * 10000) / 10000
-                }
-              })
-              
-              // Get last 30 data points (already sorted by date)
-              const recentData = cumulativeData.slice(-30)
-              
-              return (
-                <LineChart
-                  title="累積コストの推移"
-                  data={recentData}
-                  yAxisLabel="累積コスト ($)"
-                  color="#ef4444"
-                  showArea={true}
-                />
-              )
-            })()}
-          </div>
-        )}
       </section>
     </div>
   )

@@ -1,20 +1,49 @@
-export interface VideoMetadata {
-  basic: {
+export interface YouTubeMetadata {
+  title: string;
+  channel: string;
+  viewCount: number;
+  likes: number;
+  duration: number;
+  uploadDate: string;
+  publishDate: string;
+  category: string;
+  description: string;
+  chapters: Array<{
     title: string;
-    videoId: string;
-    duration: number;
-    channel: string;
-    viewCount: number;
-    likes: number;
+    start: number;
+  }>;
+  captions: string[];
+  stats: {
+    formatCount: number;
+    hasSubtitles: boolean;
+    keywords: string[];
+  };
+}
+
+export interface YouTubeApiError {
+  status: 'error';
+  message: string;
+  code?: string;
+}
+
+export interface VideoMetadata {
+  basic?: {
+    title?: string;
+    videoId?: string;
+    duration?: number;
+    channel?: string;
+    viewCount?: number;
+    likes?: number;
     uploadDate?: string;
     publishDate?: string;
     category?: string;
     description?: string;
-    thumbnail?: string;
+    videoPath?: string;  // Path to local video file
+    thumbnail?: string;  // YouTube thumbnail URL
   };
-  chapters: Chapter[];
-  captions: Caption[];
-  stats: {
+  chapters?: Array<{ title: string; start: number }>;
+  captions?: string[];
+  stats?: {
     formatCount: number;
     hasSubtitles: boolean;
     keywords: string[];
@@ -23,150 +52,78 @@ export interface VideoMetadata {
   summary?: string;
   timestampedSegments?: TimestampedSegment[];
   transcriptSource?: 'subtitle' | 'whisper';
+  // Computed properties
   costs?: DetailedCosts;
-  analysisTime?: AnalysisTimeInfo;
-  inferenceStats?: InferenceStats;
-}
-
-export interface Chapter {
-  timestamp: string;
-  title: string;
-}
-
-export interface Caption {
-  language: string;
-  name: string;
-}
-
-export interface TimestampedSegment {
-  start: number;
-  duration: number;
-  text: string;
-}
-
-export interface Summary {
-  content: string;
-  model: string;
-  cost: number;
-  tokens: {
-    input: number;
-    output: number;
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
   };
+  // File-specific properties
+  source?: 'url' | 'file';
+  fileId?: string;
+  originalFilename?: string;
+  fileSize?: number;
+  uploadedAt?: string;
 }
 
-export interface AnalysisTimeInfo {
-  startTime: string;
-  endTime: string;
-  duration: number; // seconds
-}
-
-export interface InferenceStats {
-  apiCallCount: number;
-  totalTokens: { input: number; output: number };
-  modelUsed: string;
-  tokensPerSecond: number;
-  costPerToken: number;
-  efficiencyScore: number;
-  sessionCosts: SessionCosts;
-  callBreakdown: {
-    transcription: { tokens: { input: number; output: number }, cost: number, method: 'subtitle' | 'whisper' };
-    summary: { tokens: { input: number; output: number }, cost: number };
-    article?: { tokens: { input: number; output: number }, cost: number };
-  };
-}
-
-export interface HistoryEntry {
+export interface VideoListItem {
   id: string;
   title: string;
-  url: string;
-  transcript: string;
-  method: 'subtitle' | 'whisper';
-  language: string;
-  gptModel: string;
-  cost: number;
-  metadata: VideoMetadata | null;
-  summary: Summary | null;
-  timestampedSegments: TimestampedSegment[];
-  tags: string[];
-  mainTags: string[];
-  article: string | null;
-  timestamp: string;
-  thumbnail?: string;
-  analysisTime?: AnalysisTimeInfo;
-}
-
-export interface SessionCosts {
-  whisper: number;
-  gpt: number;
-  total: number;
-}
-
-export interface ModelPricing {
-  input: number;
-  output: number;
-}
-
-export interface Pricing {
-  whisper: number;
-  models: {
-    [key: string]: ModelPricing;
+  channel: string;
+  uploadDate: string;
+  viewCount: number;
+  likes: number;
+  savedAt: string;
+  analyzedAt?: string;
+  previewImage?: string;  // YouTube thumbnail URL or file preview
+  source: 'youtube' | 'file';  // Source of the video
+  fileDetails?: {  // Additional details for uploaded files
+    originalName: string;
+    size: number;
+    mimeType: string;
   };
 }
 
-export interface CostEntry {
-  videoId: string;
-  title: string;
-  method: 'subtitle' | 'whisper';
-  language: string;
-  gptModel: string;
-  whisperCost: number;
-  gptCost: number;
-  totalCost: number;
-  timestamp: string;
-  date: string;
+export interface HistoryListResponse {
+  videos: VideoListItem[];
+  totalCount: number;
 }
 
-export interface ArticleHistoryEntry {
-  article: string;
-  type: 'generated' | 'merged' | 'pre-merge' | 'edited';
-  timestamp: string;
-  id: string;
-}
-
-export interface ChatMessage {
-  message: string;
-  gptModel?: string;
-}
-
-export interface ChatResponse {
-  success: boolean;
-  response?: string;
-  error?: string;
-  model: string;
-  cost: number;
-  costs: SessionCosts;
-  tokens: {
-    input: number;
-    output: number;
-  };
-}
-
-export interface DetailedCosts {
-  transcription: number;
-  summary: number;
-  article: number;
-  total: number;
-}
-
-export interface UploadResponse {
-  success: boolean;
+export interface ApiResponse {
   title?: string;
+  videoId?: string;
+  metadata?: {
+    basic?: {
+      title?: string;
+      videoId?: string;
+      duration?: number;
+      channel?: string;
+      viewCount?: number;
+      likes?: number;
+      uploadDate?: string;
+      publishDate?: string;
+      category?: string;
+      description?: string;
+      videoPath?: string;
+      thumbnail?: string;
+    };
+    chapters?: Array<{ title: string; start: number }>;
+    captions?: string[];
+    stats?: {
+      formatCount: number;
+      hasSubtitles: boolean;
+      keywords: string[];
+    };
+    analysisTime?: {
+      transcription: number;
+      summary: number;
+      total: number;
+    };
+  };
   transcript?: string;
   summary?: string;
-  metadata?: VideoMetadata;
   method?: 'subtitle' | 'whisper';
-  language?: string;
-  gptModel?: string;
   detectedLanguage?: string;
   timestampedSegments?: TimestampedSegment[];
   cost?: number;
@@ -198,11 +155,15 @@ export interface SubtitlesResult {
   timestampedSegments: TimestampedSegment[];
 }
 
+// Transcription models
+export type TranscriptionModel = 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1';
+
 // Express request extensions
 export interface UploadYouTubeRequest {
   url: string;
   language?: string;
   gptModel?: string;
+  transcriptionModel?: TranscriptionModel;
   mainTags?: string[];
   tags?: string;
   forceRegenerate?: boolean;
@@ -241,14 +202,239 @@ export interface MergeArticleRequest {
   videoId?: string;
 }
 
-export interface ApiErrorResponse {
-  success: false;
-  error: string;
-  details?: string;
+// New types for video file upload
+export interface VideoFile {
+  file: File;
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
+  preview?: string;  // Data URL for preview
 }
 
-export interface ApiSuccessResponse<T = unknown> {
-  success: true;
-  data?: T;
+export interface VideoUploadRequest {
+  file: File;
+  language?: string;
+  gptModel?: string;
+  transcriptionModel?: TranscriptionModel;
+  generateSummary?: boolean;
+  generateArticle?: boolean;
+}
+
+export interface VideoUploadResponse extends ApiResponse {
+  fileId?: string;
+  originalName?: string;
+  size?: number;
+  mimeType?: string;
+  uploadedAt?: string;
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
+}
+
+// Session cost tracking
+export interface SessionCosts {
+  whisper: number;
+  gpt: number;
+  total: number;
+}
+
+// History entry for stored videos
+export interface HistoryEntry {
+  id: string;
+  videoId?: string;
+  title: string;
+  channel?: string;
+  uploadDate?: string;
+  savedAt: string;
+  transcript?: string;
+  summary?: string;
+  article?: string;
+  metadata?: VideoMetadata;
+  costs?: DetailedCosts;
+  analysisTime?: {
+    transcription?: number;
+    summary?: number;
+    total?: number;
+    startTime?: string;
+    endTime?: string;
+    duration?: number;
+  };
+  source?: 'url' | 'file';
+  fileId?: string;
+  originalFilename?: string;
+  fileSize?: number;
+  // Additional fields used in server
+  url?: string;
+  method?: 'subtitle' | 'whisper';
+  language?: string;
+  gptModel?: string;
+  cost?: number;
+  timestampedSegments?: TimestampedSegment[];
+  tags?: string[];
+  mainTags?: string[];
+  thumbnail?: string;
+  timestamp?: string;
+}
+
+// Cost entry for tracking individual costs
+export interface CostEntry {
+  date: string;
+  service?: 'whisper' | 'gpt' | 'total';
+  cost?: number;
+  // Additional fields used in server
+  videoId?: string;
+  title?: string;
+  method?: 'subtitle' | 'whisper';
+  language?: string;
+  gptModel?: string;
+  whisperCost?: number;
+  gptCost?: number;
+  totalCost?: number;
+  timestamp?: string;
+}
+
+// Article history entry
+export interface ArticleHistoryEntry {
+  date: string;
+  article: string;
+  id?: string;
+  type?: string;
+  timestamp?: string;
+}
+
+// Summary interface  
+export interface Summary {
+  text?: string;
+  content?: string;
+  sections?: Array<{
+    title: string;
+    content: string;
+  }>;
+  model?: string;
+  cost?: number;
+  tokens?: {
+    input: number;
+    output: number;
+  };
+}
+
+// Upload video file response
+export interface UploadVideoFileResponse {
+  title: string;
+  metadata: VideoMetadata;
+  transcript: string;
+  summary: string;
+  timestampedSegments: TimestampedSegment[];
+  method: 'subtitle' | 'whisper';
+  detectedLanguage?: string;
+  costs: DetailedCosts;
+  analysisTime: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
+}
+
+// Pricing configuration
+export interface Pricing {
+  input: number;
+  output: number;
+  whisper?: number;  // per minute
+  transcription?: {
+    'whisper-1': number;  // per minute
+    'gpt-4o-transcribe': number;  // per 1M tokens
+    'gpt-4o-mini-transcribe': number;  // per 1M tokens
+  };
+  models?: {
+    [key: string]: {
+      input: number;
+      output: number;
+    };
+  };
+}
+
+export interface TimestampedSegment {
+  start: number;
+  end: number;
+  text: string;
+  duration?: number;
+}
+
+export interface DetailedCosts {
+  transcription: number;
+  summary: number;
+  article: number;
+  total: number;
+}
+
+// Cost estimation types
+export interface CostEstimationRequest {
+  url: string;
+  gptModel?: string;
+  transcriptionModel?: TranscriptionModel;
+  generateSummary?: boolean;
+  generateArticle?: boolean;
+}
+
+export interface CostEstimationResponse {
+  success: boolean;
+  title?: string;
+  duration?: number;  // seconds
+  durationFormatted?: string;
+  gptModel?: string;  // GPT model used for cost calculation
+  estimatedCosts?: {
+    transcription: number;
+    summary: number;
+    article: number;
+    total: number;
+  };
+  estimatedProcessingTime?: {
+    transcription: number;  // seconds
+    summary: number;        // seconds
+    total: number;          // seconds
+    formatted: string;      // e.g., "2 min 30 sec"
+    isHistoricalEstimate?: boolean;  // true if summary time is based on historical data
+    transcriptionRate?: string;  // e.g., "動画1分あたり30.0秒"
+    summaryRate?: string;        // e.g., "動画1分あたり60.0秒"
+    durationMinutes?: number;    // video duration in minutes
+  };
+  error?: string;
   message?: string;
+}
+
+export interface FileCostEstimationResponse {
+  success: boolean;
+  filename?: string;
+  duration?: number;  // seconds
+  durationFormatted?: string;
+  gptModel?: string;  // GPT model used for cost calculation
+  estimatedCosts?: {
+    transcription: number;
+    summary: number;
+    article: number;
+    total: number;
+  };
+  estimatedProcessingTime?: {
+    transcription: number;  // seconds
+    summary: number;        // seconds
+    total: number;          // seconds
+    formatted: string;      // e.g., "2 min 30 sec"
+    isHistoricalEstimate?: boolean;  // true if summary time is based on historical data
+    transcriptionRate?: string;  // e.g., "動画1分あたり30.0秒"
+    summaryRate?: string;        // e.g., "動画1分あたり60.0秒"
+    durationMinutes?: number;    // video duration in minutes
+  };
+  error?: string;
+  message?: string;
+}
+
+// Progress tracking interface
+export interface AnalysisProgress {
+  stage: 'transcription' | 'summary' | 'complete';
+  percentage: number;
+  message: string;
+  estimatedRemainingTime: number;  // seconds
 }

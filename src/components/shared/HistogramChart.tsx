@@ -48,9 +48,9 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
 
   const maxCount = Math.max(...histogram.map(bin => bin.count))
   const chartHeight = 200
-  const barWidth = 40
-  const gap = 10
-  const chartWidth = bins * (barWidth + gap) + 60
+  const barWidth = 50
+  const gap = 15
+  const chartWidth = bins * (barWidth + gap) + 80
 
   return (
     <div className="space-y-4">
@@ -100,7 +100,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
           {/* Bars */}
           {histogram.map((bin, index) => {
             const barHeight = (bin.count / maxCount) * chartHeight
-            const x = 60 + index * (barWidth + gap)
+            const x = 70 + index * (barWidth + gap)
             const y = chartHeight - barHeight + 20
             
             return (
@@ -133,8 +133,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
                   x={x + barWidth / 2}
                   y={chartHeight + 35}
                   textAnchor="middle"
-                  className="text-xs fill-gray-600"
-                  transform={`rotate(-45 ${x + barWidth / 2} ${chartHeight + 35})`}
+                  className="text-[10px] fill-gray-700 font-semibold"
                 >
                   {bin.range}
                 </text>
@@ -149,7 +148,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({
             textAnchor="middle"
             className="text-xs fill-gray-700 font-medium"
           >
-            {xAxisLabel} (秒)
+            {xAxisLabel}
           </text>
         </svg>
       </div>

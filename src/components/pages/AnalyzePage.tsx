@@ -3,24 +3,39 @@ import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 import TranscriptViewer from '../shared/TranscriptViewer'
 import ChatInterface from '../shared/ChatInterface'
+import VideoFileUpload from '../shared/VideoFileUpload'
+import AnalysisProgress from '../shared/AnalysisProgress'
+import { VideoFile } from '../../types'
+import { formatProcessingTime } from '../../utils/formatTime'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
+  const [inputType, setInputType] = useState<'url' | 'file'>('url')
   const [url, setUrl] = useState('')
+  const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
   const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4o-mini')
+  const [transcriptionModel, setTranscriptionModel] = useState<'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1'>('gpt-4o-transcribe')
   const [urlError, setUrlError] = useState('')
+  const [fileError, setFileError] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [playerRef, setPlayerRef] = useState<any>(null)
   const [prefillQuestion, setPrefillQuestion] = useState<string>('')
   const [videoPreview, setVideoPreview] = useState<{title: string, thumbnail: string} | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [formCollapsed, setFormCollapsed] = useState(false)
   const [showCostInfo, setShowCostInfo] = useState(true)
+  const [costEstimation, setCostEstimation] = useState<any>(null)
+  const [loadingCostEstimation, setLoadingCostEstimation] = useState(false)
+  const [estimatedProcessingTime, setEstimatedProcessingTime] = useState<any>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const costEstimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isFirstModelChange = useRef(true)
 
   useEffect(() => {
     if (location.state?.url) {
       setUrl(location.state.url)
+      setInputType('url')
       // Auto-submit if autoAnalyze flag is set
       if (location.state.autoAnalyze) {
         // Small delay to allow state to settle
@@ -31,6 +46,10 @@ const AnalyzePage: React.FC = () => {
           }
         }, 100)
       }
+    } else if (location.state?.videoFile && location.state?.inputType === 'file') {
+      // Handle file passed from Dashboard
+      setInputType('file')
+      setVideoFile(location.state.videoFile)
     }
   }, [location.state])
 
@@ -65,15 +84,34 @@ const AnalyzePage: React.FC = () => {
   }
 
   const handleUrlChange = (value: string) => {
+    console.log('🔄 handleUrlChange called with value:', value)
     setUrl(value)
     setUrlError('')
     setVideoPreview(null)
+    setCostEstimation(null)
+    setLoadingCostEstimation(false)
+    
+    // Clear previous timeout
+    if (costEstimationTimeoutRef.current) {
+      console.log('🔄 Clearing previous cost estimation timeout')
+      clearTimeout(costEstimationTimeoutRef.current)
+      costEstimationTimeoutRef.current = null
+    }
     
     if (value.trim()) {
       if (validateYouTubeUrl(value.trim())) {
+        console.log('✅ Valid YouTube URL detected, generating preview')
         // Generate instant preview for valid URLs
         generateVideoPreview(value.trim())
+        
+        // Estimate cost for valid URLs with a delay using ref for cleanup
+        console.log('⏰ Setting timeout for cost estimation in 200ms')
+        costEstimationTimeoutRef.current = setTimeout(() => {
+          console.log('🔄 Starting cost estimation for URL:', value.trim())
+          estimateCostForUrl(value.trim())
+        }, 200) // Reduced delay to 200ms for faster response
       } else {
+        console.log('❌ Invalid YouTube URL')
         setUrlError('Please enter a valid YouTube URL')
       }
     }
@@ -82,46 +120,259 @@ const AnalyzePage: React.FC = () => {
   // Handle paste event for instant preview
   const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text')
+    console.log('📋 Paste event detected with text:', pastedText)
     if (pastedText && validateYouTubeUrl(pastedText)) {
-      setTimeout(() => generateVideoPreview(pastedText), 100)
+      console.log('✅ Valid pasted URL, will trigger preview and cost estimation')
+      setTimeout(() => {
+        generateVideoPreview(pastedText)
+        // Also estimate cost for pasted URLs
+        setTimeout(() => {
+          console.log('🔄 Starting cost estimation for pasted URL:', pastedText)
+          estimateCostForUrl(pastedText)
+        }, 200) // Consistent 200ms delay
+      }, 100)
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!url.trim()) return
-
-    // Validate URL before processing
+  // Estimate cost for YouTube URL
+  const estimateCostForUrl = async (url: string) => {
+    console.log('💰 estimateCostForUrl called with:', url)
+    
     if (!validateYouTubeUrl(url.trim())) {
-      setUrlError('Please enter a valid YouTube URL')
+      console.log('❌ Invalid YouTube URL, skipping cost estimation')
       return
     }
-
-    setLoading(true)
-    setUrlError('')
-    // Expand form during analysis
-    setFormCollapsed(false)
+    
+    console.log('✅ Valid YouTube URL, starting cost estimation...')
+    setLoadingCostEstimation(true)
+    setCostEstimation(null)
+    
     try {
-      console.log('Sending request to /api/upload-youtube with:', { url: url.trim(), language, model })
-      const response = await fetch('/api/upload-youtube', {
+      console.log('📡 Making API call to /api/estimate-cost-url')
+      const response = await fetch('/api/estimate-cost-url', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           url: url.trim(),
-          language,
-          model,
+          gptModel: model,
+          transcriptionModel: transcriptionModel,
+          generateSummary: true,
+          generateArticle: false
         }),
       })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Video processing failed:', response.status, response.statusText, errorText)
-        throw new Error(`Failed to process video: ${response.status} ${response.statusText}`)
+      
+      console.log('📡 API response status:', response.status)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('💰 Cost estimation result:', data)
+        setCostEstimation(data)
+        if (data.estimatedProcessingTime) {
+          console.log('💡 Setting estimatedProcessingTime:', data.estimatedProcessingTime)
+          setEstimatedProcessingTime(data.estimatedProcessingTime)
+        } else {
+          console.log('⚠️ No estimatedProcessingTime in response')
+        }
+      } else {
+        let errorDetails = ''
+        try {
+          const errorData = await response.clone().json()
+          errorDetails = JSON.stringify(errorData, null, 2)
+          console.error('❌ Failed to estimate cost (JSON):', response.status, errorData)
+        } catch {
+          const errorText = await response.text()
+          errorDetails = errorText
+          console.error('❌ Failed to estimate cost (Text):', response.status, errorText)
+        }
+        // Set error state with details for debugging
+        setCostEstimation({
+          success: false,
+          error: `API Error ${response.status}: ${errorDetails}`,
+          debug: true
+        })
       }
+    } catch (error) {
+      console.error('❌ Error estimating cost:', error)
+    } finally {
+      setLoadingCostEstimation(false)
+      console.log('✅ Cost estimation completed')
+    }
+  }
 
-      const data = await response.json()
+  // Estimate cost for video file
+  const estimateCostForFile = async (file: VideoFile) => {
+    setLoadingCostEstimation(true)
+    setCostEstimation(null)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file.file)
+      formData.append('gptModel', model)
+      formData.append('transcriptionModel', transcriptionModel)
+      formData.append('generateSummary', 'true')
+      formData.append('generateArticle', 'false')
+      
+      const response = await fetch('/api/estimate-cost-file', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCostEstimation(data)
+        if (data.estimatedProcessingTime) {
+          console.log('💡 Setting estimatedProcessingTime:', data.estimatedProcessingTime)
+          setEstimatedProcessingTime(data.estimatedProcessingTime)
+        } else {
+          console.log('⚠️ No estimatedProcessingTime in response')
+        }
+      } else {
+        console.error('Failed to estimate cost for file')
+      }
+    } catch (error) {
+      console.error('Error estimating cost for file:', error)
+    } finally {
+      setLoadingCostEstimation(false)
+    }
+  }
+
+  // Handle video file selection
+  const handleFileSelected = (file: VideoFile) => {
+    setVideoFile(file)
+    setFileError('')
+    setUploadProgress(0)
+    // Estimate cost for the selected file
+    estimateCostForFile(file)
+  }
+
+  // Handle input type change
+  const handleInputTypeChange = (type: 'url' | 'file') => {
+    setInputType(type)
+    // Clear previous selections and errors
+    setUrl('')
+    setVideoFile(null)
+    setUrlError('')
+    setFileError('')
+    setVideoPreview(null)
+    setUploadProgress(0)
+    setCostEstimation(null)
+    setLoadingCostEstimation(false)
+    setEstimatedProcessingTime(null)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validate input based on type
+    if (inputType === 'url') {
+      if (!url.trim()) return
+      if (!validateYouTubeUrl(url.trim())) {
+        setUrlError('Please enter a valid YouTube URL')
+        return
+      }
+    } else if (inputType === 'file') {
+      if (!videoFile) {
+        setFileError('Please select a video file')
+        return
+      }
+    }
+
+    // Get estimated processing time from state or cost estimation
+    let processingTime = estimatedProcessingTime || costEstimation?.estimatedProcessingTime
+    
+    // If no processing time is available, set a default based on typical durations
+    if (!processingTime) {
+      console.log('⚠️ No processing time available, setting default')
+      // Default: assume 5 minutes video, with typical processing speeds
+      const defaultTime = {
+        transcription: 30, // 30 seconds for transcription
+        summary: 60,       // 60 seconds for summary
+        total: 90,         // 90 seconds total
+        formatted: '1 min 30 sec'
+      }
+      processingTime = defaultTime
+      setEstimatedProcessingTime(defaultTime)
+    }
+    
+    // Debug log for estimated processing time
+    console.log('🚀 Starting analysis with processing time:', {
+      estimatedProcessingTime,
+      costEstimationTime: costEstimation?.estimatedProcessingTime,
+      finalProcessingTime: processingTime
+    })
+    
+    // If we have cost estimation with processing time, ensure it's set
+    if (costEstimation?.estimatedProcessingTime && !estimatedProcessingTime) {
+      console.log('📋 Setting processing time from cost estimation')
+      setEstimatedProcessingTime(costEstimation.estimatedProcessingTime)
+    }
+    
+    setLoading(true)
+    setUrlError('')
+    setFileError('')
+    setUploadProgress(0)
+    // Expand form during analysis
+    setFormCollapsed(false)
+    
+    try {
+      let response: Response
+      let data: any
+
+      if (inputType === 'url') {
+        // Handle YouTube URL processing
+        console.log('Sending request to /api/upload-youtube with:', { url: url.trim(), language, model })
+        response = await fetch('/api/upload-youtube', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: url.trim(),
+            language,
+            model,
+            transcriptionModel,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('YouTube video processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process YouTube video: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
+      } else {
+        // Handle file upload processing
+        const formData = new FormData()
+        formData.append('file', videoFile!.file)
+        formData.append('language', language)
+        formData.append('gptModel', model)
+        formData.append('transcriptionModel', transcriptionModel)
+        formData.append('generateSummary', 'true')
+        formData.append('generateArticle', 'false')
+
+        console.log('Sending request to /api/upload-video-file with:', { 
+          filename: videoFile!.name, 
+          size: videoFile!.size,
+          language, 
+          model 
+        })
+
+        response = await fetch('/api/upload-video-file', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Video file processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process video file: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
+      }
       
       console.log('🕒 AnalyzePage: Server response analysis time:', data.analysisTime)
       console.log('🕒 AnalyzePage: Metadata analysis time:', data.metadata?.analysisTime)
@@ -130,15 +381,18 @@ const AnalyzePage: React.FC = () => {
       const videoMetadata = {
         basic: {
           title: data.title,
-          videoId: data.metadata?.basic?.videoId || '',
+          // Only set videoId for YouTube videos, not for uploaded files
+          videoId: (inputType === 'url' && data.metadata?.basic?.videoId) ? data.metadata.basic.videoId : undefined,
           duration: data.metadata?.basic?.duration || 0,
-          channel: data.metadata?.basic?.channel || 'Unknown',
-          viewCount: data.metadata?.basic?.viewCount || 0,
-          likes: data.metadata?.basic?.likes || 0,
-          uploadDate: data.metadata?.basic?.uploadDate || '',
-          publishDate: data.metadata?.basic?.publishDate || '',
-          category: data.metadata?.basic?.category || '',
-          description: data.metadata?.basic?.description || ''
+          channel: data.metadata?.basic?.channel,
+          viewCount: data.metadata?.basic?.viewCount,
+          likes: data.metadata?.basic?.likes,
+          uploadDate: data.metadata?.basic?.uploadDate,
+          publishDate: data.metadata?.basic?.publishDate,
+          category: data.metadata?.basic?.category,
+          description: data.metadata?.basic?.description,
+          // Set videoPath for uploaded files
+          videoPath: (inputType === 'file' || data.source === 'file') ? (data.metadata?.basic?.videoPath || data.videoPath) : undefined
         },
         chapters: data.metadata?.chapters || [],
         captions: data.metadata?.captions || [],
@@ -157,7 +411,13 @@ const AnalyzePage: React.FC = () => {
           article: 0,
           total: 0
         },
-        analysisTime: data.analysisTime
+        analysisTime: data.analysisTime,
+        // Add file-specific metadata
+        source: inputType,
+        fileId: data.fileId,
+        originalFilename: data.originalName,
+        fileSize: data.size,
+        uploadedAt: data.uploadedAt
       }
       
       console.log('🕒 AnalyzePage: Final videoMetadata analysis time:', videoMetadata.analysisTime)
@@ -168,9 +428,16 @@ const AnalyzePage: React.FC = () => {
     } catch (error) {
       console.error('Error processing video:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Failed to process video: ${errorMessage}`)
+      if (inputType === 'file') {
+        setFileError(`Failed to process video file: ${errorMessage}`)
+      } else {
+        alert(`Failed to process video: ${errorMessage}`)
+      }
     } finally {
       setLoading(false)
+      setUploadProgress(0)
+      // Clear estimated processing time after analysis
+      setEstimatedProcessingTime(null)
     }
   }
 
@@ -202,6 +469,178 @@ const AnalyzePage: React.FC = () => {
     setFormCollapsed(!formCollapsed)
   }
 
+  // Render cost estimation display
+  const renderCostEstimation = () => {
+    console.log('🎨 renderCostEstimation called - loadingCostEstimation:', loadingCostEstimation, 'costEstimation:', costEstimation)
+    
+    if (loadingCostEstimation) {
+      console.log('🎨 Rendering loading state')
+      return (
+        <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+          <div className="flex items-center gap-2 text-blue-800">
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-medium">想定コストを計算中...</span>
+          </div>
+        </div>
+      )
+    }
+
+    if (costEstimation && costEstimation.success) {
+      console.log('🎨 Rendering cost estimation result', {
+        costs: costEstimation.estimatedCosts,
+        processingTime: costEstimation.estimatedProcessingTime
+      })
+      const costs = costEstimation.estimatedCosts
+      const processingTime = costEstimation.estimatedProcessingTime
+      return (
+        <div className="space-y-3">
+          {/* Cost Estimation */}
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 text-lg">💰</span>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-green-800 mb-2">
+                  想定コスト内訳（概算）
+                </div>
+                <div className="text-xs text-green-700 space-y-1">
+                  <div className="flex justify-between">
+                    <span>動画時間:</span>
+                    <span className="font-mono">{costEstimation.durationFormatted}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>文字起こしモデル:</span>
+                    <span className="font-mono text-xs">{transcriptionModel === 'gpt-4o-transcribe' ? 'GPT-4o' : transcriptionModel === 'gpt-4o-mini-transcribe' ? 'GPT-4o Mini' : 'Whisper-1'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>要約AIモデル:</span>
+                    <span className="font-mono text-xs">{costEstimation.gptModel || model || 'N/A'}</span>
+                  </div>
+                  <div className="border-t border-green-200 mt-1 pt-1"></div>
+                  <div className="flex justify-between">
+                    <span>文字起こし費用:</span>
+                    <span className="font-mono">${costs.transcription.toFixed(4)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>要約生成費用:</span>
+                    <span className="font-mono">${costs.summary.toFixed(4)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t border-green-300 pt-1">
+                    <span>合計:</span>
+                    <span className="font-mono">${costs.total.toFixed(4)}</span>
+                  </div>
+                </div>
+                <div className="text-xs text-green-600 mt-1">
+                  ※実際のコストは使用するモデルやトークン数により変動します
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Processing Time Estimation */}
+          {processingTime && (
+            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 text-lg">⏱️</span>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-blue-800 mb-2">
+                    想定処理時間（概算）
+                    {processingTime.isHistoricalEstimate && (
+                      <span className="ml-2 text-xs font-normal text-green-700 bg-green-100 px-2 py-1 rounded">
+                        過去の実績から算出
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-blue-700 space-y-1">
+                    <div className="flex justify-between">
+                      <span>文字起こし速度:</span>
+                      <span className="font-mono">{processingTime.transcriptionRate || `${formatProcessingTime(processingTime.transcription)}`}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>要約生成速度:</span>
+                      <span className="font-mono">{processingTime.summaryRate || `${formatProcessingTime(processingTime.summary)}`}</span>
+                    </div>
+                    <div className="border-t border-blue-200 mt-1 pt-1"></div>
+                    <div className="flex justify-between font-medium">
+                      <span>合計処理時間:</span>
+                      <span className="font-mono">{processingTime.formatted}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    ※動画1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    if (costEstimation && costEstimation.debug) {
+      console.log('🎨 Rendering cost estimation error')
+      return (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+          <div className="flex items-start gap-2">
+            <span className="text-red-600 text-lg">⚠️</span>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-red-800 mb-1">
+                コスト予測エラー
+              </div>
+              <div className="text-xs text-red-700">
+                {costEstimation.error}
+              </div>
+              <div className="text-xs text-red-600 mt-1">
+                詳細はコンソールログを確認してください
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    console.log('🎨 No cost estimation to render - returning null')
+    return null
+  }
+
+
+  // Debug cost estimation state changes
+  useEffect(() => {
+    console.log('💰 Cost estimation state changed:', {
+      loadingCostEstimation,
+      costEstimation: costEstimation ? {
+        success: costEstimation.success,
+        title: costEstimation.title,
+        duration: costEstimation.duration,
+        hasEstimatedCosts: !!costEstimation.estimatedCosts
+      } : null
+    })
+  }, [costEstimation, loadingCostEstimation])
+
+  // Auto re-calculate cost estimation when model changes
+  useEffect(() => {
+    console.log('🔄 Model changed to:', model, 'Transcription model:', transcriptionModel)
+    
+    // Skip the first render to avoid initial calculation
+    if (isFirstModelChange.current) {
+      isFirstModelChange.current = false
+      console.log('🔄 Skipping initial model change')
+      return
+    }
+    
+    // Only re-calculate if we have existing cost estimation
+    if (costEstimation && costEstimation.success && !loadingCostEstimation) {
+      console.log('🔄 Re-calculating cost estimation due to model change')
+      
+      if (inputType === 'url' && url.trim() && validateYouTubeUrl(url.trim())) {
+        // Re-estimate for URL
+        estimateCostForUrl(url.trim())
+      } else if (inputType === 'file' && videoFile) {
+        // Re-estimate for file
+        estimateCostForFile(videoFile)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, transcriptionModel]) // Depend on both model changes to avoid infinite loops
 
   // Debug current video data
   useEffect(() => {
@@ -238,12 +677,34 @@ const AnalyzePage: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       {/* Header Section */}
       <div className="text-center lg:text-left">
-        <h1 className="text-display text-app-primary flex items-center justify-center lg:justify-start gap-3">
-          🎥 Analyze Video
-        </h1>
-        <p className="mt-3 text-body text-app-secondary max-w-2xl">
-          Transform YouTube videos into insights with AI-powered transcription, summaries, and interactive chat.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-display text-app-primary flex items-center justify-center lg:justify-start gap-3">
+              🎥 Analyze Video
+            </h1>
+            <p className="mt-3 text-body text-app-secondary max-w-2xl">
+              Transform YouTube videos and local video files into insights with AI-powered transcription, summaries, and interactive chat.
+            </p>
+          </div>
+          
+          {/* Test Button for Development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+                  setUrl(testUrl)
+                  handleUrlChange(testUrl)
+                }}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+              >
+                🧪 Test URL
+              </button>
+              <div className="text-xs text-gray-500 text-center">Dev Mode</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Control Bar - Collapsible Form */}
@@ -300,6 +761,9 @@ const AnalyzePage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Cost Estimation Display in Collapsed State */}
+                {inputType === 'url' && renderCostEstimation()}
 
                 <div className="flex items-center justify-between gap-3">
                   <button
@@ -361,69 +825,133 @@ const AnalyzePage: React.FC = () => {
                   </div>
                 )}
 
-                {/* URL Input with Preview */}
+                {/* Input Type Selection */}
                 <div className="space-y-4">
-                  <div className="relative">
-                    <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
-                      <span className="flex items-center gap-2">
-                        🔗 YouTube URL
-                      </span>
+                  <div>
+                    <label className="block text-sm font-medium text-app-primary mb-3">
+                      📥 Input Type
                     </label>
-                    <input
-                      type="url"
-                      id="url"
-                      ref={inputRef}
-                      value={url}
-                      onChange={(e) => handleUrlChange(e.target.value)}
-                      onPaste={handleUrlPaste}
-                      placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
-                      className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
-                        urlError 
-                          ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
-                          : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
-                      }`}
-                      autoComplete="off"
-                      data-testid="url-input"
-                      required
-                    />
-                    
-                    {urlError && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
-                        ⚠️ {urlError}
-                      </div>
-                    )}
+                    <div className="flex rounded-lg border border-gray-300 p-1 bg-white">
+                      <button
+                        type="button"
+                        onClick={() => handleInputTypeChange('url')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === 'url'
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
+                            : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          🔗 YouTube URL
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInputTypeChange('file')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputType === 'file'
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
+                            : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          📁 Video File
+                        </span>
+                      </button>
+                    </div>
                   </div>
+                </div>
 
-                  {/* URL Preview Card */}
-                  {videoPreview && !urlError && (
-                    <div className="url-preview-card">
-                      <div className="flex items-center gap-4">
-                        <img 
-                          src={videoPreview.thumbnail} 
-                          alt="Video thumbnail"
-                          className="w-20 h-15 object-cover rounded-lg shadow-sm"
-                          onError={(e) => {
-                            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="60" fill="%23e5e7eb"%3E%3Crect width="80" height="60"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%236b7280"%3E📹%3C/text%3E%3C/svg%3E'
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 text-sm text-blue-800">
-                            ✅ Valid YouTube URL detected
+                {/* Conditional Input Section */}
+                {inputType === 'url' ? (
+                  /* URL Input with Preview */
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
+                        <span className="flex items-center gap-2">
+                          🔗 YouTube URL
+                        </span>
+                      </label>
+                      <input
+                        type="url"
+                        id="url"
+                        ref={inputRef}
+                        value={url}
+                        onChange={(e) => handleUrlChange(e.target.value)}
+                        onPaste={handleUrlPaste}
+                        placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
+                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
+                          urlError 
+                            ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
+                            : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
+                        }`}
+                        autoComplete="off"
+                        data-testid="url-input"
+                        required={inputType === 'url'}
+                      />
+                      
+                      {urlError && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                          ⚠️ {urlError}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* URL Preview Card */}
+                    {videoPreview && !urlError && (
+                      <div className="url-preview-card">
+                        <div className="flex items-center gap-4">
+                          <img 
+                            src={videoPreview.thumbnail} 
+                            alt="Video thumbnail"
+                            className="w-20 h-15 object-cover rounded-lg shadow-sm"
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="60" fill="%23e5e7eb"%3E%3Crect width="80" height="60"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%236b7280"%3E📹%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 text-sm text-blue-800">
+                              ✅ Valid YouTube URL detected
+                            </div>
+                            <p className="text-xs text-blue-600 mt-1 opacity-75">
+                              Ready to analyze
+                            </p>
                           </div>
-                          <p className="text-xs text-blue-600 mt-1 opacity-75">
-                            Ready to analyze
-                          </p>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+
+                    {/* Cost Estimation Display for URL */}
+                    {renderCostEstimation()}
+                  </div>
+                ) : (
+                  /* Video File Upload */
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-app-primary mb-2">
+                      <span className="flex items-center gap-2">
+                        📁 Video File Upload
+                      </span>
+                    </label>
+                    <VideoFileUpload
+                      onFileSelected={handleFileSelected}
+                      maxSize={500 * 1024 * 1024} // 500MB
+                      acceptedFormats={['video/mp4', 'video/quicktime']}
+                      isUploading={loading}
+                      uploadProgress={uploadProgress}
+                      error={fileError}
+                    />
+
+                    {/* Cost Estimation Display for File */}
+                    {renderCostEstimation()}
+                  </div>
+                )}
 
                 {/* Settings Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="language" className="block text-sm font-medium text-app-primary mb-2">
-                      🌐 Language
+                  <div className="lg:col-span-1">
+                    <label htmlFor="language" className="block text-app-primary mb-2">
+                      <div className="text-sm font-medium">🌐 Language</div>
+                      <div className="text-xs text-gray-500">文字起こし言語</div>
                     </label>
                     <select
                       id="language"
@@ -437,9 +965,27 @@ const AnalyzePage: React.FC = () => {
                     </select>
                   </div>
 
-                  <div>
-                    <label htmlFor="model" className="block text-sm font-medium text-app-primary mb-2">
-                      🤖 AI Model
+                  <div className="lg:col-span-1">
+                    <label htmlFor="transcriptionModel" className="block text-app-primary mb-2">
+                      <div className="text-sm font-medium">🎵 Transcription</div>
+                      <div className="text-xs text-gray-500">文字起こしモデル</div>
+                    </label>
+                    <select
+                      id="transcriptionModel"
+                      value={transcriptionModel}
+                      onChange={(e) => setTranscriptionModel(e.target.value as 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1')}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                    >
+                      <option value="gpt-4o-transcribe">GPT-4o Transcribe - $6/1M tokens</option>
+                      <option value="gpt-4o-mini-transcribe">GPT-4o Mini - $3/1M tokens</option>
+                      <option value="whisper-1">Whisper-1 - $6/minute</option>
+                    </select>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label htmlFor="model" className="block text-app-primary mb-2">
+                      <div className="text-sm font-medium">🤖 Summary AI</div>
+                      <div className="text-xs text-gray-500">要約生成モデル</div>
                     </label>
                     <select
                       id="model"
@@ -447,31 +993,40 @@ const AnalyzePage: React.FC = () => {
                       onChange={(e) => setModel(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
                     >
-                      <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
-                      <option value="gpt-4o">GPT-4o (Balanced)</option>
-                      <option value="gpt-4">GPT-4 (Premium)</option>
+                      <option value="gpt-4o-mini">GPT-4o Mini - $0.15/$0.60/1M</option>
+                      <option value="gpt-4o">GPT-4o - $2.50/$10.00/1M</option>
+                      <option value="gpt-4-turbo">GPT-4 Turbo - $10.00/$30.00/1M</option>
+                      <option value="gpt-4">GPT-4 - $30.00/$60.00/1M</option>
+                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo - $0.50/$1.50/1M</option>
                     </select>
                   </div>
+                </div>
 
-                  <div className="sm:col-span-2 lg:col-span-1 flex items-end">
-                    <button
-                      type="submit"
-                      disabled={loading || !url.trim() || !!urlError}
-                      className="btn-modern btn-success w-full h-10 text-white font-semibold shadow-elevation-hover"
-                      data-testid="analyze-button"
-                    >
-                      {loading ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span className="text-tabular">Analyzing...</span>
-                        </div>
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          ⚡ Analyze Video
+                {/* Submit Button - Separate Row */}
+                <div className="mt-4">
+                  <button
+                    type="submit"
+                    disabled={
+                      loading || 
+                      (inputType === 'url' && (!url.trim() || !!urlError)) ||
+                      (inputType === 'file' && (!videoFile || !!fileError))
+                    }
+                    className="btn-modern btn-success w-full text-white font-semibold shadow-elevation-hover"
+                    data-testid="analyze-button"
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span className="text-tabular">
+                          {inputType === 'file' ? 'Processing...' : 'Analyzing...'}
                         </span>
-                      )}
-                    </button>
-                  </div>
+                      </div>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        ⚡ {inputType === 'file' ? 'Process Video' : 'Analyze Video'}
+                      </span>
+                    )}
+                  </button>
                 </div>
               </form>
             </div>
@@ -479,9 +1034,16 @@ const AnalyzePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Loading State with Skeleton */}
+      {/* Loading State with Progress */}
       {loading && (
         <div className="space-y-6">
+          {/* Analysis Progress Indicator */}
+          <AnalysisProgress 
+            isAnalyzing={loading}
+            estimatedTime={estimatedProcessingTime || costEstimation?.estimatedProcessingTime}
+          />
+          
+          {/* Skeleton Loading */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <div className="skeleton h-64 w-full rounded-xl"></div>
@@ -539,6 +1101,27 @@ const AnalyzePage: React.FC = () => {
                     className="w-full h-full"
                     allowFullScreen
                   />
+                )}
+                {currentVideo.basic?.videoPath && !currentVideo.basic?.videoId && (
+                  <video
+                    ref={(video) => {
+                      if (video && !playerRef) {
+                        console.log('🎥 Setting video element as playerRef')
+                        setPlayerRef(video as any)
+                      }
+                    }}
+                    src={currentVideo.basic.videoPath}
+                    controls
+                    className="w-full h-full bg-black"
+                    onLoadedMetadata={(e) => {
+                      console.log('📹 Video loaded:', currentVideo.basic.videoPath)
+                    }}
+                    onError={(e) => {
+                      console.error('❌ Video loading error:', e)
+                    }}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
                 )}
               </div>
               
@@ -664,48 +1247,85 @@ const AnalyzePage: React.FC = () => {
                         {currentVideo.costs && (
                           <div>
                             <h4 className="text-sm font-semibold text-black mb-2 flex items-center gap-1">
-                              💰 分析コスト
+                              💰 分析コスト（実績）
                             </h4>
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-800 font-medium">文字起こし:</span>
-                                <span className="font-semibold text-black">
-                                {currentVideo.costs.transcription > 0 ? 
-                                  `$${currentVideo.costs.transcription.toFixed(4)}` : 
-                                  '無料'
-                                }
-                                {currentVideo.transcriptSource === 'subtitle' && (
-                                  <span className="ml-2 text-sm text-gray-700 font-medium">(YouTube字幕)</span>
-                                )}
-                                {currentVideo.transcriptSource === 'whisper' && (
-                                  <span className="ml-2 text-sm text-gray-700 font-medium">(Whisper AI)</span>
-                                )}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-800 font-medium">要約:</span>
-                              <span className="font-semibold text-black">
-                                ${currentVideo.costs.summary.toFixed(4)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-800 font-medium">記事:</span>
-                              <span className="font-semibold text-black">
-                                {currentVideo.costs.article > 0 ? 
-                                  `$${currentVideo.costs.article.toFixed(4)}` : 
-                                  '未生成'
-                                }
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
-                              <span className="text-black font-semibold">合計:</span>
-                              <span className="font-bold text-black text-base">
-                                ${currentVideo.costs.total.toFixed(4)}
-                              </span>
+                            <div className="space-y-2">
+                              {/* 文字起こしコスト詳細 */}
+                              <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                <div className="text-xs font-semibold text-gray-700 mb-1">📝 文字起こし</div>
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">方法:</span>
+                                    <span className="text-gray-800">
+                                      {currentVideo.transcriptSource === 'subtitle' ? 'YouTube字幕' : 'Whisper AI'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">コスト:</span>
+                                    <span className="font-semibold text-black">
+                                      {currentVideo.costs.transcription > 0 ? 
+                                        `$${currentVideo.costs.transcription.toFixed(4)}` : 
+                                        '無料'
+                                      }
+                                    </span>
+                                  </div>
+                                  {currentVideo.analysisTime?.transcription && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">処理時間:</span>
+                                      <span className="text-gray-800">
+                                        {Math.round(currentVideo.analysisTime.transcription)}秒
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* 要約コスト詳細 */}
+                              <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                <div className="text-xs font-semibold text-gray-700 mb-1">📋 要約生成</div>
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">コスト:</span>
+                                    <span className="font-semibold text-black">
+                                      ${currentVideo.costs.summary.toFixed(4)}
+                                    </span>
+                                  </div>
+                                  {currentVideo.analysisTime?.summary && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">処理時間:</span>
+                                      <span className="text-gray-800">
+                                        {Math.round(currentVideo.analysisTime.summary)}秒
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* 記事生成（もし生成されていれば） */}
+                              {currentVideo.costs.article > 0 && (
+                                <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                  <div className="text-xs font-semibold text-gray-700 mb-1">📄 記事生成</div>
+                                  <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">コスト:</span>
+                                      <span className="font-semibold text-black">
+                                        ${currentVideo.costs.article.toFixed(4)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* 合計 */}
+                              <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
+                                <span className="text-sm text-black font-bold">合計コスト:</span>
+                                <span className="font-bold text-black text-base">
+                                  ${currentVideo.costs.total.toFixed(4)}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Analysis Time Information */}
                       {currentVideo.analysisTime && (
@@ -799,20 +1419,20 @@ const AnalyzePage: React.FC = () => {
                 
                 const trySeek = (retryCount = 0) => {
                   if (playerRef) {
-                    console.log('🎥 AnalyzePage: playerRef methods:', {
-                      seekToWithAutoplay: !!playerRef.seekToWithAutoplay,
-                      seekTo: !!playerRef.seekTo,
-                      getPlayerState: !!playerRef.getPlayerState,
-                      playVideo: !!playerRef.playVideo
-                    })
-                    
-                    // Use the enhanced seekTo function with autoplay
-                    if (playerRef.seekToWithAutoplay) {
-                      console.log('🎥 Using seekToWithAutoplay')
-                      playerRef.seekToWithAutoplay(time, true)
-                    } else if (playerRef.seekTo) {
-                      console.log('🎥 Using fallback seekTo method')
-                      // Fallback to original method
+                    // Check if it's an HTML5 video element
+                    if (playerRef.currentTime !== undefined) {
+                      console.log('🎥 Using HTML5 video seek')
+                      playerRef.currentTime = time
+                      // Auto-play if paused
+                      if (playerRef.paused) {
+                        playerRef.play().catch((e: any) => {
+                          console.log('⚠️ Auto-play prevented:', e)
+                        })
+                      }
+                    }
+                    // YouTube player API methods
+                    else if (playerRef.seekTo) {
+                      console.log('🎥 Using YouTube player seek')
                       playerRef.seekTo(time, true)
                       // Auto-play if not already playing
                       setTimeout(() => {

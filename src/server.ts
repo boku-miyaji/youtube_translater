@@ -6,6 +6,8 @@ import OpenAI from 'openai';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import multer from 'multer';
+import crypto from 'crypto';
 
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
@@ -27,8 +29,14 @@ import {
   Summary,
   PromptsConfig,
   TranscriptionResult,
-  SubtitlesResult
+  SubtitlesResult,
+  UploadVideoFileResponse,
+  CostEstimationRequest,
+  CostEstimationResponse,
+  FileCostEstimationResponse
 } from './types/index';
+import { formatProcessingTime } from './utils/formatTime';
+
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -56,6 +64,7 @@ app.use((req: Request, res: Response, next) => {
 });
 
 app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -86,8 +95,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// const upload = multer({ dest: 'uploads/' });
-
+// Create necessary directories
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
@@ -97,6 +105,36 @@ if (!fs.existsSync('transcripts')) {
 if (!fs.existsSync('history')) {
   fs.mkdirSync('history');
 }
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + crypto.randomUUID();
+    const extension = path.extname(file.originalname);
+    cb(null, `${uniqueSuffix}${extension}`);
+  }
+});
+
+// File filter for video files only
+const fileFilter = (req: any, file: any, cb: any) => {
+  const allowedMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only video files (MP4, MOV, AVI) are allowed'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB limit
+  },
+  fileFilter: fileFilter
+});
 
 let currentTranscript = '';
 let currentMetadata: VideoMetadata | null = null;
@@ -110,52 +148,359 @@ let sessionCosts: SessionCosts = {
   total: 0
 };
 
-// 料金設定（2024年12月時点の最新公式価格）
+// 料金設定（2025年1月時点のOpenAI公式価格）
 const pricing: Pricing = {
-  whisper: 0.006, // $0.006 per minute
+  input: 0.50 / 1000000, // Default input price (gpt-3.5-turbo)
+  output: 1.50 / 1000000, // Default output price (gpt-3.5-turbo)
+  whisper: 0.006, // $0.006 per minute (for backward compatibility)
+  transcription: {
+    'whisper-1': 0.006, // $0.006 per minute
+    'gpt-4o-transcribe': 6.0 / 1000000, // $6 per 1M audio tokens
+    'gpt-4o-mini-transcribe': 3.0 / 1000000 // $3 per 1M audio tokens
+  },
   models: {
     'gpt-4o-mini': {
-      input: 0.60 / 1000000, // $0.60 per 1M tokens
-      output: 2.40 / 1000000  // $2.40 per 1M tokens
+      input: 0.15 / 1000000, // $0.15 per 1M tokens
+      output: 0.60 / 1000000  // $0.60 per 1M tokens
     },
     'gpt-4o': {
-      input: 5.00 / 1000000, // $5.00 per 1M tokens
-      output: 15.00 / 1000000  // $15.00 per 1M tokens
+      input: 2.50 / 1000000, // $2.50 per 1M tokens
+      output: 10.00 / 1000000  // $10.00 per 1M tokens
     },
     'gpt-4-turbo': {
       input: 10.00 / 1000000, // $10.00 per 1M tokens
       output: 30.00 / 1000000  // $30.00 per 1M tokens
     },
+    'gpt-4': {
+      input: 30.00 / 1000000, // $30.00 per 1M tokens
+      output: 60.00 / 1000000  // $60.00 per 1M tokens
+    },
     'gpt-3.5-turbo': {
       input: 0.50 / 1000000, // $0.50 per 1M tokens
       output: 1.50 / 1000000  // $1.50 per 1M tokens
-    },
-    'gpt-4.1-nano': {
-      input: 0.10 / 1000000, // $0.10 per 1M tokens
-      output: 0.40 / 1000000  // $0.40 per 1M tokens
-    },
-    'gpt-4.1-mini': {
-      input: 0.40 / 1000000, // $0.40 per 1M tokens
-      output: 1.60 / 1000000  // $1.60 per 1M tokens
-    },
-    'gpt-4.1': {
-      input: 2.00 / 1000000, // $2.00 per 1M tokens
-      output: 8.00 / 1000000  // $8.00 per 1M tokens
-    },
-    'gpt-o3': {
-      input: 2.00 / 1000000, // $2.00 per 1M tokens
-      output: 8.00 / 1000000  // $8.00 per 1M tokens
-    },
-    'gpt-4o-mini-new': {
-      input: 1.10 / 1000000, // $1.10 per 1M tokens
-      output: 4.40 / 1000000  // $4.40 per 1M tokens
     }
   }
 };
 
+// Processing speed for each model (video minutes per real-time minute)
+const processingSpeed = {
+  transcription: {
+    'whisper-1': 10, // Whisper processes ~10 minutes of video per minute
+    'gpt-4o-transcribe': 8, // GPT-4o processes ~8 minutes of video per minute
+    'gpt-4o-mini-transcribe': 12 // GPT-4o Mini processes ~12 minutes of video per minute
+  },
+  summary: {
+    'gpt-4o-mini': 0.5, // Processing time coefficient (lower = slower)
+    'gpt-4o': 0.4,
+    'gpt-4-turbo': 0.3,
+    'gpt-4': 0.25,
+    'gpt-3.5-turbo': 0.6
+  }
+};
+
+// Helper function to get the correct response format for transcription models
+function getTranscriptionResponseFormat(model: string): 'verbose_json' | 'json' {
+  // GPT-4o models don't support verbose_json, only json or text
+  if (model === 'gpt-4o-transcribe' || model === 'gpt-4o-mini-transcribe') {
+    return 'json';
+  }
+  // Whisper-1 supports verbose_json which includes timestamps
+  return 'verbose_json';
+}
+
 // 履歴ファイルのパス
 const historyFile = path.join('history', 'transcripts.json');
 const costsFile = path.join('history', 'costs.json');
+
+// Video file processing utilities
+async function extractVideoMetadata(filePath: string): Promise<{ duration: number; title: string }> {
+  return new Promise((resolve, reject) => {
+    // Validate input file exists
+    if (!fs.existsSync(filePath)) {
+      reject(new Error(`Video file not found: ${filePath}`));
+      return;
+    }
+    
+    console.log('📊 Extracting video metadata from:', filePath);
+    
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        console.error('Error extracting video metadata:', err);
+        reject(err);
+        return;
+      }
+
+      const duration = metadata.format.duration || 0;
+      const filename = path.basename(filePath, path.extname(filePath));
+      
+      console.log('📊 Video metadata extracted:', { 
+        duration: Math.round(duration), 
+        filename,
+        format: metadata.format 
+      });
+      
+      resolve({
+        duration: Math.round(duration),
+        title: filename
+      });
+    });
+  });
+}
+
+async function transcribeVideoFile(filePath: string, transcriptionModel: string = 'whisper-1'): Promise<{ text: string; segments: TimestampedSegment[] }> {
+  try {
+    console.log('🎵 Starting Whisper transcription for:', filePath);
+    
+    // Validate input file exists
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Video file not found: ${filePath}`);
+    }
+    
+    // Convert video to audio using ffmpeg - use WAV format with PCM encoding for better compatibility
+    const audioPath = filePath.replace(/\.(mp4|mov|avi)$/i, '.wav');
+    
+    console.log('🎵 Audio extraction path:', audioPath);
+    
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(filePath)
+        .output(audioPath)
+        .audioCodec('pcm_s16le') // Use PCM 16-bit little-endian, which is universally supported
+        .audioFrequency(16000)   // 16kHz sample rate for Whisper (recommended)
+        .audioChannels(1)        // Mono for better transcription accuracy
+        .on('progress', (progress) => {
+          console.log('Audio extraction progress:', progress.percent + '% done');
+        })
+        .on('end', () => {
+          console.log('Audio extraction completed');
+          resolve();
+        })
+        .on('error', (err) => {
+          console.error('Error extracting audio:', err);
+          reject(err);
+        })
+        .run();
+    });
+
+    // Validate audio file exists
+    if (!fs.existsSync(audioPath)) {
+      throw new Error(`Audio file not found after extraction: ${audioPath}`);
+    }
+    
+    console.log('🎵 Starting Whisper API transcription...');
+    
+    // For video files, always use whisper-1 to ensure we get timestamps
+    // GPT-4o models don't support timestamp_granularities
+    const actualModel = (transcriptionModel === 'gpt-4o-transcribe' || transcriptionModel === 'gpt-4o-mini-transcribe') 
+      ? 'whisper-1' 
+      : transcriptionModel;
+    
+    if (actualModel !== transcriptionModel) {
+      console.log(`⚠️ Using whisper-1 instead of ${transcriptionModel} to ensure timestamp support for video files`);
+    }
+    
+    // Transcribe using Whisper API
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(audioPath),
+      model: actualModel,
+      response_format: 'verbose_json', // Always use verbose_json for video files to get timestamps
+      timestamp_granularities: ['segment']
+    });
+    
+    console.log('🎵 Whisper API transcription completed');
+
+    // Clean up audio file
+    if (fs.existsSync(audioPath)) {
+      fs.unlinkSync(audioPath);
+    }
+
+    // Convert Whisper segments to our format
+    const segments: TimestampedSegment[] = (transcription as any).segments?.map((segment: any) => ({
+      start: segment.start,
+      end: segment.end,
+      text: segment.text.trim()
+    })) || [];
+
+    return {
+      text: transcription.text,
+      segments
+    };
+  } catch (error) {
+    console.error('Error transcribing video file:', error);
+    throw error;
+  }
+}
+
+async function cleanupTempFile(filePath: string, delay: number = 60000): Promise<void> {
+  // Schedule file cleanup after delay
+  setTimeout(() => {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`Cleaned up temporary file: ${filePath}`);
+      }
+    } catch (error) {
+      console.error(`Error cleaning up file ${filePath}:`, error);
+    }
+  }, delay);
+}
+
+function calculateWhisperCost(durationMinutes: number): number {
+  return durationMinutes * pricing.whisper;
+}
+
+// Calculate transcription cost based on model
+function calculateTranscriptionCost(transcriptionModel: string, durationMinutes: number, audioTokens?: number): number {
+  const model = transcriptionModel as keyof typeof pricing.transcription;
+  
+  if (model === 'whisper-1') {
+    // Whisper-1 uses per-minute pricing
+    return durationMinutes * pricing.transcription[model];
+  } else if (model === 'gpt-4o-transcribe' || model === 'gpt-4o-mini-transcribe') {
+    // GPT-4o models use per-audio-token pricing
+    // Estimate audio tokens: approximately 25 tokens per second of audio
+    const estimatedAudioTokens = audioTokens || Math.ceil(durationMinutes * 60 * 25);
+    return estimatedAudioTokens * pricing.transcription[model];
+  }
+  
+  // Fallback to whisper pricing
+  return durationMinutes * pricing.transcription['whisper-1'];
+}
+
+// Calculate average summary time from historical data
+function calculateAverageSummaryTime(gptModel: string, durationMinutes: number): number | null {
+  try {
+    const history = loadHistory();
+    
+    // Filter relevant historical entries with actual summary time data
+    const relevantEntries = history.filter(entry => {
+      return entry.gptModel === gptModel && 
+             entry.analysisTime?.summary && 
+             entry.analysisTime.summary > 0 &&
+             entry.metadata?.basic?.duration;
+    });
+    
+    // Need at least 3 samples for reliable estimation
+    if (relevantEntries.length < 3) {
+      return null;
+    }
+    
+    // Calculate time per minute for each entry
+    const timePerMinuteRatios: number[] = relevantEntries.map(entry => {
+      const videoDurationMinutes = entry.metadata!.basic!.duration! / 60;
+      const summaryTimeMinutes = entry.analysisTime!.summary! / 60;
+      return summaryTimeMinutes / videoDurationMinutes;
+    });
+    
+    // Remove outliers (top and bottom 10%) if we have enough samples
+    if (timePerMinuteRatios.length >= 10) {
+      timePerMinuteRatios.sort((a, b) => a - b);
+      const trimCount = Math.floor(timePerMinuteRatios.length * 0.1);
+      const trimmedRatios = timePerMinuteRatios.slice(trimCount, -trimCount);
+      
+      // Calculate average
+      const avgRatio = trimmedRatios.reduce((sum, ratio) => sum + ratio, 0) / trimmedRatios.length;
+      return Math.ceil(avgRatio * durationMinutes * 60); // Return in seconds
+    } else {
+      // For small sample size, use simple average
+      const avgRatio = timePerMinuteRatios.reduce((sum, ratio) => sum + ratio, 0) / timePerMinuteRatios.length;
+      return Math.ceil(avgRatio * durationMinutes * 60); // Return in seconds
+    }
+  } catch (error) {
+    console.error('Error calculating average summary time:', error);
+    return null;
+  }
+}
+
+// Calculate estimated processing time based on model and video duration
+function calculateProcessingTime(transcriptionModel: string, gptModel: string, durationMinutes: number): {
+  transcription: number;
+  summary: number;
+  total: number;
+  formatted: string;
+  isHistoricalEstimate?: boolean;
+  transcriptionRate: string;  // e.g., "10x速" or "0.1分/分"
+  summaryRate: string;        // e.g., "0.5分/分"
+  durationMinutes: number;    // Pass through for UI
+} {
+  // Calculate transcription time (in seconds)
+  const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
+  const transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
+  
+  // Calculate transcription rate (seconds per video minute)
+  const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
+  const transcriptionRate = `動画1分あたり${transcriptionSecondsPerVideoMinute.toFixed(1)}秒`;
+  
+  // Try to calculate summary time from historical data first
+  const historicalSummaryTime = calculateAverageSummaryTime(gptModel, durationMinutes);
+  let summaryTime: number;
+  let isHistoricalEstimate = false;
+  
+  if (historicalSummaryTime !== null) {
+    summaryTime = historicalSummaryTime;
+    isHistoricalEstimate = true;
+    console.log(`📊 Using historical data for summary time estimation: ${summaryTime}s for ${gptModel}`);
+  } else {
+    // Fall back to default speed coefficients
+    const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.5;
+    summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
+    console.log(`📊 Using default coefficients for summary time estimation: ${summaryTime}s for ${gptModel}`);
+  }
+  
+  // Calculate summary rate (seconds per video minute)
+  const summarySecondsPerVideoMinute = summaryTime / durationMinutes;
+  const summaryRate = `動画1分あたり${summarySecondsPerVideoMinute.toFixed(1)}秒`;
+  
+  const totalTime = transcriptionTime + summaryTime;
+  
+  return {
+    transcription: transcriptionTime,
+    summary: summaryTime,
+    total: totalTime,
+    formatted: formatProcessingTime(totalTime),
+    isHistoricalEstimate,
+    transcriptionRate,
+    summaryRate,
+    durationMinutes
+  };
+}
+
+
+// Format duration to human readable format
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}時間${minutes}分${secs}秒`;
+  } else if (minutes > 0) {
+    return `${minutes}分${secs}秒`;
+  } else {
+    return `${secs}秒`;
+  }
+}
+
+// Estimate GPT costs for summary and article
+function estimateGPTCosts(durationMinutes: number, gptModel: string, generateSummary: boolean = true, generateArticle: boolean = false): { summary: number; article: number } {
+  const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
+  
+  // Rough estimates based on video length
+  // These are conservative estimates - actual costs may vary
+  const baseInputTokens = Math.min(4000, durationMinutes * 15); // Estimate based on transcript length
+  const summaryOutputTokens = generateSummary ? Math.min(1000, durationMinutes * 8) : 0;
+  const articleOutputTokens = generateArticle ? Math.min(2000, durationMinutes * 12) : 0;
+  
+  const summaryCost = generateSummary ? 
+    (baseInputTokens * modelPricing.input) + (summaryOutputTokens * modelPricing.output) : 0;
+  
+  const articleCost = generateArticle ? 
+    ((baseInputTokens + summaryOutputTokens) * modelPricing.input) + (articleOutputTokens * modelPricing.output) : 0;
+  
+  return {
+    summary: summaryCost,
+    article: articleCost
+  };
+}
 
 function loadHistory(): HistoryEntry[] {
   if (fs.existsSync(historyFile)) {
@@ -290,13 +635,14 @@ function addToHistory(
     gptModel, // GPTモデル情報
     cost,
     metadata,
-    summary,
+    summary: typeof summary === 'string' ? summary : summary?.content || summary?.text || '',
     timestampedSegments, // タイムスタンプ付きセグメント
     tags, // サブタグ情報
     mainTags, // メインタグ情報
     article, // 生成された記事コンテンツ
     thumbnail: metadata?.basic?.thumbnail || undefined, // Extract thumbnail from metadata
     timestamp: new Date().toISOString(),
+    savedAt: new Date().toISOString(),
     analysisTime: analysisTime || undefined
   };
   
@@ -640,22 +986,31 @@ async function downloadYouTubeAudio(url: string, outputPath: string): Promise<vo
   });
 }
 
-async function transcribeAudio(audioPath: string, language: string = 'original'): Promise<TranscriptionResult> {
+async function transcribeAudio(audioPath: string, language: string = 'original', transcriptionModel: string = 'whisper-1'): Promise<TranscriptionResult> {
   const stats = fs.statSync(audioPath);
   const fileSizeInBytes = stats.size;
   const maxSize = 25 * 1024 * 1024; // 25MB
   
   if (fileSizeInBytes > maxSize) {
     // Split processing for large files
-    return await transcribeLargeAudio(audioPath, language);
+    return await transcribeLargeAudio(audioPath, language, transcriptionModel);
   }
   
   const audioFile = fs.createReadStream(audioPath);
   
+  // For audio transcription with timestamps, we need to ensure we use a model that supports it
+  const actualModel = (transcriptionModel === 'gpt-4o-transcribe' || transcriptionModel === 'gpt-4o-mini-transcribe') 
+    ? 'whisper-1' 
+    : transcriptionModel;
+  
+  if (actualModel !== transcriptionModel) {
+    console.log(`⚠️ Using whisper-1 instead of ${transcriptionModel} to ensure timestamp support`);
+  }
+  
   const transcriptionParams: any = {
     file: audioFile,
-    model: 'whisper-1',
-    response_format: 'verbose_json',
+    model: actualModel,
+    response_format: 'verbose_json', // Always use verbose_json to get timestamps
     timestamp_granularities: ['segment']
   };
   
@@ -670,13 +1025,13 @@ async function transcribeAudio(audioPath: string, language: string = 'original')
     text: transcription.text,
     timestampedSegments: (transcription as any).segments ? (transcription as any).segments.map((segment: any) => ({
       start: segment.start,
-      duration: segment.end - segment.start,
+      end: segment.end,
       text: segment.text
     })) : []
   };
 }
 
-async function transcribeLargeAudio(audioPath: string, language: string = 'original'): Promise<TranscriptionResult> {
+async function transcribeLargeAudio(audioPath: string, language: string = 'original', transcriptionModel: string = 'whisper-1'): Promise<TranscriptionResult> {
   const segmentDuration = 600; // Split every 10 minutes
   const segmentPaths: string[] = [];
   
@@ -711,10 +1066,15 @@ async function transcribeLargeAudio(audioPath: string, language: string = 'origi
           // Transcribe segment
           const audioFile = fs.createReadStream(segmentPath);
           
+          // For audio transcription with timestamps, we need to ensure we use a model that supports it
+          const actualModel = (transcriptionModel === 'gpt-4o-transcribe' || transcriptionModel === 'gpt-4o-mini-transcribe') 
+            ? 'whisper-1' 
+            : transcriptionModel;
+          
           const transcriptionParams: any = {
             file: audioFile,
-            model: 'whisper-1',
-            response_format: 'verbose_json',
+            model: actualModel,
+            response_format: 'verbose_json', // Always use verbose_json to get timestamps
             timestamp_granularities: ['segment']
           };
           
@@ -748,7 +1108,7 @@ async function transcribeLargeAudio(audioPath: string, language: string = 'origi
           transcriptResult.segments.forEach((segment: any) => {
             allSegments.push({
               start: segment.start + transcriptResult.offset,
-              duration: segment.end - segment.start,
+              end: segment.end + transcriptResult.offset,
               text: segment.text
             });
           });
@@ -789,12 +1149,12 @@ async function getYouTubeSubtitles(videoId: string, preferredLanguage: string = 
           detectedLanguage: lang,
           timestampedSegments: transcripts.map(item => ({
             start: parseFloat(item.offset),
-            duration: parseFloat(item.duration),
+            end: parseFloat(item.offset) + parseFloat(item.duration),
             text: item.text
           }))
         };
       }
-    } catch (error) {
+    } catch {
       console.log(`No ${lang} subtitles found`);
       continue;
     }
@@ -872,6 +1232,7 @@ function addArticleToHistory(
     article,
     type,
     timestamp: new Date().toISOString(),
+    date: new Date().toISOString().split('T')[0],
     id: `${type}_${Date.now()}`
   };
   
@@ -995,9 +1356,10 @@ function calculateInferenceStats(
 // API version of upload endpoint
 app.post('/api/upload-youtube', async (req: Request, res: Response) => {
   try {
-    const analysisStartTime = new Date().toISOString();
-    console.log('API server: /api/upload-youtube called at', analysisStartTime);
-    const { url, language = 'original', model = 'gpt-4o-mini' } = req.body;
+    const analysisStartTime = new Date();
+    const analysisStartTimeISO = analysisStartTime.toISOString();
+    console.log('API server: /api/upload-youtube called at', analysisStartTimeISO);
+    const { url, language = 'original', model = 'gpt-4o-mini', transcriptionModel = 'whisper-1' } = req.body;
     
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
@@ -1017,6 +1379,10 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     let timestampedSegments: TimestampedSegment[] = [];
     let method: 'subtitle' | 'whisper' = 'subtitle';
     let detectedLanguage = language;
+    let transcriptionDuration = 0;
+
+    // Track transcription start time
+    const transcriptionStartTime = new Date();
 
     // Try subtitle first
     console.log('Attempting subtitle extraction...');
@@ -1028,6 +1394,8 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       detectedLanguage = subtitleResult.detectedLanguage;
       method = 'subtitle';
       console.log('Subtitle extraction successful');
+      // Subtitle extraction is fast, estimate 1-2 seconds
+      transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
     } else {
       console.log('Subtitle extraction failed, trying Whisper...');
       try {
@@ -1035,7 +1403,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         const audioPath = path.join('uploads', `${Date.now()}_audio.mp3`);
         await downloadYouTubeAudio(url, audioPath);
         
-        const transcriptionResult = await transcribeAudio(audioPath, language);
+        const transcriptionResult = await transcribeAudio(audioPath, language, transcriptionModel);
         transcript = transcriptionResult.text;
         timestampedSegments = transcriptionResult.timestampedSegments;
         method = 'whisper';
@@ -1045,6 +1413,9 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         if (fs.existsSync(audioPath)) {
           fs.unlinkSync(audioPath);
         }
+
+        // Calculate actual transcription time
+        transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
       } catch (whisperError) {
         console.error('Whisper transcription failed:', whisperError);
         throw new Error('Failed to extract transcript using both methods');
@@ -1061,14 +1432,21 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       sessionCosts.total += transcriptionCost;
     }
 
+    // Track summary start time
+    const summaryStartTime = new Date();
+    let summaryDuration = 0;
+
     // Generate summary
     let summaryResult = null;
     try {
       console.log('Generating summary...');
       summaryResult = await generateSummary(transcript, metadata, model, timestampedSegments);
       console.log('Summary generation successful');
+      // Calculate actual summary generation time
+      summaryDuration = Math.round((new Date().getTime() - summaryStartTime.getTime()) / 1000);
     } catch (summaryError) {
       console.warn('Summary generation failed:', summaryError);
+      summaryDuration = Math.round((new Date().getTime() - summaryStartTime.getTime()) / 1000);
     }
 
     // Update current state
@@ -1094,23 +1472,29 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     console.log('Session costs after:', sessionCosts);
     console.log('================================================');
 
-    // Calculate analysis time
-    const analysisEndTime = new Date().toISOString();
-    const analysisDuration = Math.round((new Date(analysisEndTime).getTime() - new Date(analysisStartTime).getTime()) / 1000);
+    // Calculate analysis time with individual component times
+    const analysisEndTime = new Date();
+    const analysisDuration = Math.round((analysisEndTime.getTime() - analysisStartTime.getTime()) / 1000);
     const analysisTimeInfo = {
-      startTime: analysisStartTime,
-      endTime: analysisEndTime,
-      duration: analysisDuration
+      startTime: analysisStartTimeISO,
+      endTime: analysisEndTime.toISOString(),
+      duration: analysisDuration,
+      transcription: transcriptionDuration,
+      summary: summaryDuration,
+      total: transcriptionDuration + summaryDuration
     };
 
     console.log('=== ANALYSIS TIME INFO ===');
-    console.log('Start time:', analysisStartTime);
-    console.log('End time:', analysisEndTime);
-    console.log('Duration:', analysisDuration, 'seconds');
-    console.log('==========================');
+    console.log('Start time:', analysisStartTimeISO);
+    console.log('End time:', analysisEndTime.toISOString());
+    console.log('Total duration:', analysisDuration, 'seconds');
+    console.log('Transcription duration:', transcriptionDuration, 'seconds');
+    console.log('Summary duration:', summaryDuration, 'seconds');
+    console.log('==========================')
 
     // Add to history
-    const historyEntry = addToHistory(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _historyEntry = addToHistory(
       videoId,
       metadata.basic.title,
       url,
@@ -1196,12 +1580,228 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
   }
 });
 
+// Video file upload endpoint
+app.post('/api/upload-video-file', upload.single('file'), async (req: Request, res: Response) => {
+  console.log('🎬 Video file upload request received');
+  
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'No file uploaded'
+    });
+  }
+
+  const analysisStartTime = new Date();
+  const filePath = req.file.path;
+  const originalName = req.file.originalname;
+  const fileSize = req.file.size;
+  const fileId = path.basename(req.file.filename, path.extname(req.file.filename));
+
+  // Extract request parameters
+  const language = req.body.language || 'original';
+  const gptModel = req.body.gptModel || 'gpt-4o-mini';
+  const transcriptionModel = req.body.transcriptionModel || 'whisper-1';
+  const shouldGenerateSummary = req.body.generateSummary === 'true';
+  const shouldGenerateArticle = req.body.generateArticle === 'true';
+
+  console.log('📝 Processing video file:', {
+    originalName,
+    fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`,
+    language,
+    gptModel,
+    shouldGenerateSummary,
+    shouldGenerateArticle
+  });
+
+  try {
+    // 1. Extract video metadata
+    console.log('📊 Extracting video metadata...');
+    const videoMeta = await extractVideoMetadata(filePath);
+    
+    // 2. Transcribe video using Whisper
+    console.log('🎵 Starting transcription...');
+    const transcriptionStartTime = new Date();
+    const transcriptionResult = await transcribeVideoFile(filePath, transcriptionModel);
+    const transcriptionEndTime = new Date();
+    const transcriptionDuration = Math.round((transcriptionEndTime.getTime() - transcriptionStartTime.getTime()) / 1000);
+    
+    // 3. Calculate costs
+    const durationMinutes = videoMeta.duration / 60;
+    // Since we force whisper-1 for GPT-4o models in video files, use whisper-1 cost
+    const actualTranscriptionModel = (transcriptionModel === 'gpt-4o-transcribe' || transcriptionModel === 'gpt-4o-mini-transcribe') 
+      ? 'whisper-1' 
+      : transcriptionModel;
+    const transcriptionCost = calculateTranscriptionCost(actualTranscriptionModel, durationMinutes);
+    
+    let summary = '';
+    let summaryCost = 0;
+    let summaryTokens = { input: 0, output: 0 };
+    let summaryDuration = 0;
+
+    // 4. Generate summary if requested
+    if (shouldGenerateSummary && transcriptionResult.text) {
+      console.log('📝 Generating summary...');
+      const summaryStartTime = new Date();
+      try {
+        const summaryResponse = await generateSummary(
+          transcriptionResult.text,
+          null, // No YouTube metadata for file uploads
+          gptModel,
+          transcriptionResult.segments
+        );
+        
+        if (summaryResponse) {
+          summary = summaryResponse.content;
+          summaryCost = summaryResponse.cost;
+          summaryTokens = summaryResponse.tokens;
+        }
+      } catch (error) {
+        console.error('Error generating summary:', error);
+        // Continue without summary
+      }
+      const summaryEndTime = new Date();
+      summaryDuration = Math.round((summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000);
+    }
+
+    const analysisEndTime = new Date();
+    const analysisTime = {
+      startTime: analysisStartTime.toISOString(),
+      endTime: analysisEndTime.toISOString(),
+      duration: Math.round((analysisEndTime.getTime() - analysisStartTime.getTime()) / 1000),
+      transcription: transcriptionDuration,
+      summary: summaryDuration,
+      total: transcriptionDuration + summaryDuration
+    };
+
+    // 5. Create video metadata
+    const videoMetadata: VideoMetadata = {
+      basic: {
+        title: originalName.replace(/\.[^/.]+$/, ''), // Remove extension
+        duration: videoMeta.duration,
+        videoPath: `/uploads/${req.file.filename}` // Path to serve the video file
+      },
+      chapters: [],
+      captions: [],
+      stats: {
+        formatCount: 1,
+        hasSubtitles: false,
+        keywords: []
+      },
+      transcript: transcriptionResult.text,
+      summary,
+      timestampedSegments: transcriptionResult.segments,
+      transcriptSource: 'whisper',
+      costs: {
+        transcription: transcriptionCost,
+        summary: summaryCost,
+        article: 0,
+        total: transcriptionCost + summaryCost
+      },
+      analysisTime,
+      source: 'file',
+      fileId,
+      originalFilename: originalName,
+      fileSize,
+      uploadedAt: new Date().toISOString()
+    };
+
+    // 6. Save to history
+    const historyEntry: HistoryEntry = {
+      id: fileId,
+      title: videoMetadata.basic.title,
+      url: `file://${originalName}`,
+      transcript: transcriptionResult.text,
+      method: 'whisper',
+      language,
+      gptModel,
+      cost: transcriptionCost + summaryCost,
+      metadata: videoMetadata,
+      summary: summary || null,
+      timestampedSegments: transcriptionResult.segments,
+      tags: [],
+      mainTags: [],
+      article: null,
+      timestamp: new Date().toISOString(),
+      savedAt: new Date().toISOString(),
+      analysisTime
+    };
+
+    const history = loadHistory();
+    history.unshift(historyEntry);
+    saveHistory(history);
+
+    // 7. Save cost information
+    const costEntry: CostEntry = {
+      videoId: fileId,
+      title: videoMetadata.basic.title,
+      method: 'whisper',
+      language,
+      gptModel,
+      whisperCost: transcriptionCost,
+      gptCost: summaryCost,
+      totalCost: transcriptionCost + summaryCost,
+      timestamp: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    const costs = loadCosts();
+    costs.unshift(costEntry);
+    saveCosts(costs);
+
+    // 8. Schedule file cleanup (after 1 hour)
+    await cleanupTempFile(filePath, 60 * 60 * 1000);
+
+    // 9. Send response
+    const response: UploadVideoFileResponse = {
+      title: videoMetadata.basic.title || originalName,
+      metadata: videoMetadata,
+      transcript: transcriptionResult.text,
+      summary: summary,
+      timestampedSegments: transcriptionResult.segments,
+      method: 'whisper',
+      detectedLanguage: language,
+      costs: {
+        transcription: transcriptionCost,
+        summary: summaryCost,
+        article: 0,
+        total: transcriptionCost + summaryCost
+      },
+      analysisTime: {
+        transcription: transcriptionDuration,
+        summary: summaryDuration,
+        total: transcriptionDuration + summaryDuration
+      }
+    };
+
+    console.log('✅ Video file processing completed successfully');
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Error processing video file:', error);
+    
+    // Clean up file on error
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up file after processing error:', cleanupError);
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error processing video file',
+      message: 'Failed to process video file'
+    });
+  }
+});
+
 app.post('/upload-youtube', async (req: Request, res: Response) => {
   try {
     console.log('TypeScript server: /upload-youtube called');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     
-    const { url, language = 'original', gptModel = 'gpt-4o-mini', mainTags = [], tags = '', forceRegenerate = false } = req.body;
+    const { url, language = 'original', gptModel = 'gpt-4o-mini', transcriptionModel = 'whisper-1', mainTags = [], tags = '', forceRegenerate = false } = req.body;
     
     console.log('Parsed parameters:', { url, language, gptModel, mainTags, tags, forceRegenerate });
     
@@ -1282,8 +1882,8 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         }
         
         // GPTコスト（要約分）を計上
-        if (existingEntry.summary?.cost) {
-          sessionCosts.gpt += existingEntry.summary.cost;
+        if (existingEntry.costs?.summary) {
+          sessionCosts.gpt += existingEntry.costs.summary;
         }
         
         console.log('Restored from history:');
@@ -1295,7 +1895,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         // Build detailed cost information from history entry
         let transcriptionCost = 0;
         let summaryCost = 0;
-        let articleCost = 0;
+        const articleCost = 0;
         
         // 文字起こしコストを計算
         if (existingEntry.method === 'whisper' && existingEntry.metadata?.basic?.duration) {
@@ -1304,8 +1904,8 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         }
         
         // 要約コストを取得
-        if (existingEntry.summary?.cost) {
-          summaryCost = existingEntry.summary.cost;
+        if (existingEntry.costs?.summary) {
+          summaryCost = existingEntry.costs.summary;
         } else if (existingEntry.method === 'whisper' && existingEntry.cost) {
           // 古い履歴データの場合、costフィールドが要約コストのみの場合がある
           // その場合は、costフィールドを要約コストとして使用
@@ -1329,14 +1929,14 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
         console.log('Duration minutes:', existingEntry.metadata?.basic?.duration ? Math.ceil(existingEntry.metadata.basic.duration / 60) : 'N/A');
         console.log('Pricing whisper:', pricing.whisper);
         console.log('Transcription cost calculated:', transcriptionCost);
-        console.log('Summary cost from summary.cost:', existingEntry.summary?.cost || 'N/A');
+        console.log('Summary cost from costs.summary:', existingEntry.costs?.summary || 'N/A');
         console.log('Summary cost from entry.cost:', existingEntry.cost || 'N/A');
         console.log('Summary cost used:', summaryCost);
         console.log('Article cost:', articleCost);
         console.log('Total cost:', detailedCosts.total);
         console.log('Original history cost:', existingEntry.cost);
         console.log('Summary from history:', existingEntry.summary ? 'Present' : 'Missing');
-        console.log('Summary cost logic used:', existingEntry.summary?.cost ? 'summary.cost' : (existingEntry.method === 'whisper' && existingEntry.cost ? 'entry.cost fallback' : 'no cost'));
+        console.log('Summary cost logic used:', existingEntry.costs?.summary ? 'costs.summary' : (existingEntry.method === 'whisper' && existingEntry.cost ? 'entry.cost fallback' : 'no cost'));
         console.log('=====================================');
         
         // Enhanced metadata with costs, analysis time, and transcript source from history
@@ -1351,7 +1951,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
           success: true,
           title: existingEntry.title,
           transcript: existingEntry.transcript,
-          summary: existingEntry.summary?.content,
+          summary: existingEntry.summary,
           metadata: enhancedHistoryMetadata,
           method: existingEntry.method,
           language: existingEntry.language,
@@ -1403,7 +2003,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
       sessionCosts.whisper += cost;
       sessionCosts.total += cost;
 
-      const transcriptionResult = await transcribeAudio(audioPath, language);
+      const transcriptionResult = await transcribeAudio(audioPath, language, transcriptionModel);
       transcript = transcriptionResult.text;
       timestampedSegments = transcriptionResult.timestampedSegments || [];
       method = 'whisper';
@@ -1428,7 +2028,8 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
     // currentSummary = summary;
 
     // Save to history
-    const entry = addToHistory(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _entry = addToHistory(
       videoId,
       videoTitle,
       url,
@@ -1872,7 +2473,7 @@ app.post('/regenerate-summary', async (req: Request, res: Response) => {
       const history = loadHistory();
       const entryIndex = history.findIndex(item => item.id === videoId);
       if (entryIndex >= 0) {
-        history[entryIndex].summary = summary;
+        history[entryIndex].summary = summary?.content || summary?.text || '';
         history[entryIndex].gptModel = gptModel;
         saveHistory(history);
       }
@@ -2294,6 +2895,167 @@ app.post('/reset-session-costs', (_req: Request, res: Response) => {
 });
 
 // Server startup
+// Cost estimation for YouTube URL
+app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
+  console.log('📊 Cost estimation request for URL', req.body);
+  
+  try {
+    const { url, gptModel = 'gpt-4o-mini', transcriptionModel = 'whisper-1', generateSummary = true, generateArticle = false }: CostEstimationRequest = req.body;
+    
+    console.log('📊 Request params:', { url, gptModel, generateSummary, generateArticle });
+    
+    if (!url) {
+      console.log('❌ URL is missing from request');
+      return res.status(400).json({
+        success: false,
+        error: 'URL is required'
+      } as CostEstimationResponse);
+    }
+    
+    // Validate YouTube URL
+    console.log('📊 Validating YouTube URL:', url);
+    if (!ytdl.validateURL(url)) {
+      console.log('❌ Invalid YouTube URL:', url);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid YouTube URL'
+      } as CostEstimationResponse);
+    }
+    
+    // Get video info from YouTube
+    console.log('📊 Getting video info from YouTube for:', url);
+    const info = await ytdl.getInfo(url);
+    console.log('📊 Got video info successfully');
+    
+    const videoDetails = info.videoDetails;
+    const duration = parseInt(videoDetails.lengthSeconds || '0');
+    const durationMinutes = Math.ceil(duration / 60);
+    
+    console.log('📊 Video details:', { title: videoDetails.title, duration, durationMinutes });
+    
+    // Calculate costs
+    console.log('📊 Calculating costs...');
+    const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
+    const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
+    const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
+    
+    console.log(`📊 Cost estimation for "${videoDetails.title}": ${duration}s, $${totalCost.toFixed(4)}`);
+    
+    // Calculate processing time
+    const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes);
+    console.log(`📊 Estimated processing time: ${processingTime.formatted}`);
+    
+    const response: CostEstimationResponse = {
+      success: true,
+      title: videoDetails.title,
+      duration,
+      durationFormatted: formatDuration(duration),
+      gptModel,
+      estimatedCosts: {
+        transcription: transcriptionCost,
+        summary: gptCosts.summary,
+        article: gptCosts.article,
+        total: totalCost
+      },
+      estimatedProcessingTime: processingTime,
+      message: 'Cost estimation completed'
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error estimating cost for URL:');
+    console.error('❌ Error details:', error);
+    console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error during cost estimation';
+    console.error('❌ Error message to client:', errorMessage);
+    
+    res.status(500).json({
+      success: false,
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined
+    } as CostEstimationResponse);
+  }
+});
+
+// Cost estimation for uploaded file
+app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, res: Response) => {
+  console.log('📊 Cost estimation request for file');
+  
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'No file uploaded'
+    } as FileCostEstimationResponse);
+  }
+  
+  const filePath = req.file.path;
+  const originalName = req.file.originalname;
+  const gptModel = req.body.gptModel || 'gpt-4o-mini';
+  const transcriptionModel = req.body.transcriptionModel || 'whisper-1';
+  const generateSummary = req.body.generateSummary === 'true';
+  const generateArticle = req.body.generateArticle === 'true';
+  
+  try {
+    // Extract video metadata
+    const videoMeta = await extractVideoMetadata(filePath);
+    const duration = videoMeta.duration;
+    const durationMinutes = Math.ceil(duration / 60);
+    
+    // Calculate costs
+    const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
+    const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
+    const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
+    
+    console.log(`📊 Cost estimation for "${originalName}": ${duration}s, $${totalCost.toFixed(4)}`);
+    
+    // Calculate processing time
+    const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes);
+    console.log(`📊 Estimated processing time: ${processingTime.formatted}`);
+    
+    // Clean up temporary file
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    const response: FileCostEstimationResponse = {
+      success: true,
+      filename: originalName,
+      duration,
+      durationFormatted: formatDuration(duration),
+      gptModel,
+      estimatedCosts: {
+        transcription: transcriptionCost,
+        summary: gptCosts.summary,
+        article: gptCosts.article,
+        total: totalCost
+      },
+      estimatedProcessingTime: processingTime,
+      message: 'Cost estimation completed'
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error estimating cost for file:', error);
+    
+    // Clean up file on error
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up file after estimation error:', cleanupError);
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error during cost estimation'
+    } as FileCostEstimationResponse);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   // Reset session costs on server startup

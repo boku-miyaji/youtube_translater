@@ -145,11 +145,18 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ data, sortBy }) => {
 
     console.log('🏛️ HistoryTable: Calculated costs:', detailedCosts);
     
+    // Determine if this is a YouTube video or uploaded file
+    const isYouTubeVideo = video.url && (video.url.includes('youtube.com') || video.url.includes('youtu.be'));
+    const isUploadedFile = video.url && video.url.startsWith('file://');
+    
     // Set current video with complete data including summary, costs, and analysis time
     const videoData = {
       basic: {
         title: video.title || video.metadata?.basic?.title || 'Unknown Title',
-        videoId: video.videoId || video.id || video.metadata?.basic?.videoId || '',
+        // Only set videoId for YouTube videos
+        videoId: isYouTubeVideo ? (video.videoId || video.id || video.metadata?.basic?.videoId || '') : undefined,
+        // Set videoPath for uploaded files
+        videoPath: isUploadedFile ? video.metadata?.basic?.videoPath : undefined,
         duration: video.metadata?.basic?.duration || video.duration || 0,
         channel: video.metadata?.basic?.channel || 'Unknown',
         viewCount: video.metadata?.basic?.viewCount || 0,
