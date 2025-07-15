@@ -160,7 +160,8 @@ export interface AnalysisResult {
   // Common fields
   summary: Summary;
   processingTime: ProcessingTime;
-  cost: CostEstimation;
+  cost: number;  // Total cost
+  costs?: DetailedCosts;  // Detailed cost breakdown
   
   // Type-specific fields
   transcription?: TranscriptionResult;  // video, audio
@@ -176,6 +177,7 @@ export interface ProcessingTime {
 }
 
 export interface ApiResponse {
+  success?: boolean;
   title?: string;
   videoId?: string;
   metadata?: {
@@ -387,6 +389,11 @@ export interface AudioUploadResponse extends ApiResponse {
   mimeType?: string;
   uploadedAt?: string;
   audioMetadata?: AudioMetadata;
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
 }
 
 // PDF analysis response
@@ -396,6 +403,12 @@ export interface PDFAnalysisResponse extends ApiResponse {
   size?: number;
   pdfContent?: PDFContent;
   pdfMetadata?: PDFMetadata;
+  analysisTime?: {
+    extraction?: number;
+    transcription?: number;
+    summary: number;
+    total: number;
+  };
 }
 
 // Session cost tracking

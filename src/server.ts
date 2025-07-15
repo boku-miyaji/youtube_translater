@@ -8,6 +8,8 @@ import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import crypto from 'crypto';
+import pdfParse from 'pdf-parse';
+import axios from 'axios';
 
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
@@ -33,7 +35,16 @@ import {
   UploadVideoFileResponse,
   CostEstimationRequest,
   CostEstimationResponse,
-  FileCostEstimationResponse
+  FileCostEstimationResponse,
+  AudioMetadata,
+  PDFMetadata,
+  PDFContent,
+  PDFSection,
+  AudioUploadRequest,
+  PDFAnalysisRequest,
+  AudioUploadResponse,
+  PDFAnalysisResponse,
+  FileTypeInfo
 } from './types/index';
 import { formatProcessingTime } from './utils/formatTime';
 
@@ -118,13 +129,20 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter for video files only
+// File filter for video, audio, and PDF files
 const fileFilter = (req: any, file: any, cb: any) => {
-  const allowedMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+  const allowedMimeTypes = [
+    // Video
+    'video/mp4', 'video/quicktime', 'video/x-msvideo',
+    // Audio
+    'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/flac',
+    // PDF
+    'application/pdf'
+  ];
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only video files (MP4, MOV, AVI) are allowed'), false);
+    cb(new Error('Only video files (MP4, MOV, AVI), audio files (MP3, WAV, M4A, AAC, OGG, FLAC), and PDF files are allowed'), false);
   }
 };
 
@@ -477,6 +495,258 @@ function formatDuration(seconds: number): string {
     return `${minutes}分${secs}秒`;
   } else {
     return `${secs}秒`;
+  }
+}
+
+// Detect file type based on MIME type and magic numbers
+function detectFileType(file: Express.Multer.File): FileTypeInfo {
+  const mimeTypeMap: Record<string, { type: 'video' | 'audio' | 'pdf'; extension: string }> = {
+    // Video
+    'video/mp4': { type: 'video', extension: 'mp4' },
+    'video/quicktime': { type: 'video', extension: 'mov' },
+    'video/x-msvideo': { type: 'video', extension: 'avi' },
+    // Audio
+    'audio/mpeg': { type: 'audio', extension: 'mp3' },
+    'audio/wav': { type: 'audio', extension: 'wav' },
+    'audio/mp4': { type: 'audio', extension: 'm4a' },
+    'audio/aac': { type: 'audio', extension: 'aac' },
+    'audio/ogg': { type: 'audio', extension: 'ogg' },
+    'audio/flac': { type: 'audio', extension: 'flac' },
+    // PDF
+    'application/pdf': { type: 'pdf', extension: 'pdf' }
+  };
+
+  const fileTypeInfo = mimeTypeMap[file.mimetype];
+  if (!fileTypeInfo) {
+    throw new Error(`Unsupported file type: ${file.mimetype}`);
+  }
+
+  return {
+    type: fileTypeInfo.type,
+    mimeType: file.mimetype,
+    extension: fileTypeInfo.extension
+  };
+}
+
+// Extract metadata from audio file
+async function extractAudioMetadata(filePath: string): Promise<AudioMetadata> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+      const format = metadata.format;
+
+      resolve({
+        basic: {
+          title: (format.tags?.title as string) || path.basename(filePath, path.extname(filePath)),
+          artist: format.tags?.artist as string | undefined,
+          album: format.tags?.album as string | undefined,
+          duration: Math.round(format.duration || 0),
+          bitrate: format.bit_rate ? parseInt(format.bit_rate.toString()) : undefined,
+          sampleRate: audioStream?.sample_rate ? parseInt(audioStream.sample_rate.toString()) : undefined,
+          channels: audioStream?.channels,
+          format: path.extname(filePath).substring(1).toUpperCase(),
+          audioPath: filePath
+        }
+      });
+    });
+  });
+}
+
+// Download PDF from URL
+async function downloadPDF(url: string): Promise<Buffer> {
+  try {
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 30000, // 30 seconds timeout
+      maxContentLength: 50 * 1024 * 1024, // 50MB max
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; YouTubeTranslator/1.0)'
+      }
+    });
+
+    // Verify it's a PDF
+    const buffer = Buffer.from(response.data);
+    const header = buffer.toString('utf8', 0, 4);
+    if (header !== '%PDF') {
+      throw new Error('Downloaded file is not a valid PDF');
+    }
+
+    return buffer;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(`Failed to download PDF: ${error.message}`);
+    }
+    throw error;
+  }
+}
+
+// Extract text from PDF
+async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
+  try {
+    const data = await pdfParse(pdfBuffer);
+    
+    // Basic text extraction
+    const fullText = data.text;
+    const pageCount = data.numpages;
+    
+    // Simple section detection based on common academic paper patterns
+    const sections: PDFSection[] = [];
+    const sectionPatterns = [
+      { pattern: /abstract/i, type: 'abstract' },
+      { pattern: /introduction/i, type: 'introduction' },
+      { pattern: /methodology|methods/i, type: 'methodology' },
+      { pattern: /results/i, type: 'results' },
+      { pattern: /conclusion/i, type: 'conclusion' },
+      { pattern: /references|bibliography/i, type: 'references' }
+    ];
+
+    // Split text into lines and detect sections
+    const lines = fullText.split('\n');
+    let currentSection: PDFSection | null = null;
+    let currentContent: string[] = [];
+
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+      
+      // Check if this line is a section header
+      for (const { pattern, type } of sectionPatterns) {
+        if (pattern.test(trimmedLine) && trimmedLine.length < 50) {
+          // Save previous section if exists
+          if (currentSection && currentContent.length > 0) {
+            currentSection.content = currentContent.join('\n').trim();
+            sections.push(currentSection);
+          }
+          
+          // Start new section
+          currentSection = {
+            title: trimmedLine,
+            content: '',
+            pageRange: [1, pageCount], // Simplified - would need more complex logic for real page tracking
+            type: type as any
+          };
+          currentContent = [];
+          break;
+        }
+      }
+      
+      // Add content to current section
+      if (currentSection) {
+        currentContent.push(line);
+      }
+    });
+
+    // Save last section
+    if (currentSection && currentContent.length > 0) {
+      currentSection.content = currentContent.join('\n').trim();
+      sections.push(currentSection);
+    }
+
+    // Detect language (simplified - just check for common patterns)
+    const language = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(fullText) ? 'ja' : 'en';
+
+    return {
+      fullText,
+      sections,
+      pageCount,
+      language
+    };
+  } catch (error) {
+    throw new Error(`Failed to extract PDF text: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+// Analyze PDF structure and extract metadata
+function analyzePDFStructure(pdfContent: PDFContent): PDFMetadata {
+  const { fullText, sections, pageCount } = pdfContent;
+  
+  // Extract title (usually first few lines)
+  const lines = fullText.split('\n').filter(line => line.trim());
+  const title = lines[0] || 'Untitled PDF';
+  
+  // Extract authors (simple heuristic - lines after title before abstract)
+  const authors: string[] = [];
+  const abstractIndex = sections.findIndex(s => s.type === 'abstract');
+  if (abstractIndex > -1) {
+    const abstractLine = fullText.toLowerCase().indexOf('abstract');
+    const beforeAbstract = fullText.substring(0, abstractLine).split('\n');
+    // Simple heuristic: lines between title and abstract that contain names
+    beforeAbstract.slice(1, 5).forEach(line => {
+      if (line.trim() && !line.toLowerCase().includes('university') && line.length < 100) {
+        authors.push(line.trim());
+      }
+    });
+  }
+  
+  // Extract abstract
+  const abstractSection = sections.find(s => s.type === 'abstract');
+  const abstract = abstractSection?.content.substring(0, 500);
+  
+  // Extract keywords (if present)
+  const keywords: string[] = [];
+  const keywordsMatch = fullText.match(/keywords?:?\s*([^\n]+)/i);
+  if (keywordsMatch) {
+    keywords.push(...keywordsMatch[1].split(/[,;]/).map(k => k.trim()));
+  }
+
+  return {
+    title,
+    authors: authors.filter(a => a.length > 0),
+    abstract,
+    keywords,
+    pageCount,
+    fileSize: 0 // Will be set later
+  };
+}
+
+// Generate structured summary for PDF
+async function generatePDFSummary(
+  pdfContent: PDFContent,
+  metadata: PDFMetadata,
+  gptModel: string,
+  language: string
+): Promise<string> {
+  try {
+    const systemPrompt = `You are an expert at analyzing and summarizing academic papers and documents. 
+    Provide a clear, structured summary that captures the key points, methodology, findings, and implications.
+    ${language === 'ja' ? 'Please respond in Japanese.' : 'Please respond in English.'}`;
+
+    const userPrompt = `Please summarize the following PDF document:
+
+Title: ${metadata.title}
+Authors: ${metadata.authors?.join(', ') || 'Unknown'}
+Pages: ${metadata.pageCount}
+
+Content sections:
+${pdfContent.sections.map(s => `\n[${s.type.toUpperCase()}]\n${s.content.substring(0, 1000)}...`).join('\n\n')}
+
+Provide a comprehensive summary including:
+1. Main topic and objectives
+2. Key methodology or approach
+3. Main findings or arguments
+4. Conclusions and implications
+5. Notable limitations or future work
+
+Keep the summary concise but informative.`;
+
+    const completion = await openai.chat.completions.create({
+      model: gptModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+
+    return completion.choices[0].message.content || 'Summary generation failed';
+  } catch (error) {
+    console.error('Error generating PDF summary:', error);
+    throw error;
   }
 }
 
@@ -1792,6 +2062,464 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error processing video file',
       message: 'Failed to process video file'
+    });
+  }
+});
+
+// Audio file upload endpoint
+app.post('/api/upload-audio-file', upload.single('file'), async (req: Request, res: Response) => {
+  console.log('🎵 Audio file upload request received');
+  
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'No file uploaded'
+    });
+  }
+
+  const analysisStartTime = new Date();
+  const filePath = req.file.path;
+  const originalName = req.file.originalname;
+  const fileSize = req.file.size;
+  const fileId = path.basename(req.file.filename, path.extname(req.file.filename));
+
+  // Verify file type
+  try {
+    const fileType = detectFileType(req.file);
+    if (fileType.type !== 'audio') {
+      throw new Error('Uploaded file is not an audio file');
+    }
+  } catch (error) {
+    // Clean up file
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up file:', cleanupError);
+    }
+    return res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Invalid file type'
+    });
+  }
+
+  // Extract request parameters
+  const language = req.body.language || 'original';
+  const gptModel = req.body.gptModel || 'gpt-4o-mini';
+  const transcriptionModel = req.body.transcriptionModel || 'whisper-1';
+  const shouldGenerateSummary = req.body.generateSummary === 'true';
+
+  console.log('📝 Processing audio file:', {
+    originalName,
+    fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`,
+    language,
+    gptModel,
+    transcriptionModel,
+    shouldGenerateSummary
+  });
+
+  try {
+    // 1. Extract audio metadata
+    console.log('📊 Extracting audio metadata...');
+    const audioMetadata = await extractAudioMetadata(filePath);
+    
+    // 2. Transcribe audio
+    console.log('🎵 Starting audio transcription...');
+    const transcriptionStartTime = new Date();
+    
+    // Use existing transcription function (it works for audio too)
+    const transcriptionResult = await transcribeVideoFile(filePath, transcriptionModel);
+    
+    const transcriptionEndTime = new Date();
+    const transcriptionDuration = Math.round((transcriptionEndTime.getTime() - transcriptionStartTime.getTime()) / 1000);
+    
+    // 3. Calculate costs
+    const durationMinutes = audioMetadata.basic!.duration! / 60;
+    const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
+
+    // 4. Generate summary if requested
+    let summary = '';
+    let summaryCost = 0;
+    let summaryStartTime: Date | null = null;
+    let summaryEndTime: Date | null = null;
+    
+    if (shouldGenerateSummary) {
+      console.log('📝 Generating summary...');
+      summaryStartTime = new Date();
+      
+      // Create metadata for summary generation
+      const audioAsVideoMetadata: VideoMetadata = {
+        basic: {
+          title: audioMetadata.basic!.title || originalName,
+          duration: audioMetadata.basic!.duration
+        }
+      };
+      
+      const summaryResult = await generateSummary(
+        transcriptionResult.text,
+        audioAsVideoMetadata,
+        gptModel,
+        transcriptionResult.segments
+      );
+      
+      if (summaryResult) {
+        summary = summaryResult.text || summaryResult.content || '';
+        summaryCost = summaryResult.cost || 0;
+      }
+      summaryEndTime = new Date();
+    }
+
+    // 5. Track costs
+    const totalCost = transcriptionCost + summaryCost;
+    sessionCosts.whisper += transcriptionCost;
+    sessionCosts.gpt += summaryCost;
+    sessionCosts.total += totalCost;
+
+    // Save to costs history
+    const costEntry: CostEntry = {
+      videoId: fileId,
+      title: audioMetadata.basic!.title || originalName,
+      method: 'whisper',
+      language,
+      gptModel,
+      whisperCost: transcriptionCost,
+      gptCost: summaryCost,
+      totalCost,
+      timestamp: new Date().toISOString(),
+      date: new Date().toISOString()
+    };
+    
+    // Save to costs history
+    const costs = loadCosts();
+    costs.push(costEntry);
+    saveCosts(costs);
+
+    // 6. Save transcript
+    const transcriptPath = path.join('transcripts', `${Date.now()}_${fileId}_${language}_${gptModel}_transcript.txt`);
+    fs.writeFileSync(transcriptPath, transcriptionResult.text);
+
+    // 7. Calculate analysis time
+    const analysisEndTime = new Date();
+    const totalAnalysisTime = Math.round((analysisEndTime.getTime() - analysisStartTime.getTime()) / 1000);
+    const summaryDuration = summaryStartTime && summaryEndTime 
+      ? Math.round((summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000)
+      : 0;
+
+    // 8. Prepare response
+    const response: AudioUploadResponse = {
+      success: true,
+      title: audioMetadata.basic!.title || originalName,
+      fileId,
+      originalName,
+      size: fileSize,
+      mimeType: req.file.mimetype,
+      uploadedAt: new Date().toISOString(),
+      transcript: transcriptionResult.text,
+      summary,
+      timestampedSegments: transcriptionResult.segments,
+      method: 'whisper',
+      costs: {
+        transcription: transcriptionCost,
+        summary: summaryCost,
+        article: 0,
+        total: totalCost
+      },
+      audioMetadata: {
+        ...audioMetadata,
+        transcript: transcriptionResult.text,
+        summary,
+        timestampedSegments: transcriptionResult.segments,
+        costs: {
+          transcription: transcriptionCost,
+          summary: summaryCost,
+          article: 0,
+          total: totalCost
+        },
+        analysisTime: {
+          transcription: transcriptionDuration,
+          summary: summaryDuration,
+          total: totalAnalysisTime
+        },
+        source: 'file',
+        fileId,
+        originalFilename: originalName,
+        fileSize,
+        uploadedAt: new Date().toISOString()
+      },
+      analysisTime: {
+        transcription: transcriptionDuration,
+        summary: summaryDuration,
+        total: totalAnalysisTime
+      },
+      message: 'Audio file processed successfully'
+    };
+
+    // 9. Save to history using the existing addToHistory function
+    addToHistory(
+      fileId,  // videoId
+      audioMetadata.basic!.title || originalName,  // title
+      '',  // url (empty for uploaded files)
+      transcriptionResult.text,  // transcript
+      'whisper',  // method
+      totalCost,  // cost
+      response.audioMetadata as any,  // metadata
+      summary ? { text: summary, cost: summaryCost } : null,  // summary
+      language,  // language
+      gptModel,  // gptModel
+      transcriptionResult.segments,  // timestampedSegments
+      [],  // tags
+      [],  // mainTags
+      null,  // article
+      {  // analysisTime
+        startTime: analysisStartTime.toISOString(),
+        endTime: analysisEndTime.toISOString(),
+        duration: totalAnalysisTime
+      }
+    );
+
+    // 10. Clean up audio file after delay
+    cleanupTempFile(filePath, 5 * 60 * 1000); // 5 minutes
+
+    console.log('✅ Audio file processed successfully');
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Error processing audio file:', error);
+    
+    // Clean up file on error
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up file after processing error:', cleanupError);
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error processing audio file',
+      message: 'Failed to process audio file'
+    });
+  }
+});
+
+// PDF analysis endpoint (handles both URL and file upload)
+app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Response) => {
+  console.log('📄 PDF analysis request received');
+  
+  const analysisStartTime = new Date();
+  let pdfBuffer: Buffer;
+  let fileName: string;
+  let fileSize: number;
+  let fileId: string;
+  let filePath: string | undefined;
+  let isUrlSource = false;
+
+  try {
+    // Determine source (URL or file)
+    if (req.body.url) {
+      // Handle PDF URL
+      isUrlSource = true;
+      const pdfUrl = req.body.url;
+      console.log('📥 Downloading PDF from URL:', pdfUrl);
+      
+      // Validate URL
+      const urlPattern = /^https:\/\/.+\.pdf$/i;
+      const academicPattern = /arxiv\.org|\.edu|doi\.org/i;
+      if (!urlPattern.test(pdfUrl) && !academicPattern.test(pdfUrl)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid PDF URL. Must be HTTPS and point to a PDF file or academic resource.'
+        });
+      }
+      
+      pdfBuffer = await downloadPDF(pdfUrl);
+      fileName = path.basename(new URL(pdfUrl).pathname) || 'downloaded.pdf';
+      fileSize = pdfBuffer.length;
+      fileId = crypto.randomUUID();
+      
+    } else if (req.file) {
+      // Handle PDF file upload
+      const fileType = detectFileType(req.file);
+      if (fileType.type !== 'pdf') {
+        throw new Error('Uploaded file is not a PDF');
+      }
+      
+      filePath = req.file.path;
+      fileName = req.file.originalname;
+      fileSize = req.file.size;
+      fileId = path.basename(req.file.filename, path.extname(req.file.filename));
+      pdfBuffer = fs.readFileSync(filePath);
+      
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'No PDF URL or file provided'
+      });
+    }
+
+    // Extract request parameters
+    const language = req.body.language || 'original';
+    const gptModel = req.body.gptModel || 'gpt-4o-mini';
+    const shouldGenerateSummary = req.body.generateSummary === 'true' || req.body.generateSummary === true;
+    const shouldExtractStructure = req.body.extractStructure === 'true' || req.body.extractStructure === true;
+
+    console.log('📝 Processing PDF:', {
+      fileName,
+      fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`,
+      language,
+      gptModel,
+      shouldGenerateSummary,
+      shouldExtractStructure,
+      source: isUrlSource ? 'url' : 'file'
+    });
+
+    // 1. Extract PDF text
+    console.log('📊 Extracting PDF text...');
+    const extractionStartTime = new Date();
+    const pdfContent = await extractPDFText(pdfBuffer);
+    const extractionEndTime = new Date();
+    const extractionDuration = Math.round((extractionEndTime.getTime() - extractionStartTime.getTime()) / 1000);
+    
+    // 2. Analyze PDF structure
+    let pdfMetadata: PDFMetadata | undefined;
+    if (shouldExtractStructure) {
+      console.log('🔍 Analyzing PDF structure...');
+      pdfMetadata = analyzePDFStructure(pdfContent);
+      pdfMetadata.fileSize = fileSize;
+    }
+
+    // 3. Generate summary if requested
+    let summary = '';
+    let summaryCost = 0;
+    let summaryStartTime: Date | null = null;
+    let summaryEndTime: Date | null = null;
+    
+    if (shouldGenerateSummary && pdfMetadata) {
+      console.log('📝 Generating PDF summary...');
+      summaryStartTime = new Date();
+      
+      summary = await generatePDFSummary(pdfContent, pdfMetadata, gptModel, language);
+      
+      // Calculate summary cost
+      const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
+      const inputTokens = Math.ceil(pdfContent.fullText.length / 4); // Rough token estimate
+      const outputTokens = Math.ceil(summary.length / 4);
+      summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
+      
+      summaryEndTime = new Date();
+    }
+
+    // 4. Track costs
+    sessionCosts.gpt += summaryCost;
+    sessionCosts.total += summaryCost;
+
+    // Save to costs history
+    const costEntry: CostEntry = {
+      videoId: fileId,
+      title: pdfMetadata?.title || fileName,
+      method: 'subtitle', // No transcription for PDF
+      language,
+      gptModel,
+      whisperCost: 0,
+      gptCost: summaryCost,
+      totalCost: summaryCost,
+      timestamp: new Date().toISOString(),
+      date: new Date().toISOString()
+    };
+    
+    // Save to costs history
+    const costs = loadCosts();
+    costs.push(costEntry);
+    saveCosts(costs);
+
+    // 5. Calculate analysis time
+    const analysisEndTime = new Date();
+    const totalAnalysisTime = Math.round((analysisEndTime.getTime() - analysisStartTime.getTime()) / 1000);
+    const summaryDuration = summaryStartTime && summaryEndTime 
+      ? Math.round((summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000)
+      : 0;
+
+    // 6. Prepare response
+    const response: PDFAnalysisResponse = {
+      success: true,
+      title: pdfMetadata?.title || fileName,
+      fileId,
+      originalName: fileName,
+      size: fileSize,
+      summary,
+      pdfContent: shouldExtractStructure ? pdfContent : undefined,
+      pdfMetadata,
+      costs: {
+        transcription: 0,
+        summary: summaryCost,
+        article: 0,
+        total: summaryCost
+      },
+      analysisTime: {
+        extraction: extractionDuration,
+        summary: summaryDuration,
+        total: totalAnalysisTime
+      },
+      message: 'PDF analyzed successfully'
+    };
+
+    // 7. Save to history using the existing addToHistory function
+    const pdfAsVideoMetadata: VideoMetadata = {
+      basic: {
+        title: pdfMetadata?.title || fileName
+      }
+    };
+    
+    addToHistory(
+      fileId,  // videoId
+      pdfMetadata?.title || fileName,  // title
+      isUrlSource ? (req.body.url || '') : '',  // url
+      pdfContent.fullText.substring(0, 5000),  // transcript (first 5000 chars of PDF text)
+      'subtitle',  // method (PDFs don't need transcription)
+      summaryCost,  // cost
+      pdfAsVideoMetadata,  // metadata
+      summary ? { text: summary, cost: summaryCost } : null,  // summary
+      language,  // language
+      gptModel,  // gptModel
+      [],  // timestampedSegments (not applicable for PDFs)
+      [],  // tags
+      [],  // mainTags
+      null,  // article
+      {  // analysisTime
+        startTime: analysisStartTime.toISOString(),
+        endTime: analysisEndTime.toISOString(),
+        duration: totalAnalysisTime
+      }
+    );
+
+    // 8. Clean up file if uploaded
+    if (filePath) {
+      cleanupTempFile(filePath, 5 * 60 * 1000); // 5 minutes
+    }
+
+    console.log('✅ PDF processed successfully');
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Error processing PDF:', error);
+    
+    // Clean up file on error
+    if (filePath) {
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (cleanupError) {
+        console.error('Error cleaning up file after processing error:', cleanupError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error processing PDF',
+      message: 'Failed to process PDF'
     });
   }
 });
