@@ -823,6 +823,46 @@ async function generatePDFSummary(
   language: string
 ): Promise<string> {
   try {
+    console.log('📄 === generatePDFSummary DEBUG ===');
+    console.log('  - PDF pages:', metadata.pageCount);
+    console.log('  - Sections count:', pdfContent.sections.length);
+    console.log('  - Full text length:', pdfContent.fullText.length);
+    console.log('  - Language:', language);
+    console.log('  - Model:', gptModel);
+    
+    // モックモードのチェック
+    if (process.env.MOCK_OPENAI === 'true') {
+      console.log('🎭 Using MOCK response for PDF summary');
+      return `## 📄 PDF文書の要約
+
+**タイトル**: ${metadata.title}
+**著者**: ${metadata.authors?.join(', ') || '不明'}
+**ページ数**: ${metadata.pageCount}
+
+### 📋 概要
+このPDF文書から抽出されたテキストの要約です。[モックモード]
+
+### 🎯 主要な内容
+${pdfContent.sections.slice(0, 3).map(s => `- ${s.type}: ${s.content.substring(0, 100)}...`).join('\n')}
+
+### 💡 重要な発見
+PDFの内容が正常に抽出され、構造が分析されました。
+
+### 🔑 結論
+実際の要約を生成するには、有効なOpenAI APIキーとクォータが必要です。
+
+[モックモード: 実際のAI分析は行われていません]`;
+    }
+    
+    // PDFコンテンツの長さを制限（トークン数削減）
+    const maxSectionLength = 1000;
+    const truncatedSections = pdfContent.sections.map(s => ({
+      ...s,
+      content: s.content.length > maxSectionLength ? 
+        s.content.substring(0, maxSectionLength) + '...' : 
+        s.content
+    }));
+    
     const systemPrompt = `You are an expert at analyzing and summarizing academic papers and documents. 
     Provide a clear, structured summary that captures the key points, methodology, findings, and implications.
     ${language === 'ja' ? 'Please respond in Japanese.' : 'Please respond in English.'}`;
@@ -834,7 +874,7 @@ Authors: ${metadata.authors?.join(', ') || 'Unknown'}
 Pages: ${metadata.pageCount}
 
 Content sections:
-${pdfContent.sections.map(s => `\n[${s.type.toUpperCase()}]\n${s.content.substring(0, 1000)}...`).join('\n\n')}
+${truncatedSections.map(s => `\n[${s.type.toUpperCase()}]\n${s.content}`).join('\n\n')}
 
 Provide a comprehensive summary including:
 1. Main topic and objectives
@@ -845,6 +885,8 @@ Provide a comprehensive summary including:
 
 Keep the summary concise but informative.`;
 
+    console.log('  - Prompt length:', userPrompt.length);
+    
     let completion;
     try {
       completion = await openai.chat.completions.create({
@@ -856,12 +898,15 @@ Keep the summary concise but informative.`;
         temperature: 0.3,
         max_tokens: 2000
       });
+      console.log('✅ PDF summary generated successfully');
     } catch (error) {
+      console.error('❌ Error in generatePDFSummary:', error);
       handleOpenAIError(error);
     }
 
     return completion.choices[0].message.content || 'Summary generation failed';
   } catch (error) {
+    console.error('❌ generatePDFSummary error:', error);
     // Re-throw the error to be handled by the caller
     throw error;
   }
@@ -1337,29 +1382,62 @@ ${timestampedSegments.map(segment => {
     // Check for mock mode
     if (process.env.MOCK_OPENAI === 'true') {
       console.log('🎭 Using MOCK response for OpenAI API');
-      response = {
-        choices: [{
-          message: {
-            content: `## 📋 動画概要
-このコンテンツは、テスト用のPDFテキストから生成された要約です。実際のOpenAI APIの代わりにモックレスポンスを使用しています。
+      
+      // PDFコンテンツ用のモックレスポンスを生成
+      const isPDFContent = transcriptContent.toLowerCase().includes('pdf') || 
+                          transcriptContent.includes('論文') || 
+                          transcriptContent.includes('研究');
+      
+      if (isPDFContent) {
+        response = {
+          choices: [{
+            message: {
+              content: `## 📋 文書概要
+この文書は、PDFから抽出されたテキストの要約です。[モックモード: 実際のOpenAI APIは使用されていません]
 
 ## 🎯 主要ポイント
-- PDFの要約生成機能が正常に動作することを確認
-- APIクォータの制限なしにテストが可能
-- 開発環境での動作確認に最適
+- PDFの内容が正常に抽出されています
+- テキスト解析により主要な概念が識別されました
+- 文書の構造が適切に認識されています
 
 ## 💡 詳細解説
-このモック機能により、OpenAI APIのクォータを消費することなく、PDF要約機能の開発とテストを行うことができます。
+抽出されたテキスト: "${transcriptContent.substring(0, 100)}..."
+
+このPDFには重要な情報が含まれています。実際の要約を生成するには、有効なOpenAI APIキーが必要です。
 
 ## 🔑 キーワード・用語
-- モックレスポンス: 実際のAPIの代わりに使用するテスト用のレスポンス
-- 要約生成: PDFの内容を短くまとめる機能
+PDFから抽出された主要な用語が表示されます。
 
 ## 📈 実践的価値
-開発者はこの機能を使用して、本番環境と同様の動作を確認できます。`
-          }
-        }]
-      };
+この文書の内容は、関連分野の研究や実務に活用できます。`
+            }
+          }]
+        };
+      } else {
+        // 動画コンテンツ用のデフォルトモックレスポンス
+        response = {
+          choices: [{
+            message: {
+              content: `## 📋 動画概要
+このコンテンツは、動画の文字起こしから生成された要約です。[モックモード]
+
+## 🎯 主要ポイント
+- 動画の文字起こしが正常に取得されました
+- 主要なトピックが識別されています
+- 内容の構造が分析されました
+
+## 💡 詳細解説
+文字起こし内容: "${transcriptContent.substring(0, 100)}..."
+
+## 🔑 キーワード・用語
+動画から抽出された重要な用語とその説明。
+
+## 📈 実践的価値
+この動画の内容を実践に活用する方法。`
+            }
+          }]
+        };
+      }
     } else {
       try {
         response = await openai.chat.completions.create({
