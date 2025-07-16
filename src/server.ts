@@ -178,6 +178,10 @@ const pricing: Pricing = {
     'gpt-4o-mini-transcribe': 3.0 / 1000000 // $3 per 1M audio tokens
   },
   models: {
+    'gpt-3.5-turbo': {
+      input: 0.50 / 1000000, // $0.50 per 1M tokens
+      output: 1.50 / 1000000  // $1.50 per 1M tokens
+    },
     'gpt-4o-mini': {
       input: 0.15 / 1000000, // $0.15 per 1M tokens
       output: 0.60 / 1000000  // $0.60 per 1M tokens
@@ -193,10 +197,6 @@ const pricing: Pricing = {
     'gpt-4': {
       input: 30.00 / 1000000, // $30.00 per 1M tokens
       output: 60.00 / 1000000  // $60.00 per 1M tokens
-    },
-    'gpt-3.5-turbo': {
-      input: 0.50 / 1000000, // $0.50 per 1M tokens
-      output: 1.50 / 1000000  // $1.50 per 1M tokens
     }
   }
 };
@@ -786,9 +786,10 @@ function sendErrorResponse(res: Response, error: any, defaultMessage: string): v
     });
   } else {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('sendErrorResponse - Error details:', error);
     res.status(500).json({
       success: false,
-      error: errorMessage,
+      error: errorMessage || defaultMessage,
       message: defaultMessage
     });
   }
@@ -1311,12 +1312,21 @@ ${timestampedSegments.map(segment => {
         temperature: 0.3
       });
     } catch (error) {
+      console.error('OpenAI API error in generateSummary:', error);
+      if (error instanceof OpenAIError) {
+        throw error; // Re-throw OpenAIError to be handled by the caller
+      }
       handleOpenAIError(error);
     }
 
     const inputTokens = Math.ceil(systemMessage.length / 4);
     const outputTokens = Math.ceil((response.choices[0].message.content || '').length / 4);
-    const modelPricing = pricing.models[gptModel];
+    
+    // Get model pricing with fallback
+    const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || {
+      input: pricing.input,
+      output: pricing.output
+    };
     const summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
     
     sessionCosts.gpt += summaryCost;
@@ -3594,8 +3604,18 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    console.error('Error generating summary:', error);
-    sendErrorResponse(res, error, 'Failed to generate summary');
+    console.error('Error in /api/summarize:', error);
+    // Use simplified error response for backward compatibility with frontend
+    if (error instanceof OpenAIError) {
+      res.status(error.statusCode).json({
+        error: error.message
+      });
+    } else {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary';
+      res.status(500).json({
+        error: errorMessage
+      });
+    }
   }
 });
 
