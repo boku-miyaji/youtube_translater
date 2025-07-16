@@ -76,7 +76,11 @@ cp .env.example .env
 ```
 OPENAI_API_KEY=your_openai_api_key_here
 PORT=3000
+# オプション: モックモード（開発・テスト用）
+# MOCK_OPENAI=true
 ```
+
+> **📝 モックモードについて**: `MOCK_OPENAI=true`を設定すると、実際のOpenAI APIを呼び出さずにモックレスポンスを返します。APIクォータを消費せずに開発・テストが可能です。本番環境では必ずこの設定を削除またはfalseに設定してください。
 
 4. **サーバーの起動**
 ```bash

@@ -737,6 +737,15 @@ class OpenAIError extends Error {
 function handleOpenAIError(error: any): never {
   console.error('OpenAI API Error:', error);
   
+  // Check for quota exceeded error specifically
+  if (error?.code === 'insufficient_quota' || error?.error?.code === 'insufficient_quota') {
+    throw new OpenAIError(
+      '💳 APIクォータが不足しています。プランをアップグレードしてください。',
+      503,
+      'quota_exceeded'
+    );
+  }
+  
   // Check if it's an OpenAI API error
   if (error?.response?.status) {
     const status = error.response.status;
@@ -1324,39 +1333,70 @@ ${timestampedSegments.map(segment => {
     console.log('  - System message preview:', systemMessage.substring(0, 200) + '...');
 
     let response;
-    try {
-      response = await openai.chat.completions.create({
-        model: gptModel,
-        messages: [
-          {
-            role: 'system',
-            content: systemMessage
+    
+    // Check for mock mode
+    if (process.env.MOCK_OPENAI === 'true') {
+      console.log('🎭 Using MOCK response for OpenAI API');
+      response = {
+        choices: [{
+          message: {
+            content: `## 📋 動画概要
+このコンテンツは、テスト用のPDFテキストから生成された要約です。実際のOpenAI APIの代わりにモックレスポンスを使用しています。
+
+## 🎯 主要ポイント
+- PDFの要約生成機能が正常に動作することを確認
+- APIクォータの制限なしにテストが可能
+- 開発環境での動作確認に最適
+
+## 💡 詳細解説
+このモック機能により、OpenAI APIのクォータを消費することなく、PDF要約機能の開発とテストを行うことができます。
+
+## 🔑 キーワード・用語
+- モックレスポンス: 実際のAPIの代わりに使用するテスト用のレスポンス
+- 要約生成: PDFの内容を短くまとめる機能
+
+## 📈 実践的価値
+開発者はこの機能を使用して、本番環境と同様の動作を確認できます。`
           }
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.3
-      });
-      console.log('✅ OpenAI API call successful');
-    } catch (error) {
-      console.error('❌ OpenAI API error in generateSummary:', error);
-      console.error('  - Error type:', error?.constructor?.name);
-      console.error('  - Error message:', error?.message);
-      console.error('  - Error response:', error?.response);
-      console.error('  - Error status:', error?.response?.status);
-      if (error instanceof OpenAIError) {
-        throw error; // Re-throw OpenAIError to be handled by the caller
+        }]
+      };
+    } else {
+      try {
+        response = await openai.chat.completions.create({
+          model: gptModel,
+          messages: [
+            {
+              role: 'system',
+              content: systemMessage
+            }
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.3
+        });
+        console.log('✅ OpenAI API call successful');
+      } catch (error) {
+        console.error('❌ OpenAI API error in generateSummary:', error);
+        console.error('  - Error type:', error?.constructor?.name);
+        console.error('  - Error message:', error?.message);
+        console.error('  - Error response:', error?.response);
+        console.error('  - Error status:', error?.response?.status);
+        if (error instanceof OpenAIError) {
+          throw error; // Re-throw OpenAIError to be handled by the caller
+        }
+        handleOpenAIError(error);
       }
-      handleOpenAIError(error);
     }
 
     const inputTokens = Math.ceil(systemMessage.length / 4);
     const outputTokens = Math.ceil((response.choices[0].message.content || '').length / 4);
     
-    // Get model pricing with fallback
-    const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || {
-      input: pricing.input,
-      output: pricing.output
-    };
+    // Get model pricing with fallback (0 cost in mock mode)
+    const modelPricing = process.env.MOCK_OPENAI === 'true' ? 
+      { input: 0, output: 0 } :
+      pricing.models[gptModel as keyof typeof pricing.models] || {
+        input: pricing.input,
+        output: pricing.output
+      };
     const summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
     
     sessionCosts.gpt += summaryCost;
