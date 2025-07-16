@@ -13,10 +13,19 @@ import axios from 'axios';
 
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
+console.log('🔧 Loading environment from:', envPath);
 const result = dotenv.config({ path: envPath });
+
+if (result.error) {
+  console.error('❌ Error loading .env file:', result.error);
+} else {
+  console.log('✅ Environment loaded successfully');
+  console.log('  - Parsed keys:', result.parsed ? Object.keys(result.parsed) : 'NONE');
+}
 
 // Manually set the environment variables if they were parsed but not set
 if (result.parsed && !process.env.OPENAI_API_KEY) {
+  console.log('🔧 Manually setting OPENAI_API_KEY from parsed values');
   process.env.OPENAI_API_KEY = result.parsed.OPENAI_API_KEY;
 }
 import { YoutubeTranscript } from 'youtube-transcript-api';
@@ -102,9 +111,11 @@ app.get('/debug/state', (req: Request, res: Response) => {
 });
 
 console.log('🔑 OpenAI API Key check:', process.env.OPENAI_API_KEY ? 'CONFIGURED' : 'MISSING');
+console.log('  - API Key length:', process.env.OPENAI_API_KEY?.length || 0);
+console.log('  - API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 10) + '...');
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY || ''
 });
 
 // Create necessary directories
@@ -1233,6 +1244,14 @@ async function generateSummary(
   gptModel: string = 'gpt-4o-mini',
   timestampedSegments: TimestampedSegment[] = []
 ): Promise<Summary | null> {
+  console.log('🎯 === generateSummary DEBUG START ===');
+  console.log('  - Transcript length:', transcript?.length || 0);
+  console.log('  - Has metadata:', !!metadata);
+  console.log('  - GPT Model:', gptModel);
+  console.log('  - Timestamped segments count:', timestampedSegments?.length || 0);
+  console.log('  - OpenAI client configured:', !!openai);
+  console.log('  - API Key exists:', !!process.env.OPENAI_API_KEY);
+  
   try {
     const hasTimestamps = timestampedSegments && timestampedSegments.length > 0;
     
@@ -1298,6 +1317,12 @@ ${timestampedSegments.map(segment => {
 
     const maxTokens = gptModel === 'gpt-3.5-turbo' ? 1500 : 2000;
 
+    console.log('🤖 === OPENAI API CALL (generateSummary) ===');
+    console.log('  - Model:', gptModel);
+    console.log('  - Max tokens:', maxTokens);
+    console.log('  - System message length:', systemMessage.length);
+    console.log('  - System message preview:', systemMessage.substring(0, 200) + '...');
+
     let response;
     try {
       response = await openai.chat.completions.create({
@@ -1311,8 +1336,13 @@ ${timestampedSegments.map(segment => {
         max_tokens: maxTokens,
         temperature: 0.3
       });
+      console.log('✅ OpenAI API call successful');
     } catch (error) {
-      console.error('OpenAI API error in generateSummary:', error);
+      console.error('❌ OpenAI API error in generateSummary:', error);
+      console.error('  - Error type:', error?.constructor?.name);
+      console.error('  - Error message:', error?.message);
+      console.error('  - Error response:', error?.response);
+      console.error('  - Error status:', error?.response?.status);
       if (error instanceof OpenAIError) {
         throw error; // Re-throw OpenAIError to be handled by the caller
       }
@@ -1332,6 +1362,12 @@ ${timestampedSegments.map(segment => {
     sessionCosts.gpt += summaryCost;
     sessionCosts.total += summaryCost;
 
+    console.log('🎯 === generateSummary DEBUG END ===');
+    console.log('  - Summary generated successfully');
+    console.log('  - Summary length:', response.choices[0].message.content?.length || 0);
+    console.log('  - Cost:', summaryCost);
+    console.log('  - Tokens:', { input: inputTokens, output: outputTokens });
+
     return {
       content: response.choices[0].message.content || '',
       model: gptModel,
@@ -1340,7 +1376,10 @@ ${timestampedSegments.map(segment => {
     };
 
   } catch (error) {
-    console.error('Summary generation error:', error);
+    console.error('❌ === generateSummary ERROR ===');
+    console.error('  - Error type:', error?.constructor?.name);
+    console.error('  - Error message:', error?.message);
+    console.error('  - Full error:', error);
     return null;
   }
 }
@@ -3583,6 +3622,11 @@ app.post('/api/prompts', (req: Request, res: Response) => {
 
 // Summarize endpoint
 app.post('/api/summarize', async (req: Request, res: Response) => {
+  console.log('📝 === /api/summarize REQUEST ===');
+  console.log('  - Has transcript:', !!req.body.transcript);
+  console.log('  - Transcript length:', req.body.transcript?.length || 0);
+  console.log('  - GPT Model:', req.body.gptModel || 'gpt-4o-mini');
+  
   try {
     const { transcript, gptModel = 'gpt-4o-mini' } = req.body;
     
@@ -3590,13 +3634,25 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Transcript is required' });
     }
 
+    // Check if API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('❌ OPENAI_API_KEY is not configured');
+      return res.status(503).json({ 
+        error: '⚠️ OpenAI APIが設定されていません。管理者にお問い合わせください。' 
+      });
+    }
+
     // Generate summary
     const summary = await generateSummary(transcript, null, gptModel, []);
     
     if (!summary) {
-      return res.status(500).json({ error: 'Failed to generate summary' });
+      console.error('❌ generateSummary returned null');
+      return res.status(503).json({ 
+        error: '⚠️ 要約の生成に失敗しました。APIの利用制限に達している可能性があります。' 
+      });
     }
 
+    console.log('✅ Summary generated successfully');
     res.json({
       success: true,
       summary: summary.content,
@@ -3604,14 +3660,19 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    console.error('Error in /api/summarize:', error);
+    console.error('❌ Error in /api/summarize:', error);
+    console.error('  - Error type:', error?.constructor?.name);
+    console.error('  - Error message:', error?.message);
+    
     // Use simplified error response for backward compatibility with frontend
     if (error instanceof OpenAIError) {
+      console.log('  - Returning OpenAIError with status:', error.statusCode);
       res.status(error.statusCode).json({
         error: error.message
       });
     } else {
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary';
+      console.log('  - Returning generic error');
       res.status(500).json({
         error: errorMessage
       });
