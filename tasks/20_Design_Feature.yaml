@@ -6,7 +6,7 @@ type: 'Feature'
 state: Dev
 design: tasks/design/20_Feature.md
 createdAt: '2025-07-15T04:21:24Z'
-updatedAt: '2025-07-16T01:21:54Z'
+updatedAt: '2025-07-17T01:12:48Z'
 implementation:
   branch: feature/implement-20
   commits:
@@ -14,3 +14,6 @@ implementation:
     - '44e4a5b: feat: Add placeholder components for audio and PDF visualization'
     - 'eaa716e: docs: Update task status to Dev'
     - '27e8800: feat: Implement backend API endpoints for audio and PDF support'
+    - '828a158: fix: Improve OpenAI API error handling with proper status codes'
+    - 'd1bdd3b: fix: Add graceful error handling for PDF summary generation'
+    - 'd572d5e: fix: Add transcript field to PDF analysis response'

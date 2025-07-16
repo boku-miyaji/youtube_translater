@@ -2514,12 +2514,19 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     let summaryStartTime: Date | null = null;
     let summaryEndTime: Date | null = null;
     
-    if (shouldGenerateSummary && pdfMetadata) {
+    if (shouldGenerateSummary) {
       console.log('📝 Generating PDF summary...');
       summaryStartTime = new Date();
       
+      // If pdfMetadata is not available, create a minimal one
+      const metadataForSummary = pdfMetadata || {
+        title: fileName,
+        pageCount: pdfContent.pageCount,
+        fileSize: fileSize
+      };
+      
       try {
-        summary = await generatePDFSummary(pdfContent, pdfMetadata, gptModel, language);
+        summary = await generatePDFSummary(pdfContent, metadataForSummary, gptModel, language);
         
         // Calculate summary cost
         const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
