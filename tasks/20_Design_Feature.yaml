@@ -6,7 +6,7 @@ type: 'Feature'
 state: Dev
 design: tasks/design/20_Feature.md
 createdAt: '2025-07-15T04:21:24Z'
-updatedAt: '2025-07-17T01:49:00Z'
+updatedAt: '2025-07-17T02:22:00Z'
 implementation:
   branch: feature/implement-20
   commits:
@@ -19,3 +19,4 @@ implementation:
     - 'd572d5e: fix: Add transcript field to PDF analysis response'
     - '14761a7: fix: Fix PDF summary generation condition and add documentation'
     - '8b1e6c5: fix: Improve error handling in /api/summarize endpoint'
+    - '3c78596: fix: Fix environment variable loading and improve error handling for OpenAI API'
