@@ -44,7 +44,8 @@ import {
   PDFAnalysisRequest,
   AudioUploadResponse,
   PDFAnalysisResponse,
-  FileTypeInfo
+  FileTypeInfo,
+  AnalysisType
 } from './types/index';
 import { formatProcessingTime } from './utils/formatTime';
 
@@ -2578,9 +2579,11 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       fileId,
       originalName: fileName,
       size: fileSize,
+      transcript: pdfContent.fullText,  // Add the extracted text as transcript
       summary,
       pdfContent: shouldExtractStructure ? pdfContent : undefined,
       pdfMetadata,
+      analysisType: 'pdf' as AnalysisType,  // Specify the analysis type
       costs: {
         transcription: 0,
         summary: summaryCost,
