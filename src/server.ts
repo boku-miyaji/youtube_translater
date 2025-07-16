@@ -317,12 +317,17 @@ async function transcribeVideoFile(filePath: string, transcriptionModel: string 
     }
     
     // Transcribe using Whisper API
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(audioPath),
-      model: actualModel,
-      response_format: 'verbose_json', // Always use verbose_json for video files to get timestamps
-      timestamp_granularities: ['segment']
-    });
+    let transcription;
+    try {
+      transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(audioPath),
+        model: actualModel,
+        response_format: 'verbose_json', // Always use verbose_json for video files to get timestamps
+        timestamp_granularities: ['segment']
+      });
+    } catch (error) {
+      handleOpenAIError(error);
+    }
     
     console.log('🎵 Whisper API transcription completed');
 
@@ -703,6 +708,91 @@ function analyzePDFStructure(pdfContent: PDFContent): PDFMetadata {
   };
 }
 
+// Error handling for OpenAI API errors
+class OpenAIError extends Error {
+  statusCode: number;
+  errorType: string;
+  
+  constructor(message: string, statusCode: number, errorType: string) {
+    super(message);
+    this.name = 'OpenAIError';
+    this.statusCode = statusCode;
+    this.errorType = errorType;
+  }
+}
+
+// Handle OpenAI API errors with user-friendly messages
+function handleOpenAIError(error: any): never {
+  console.error('OpenAI API Error:', error);
+  
+  // Check if it's an OpenAI API error
+  if (error?.response?.status) {
+    const status = error.response.status;
+    const errorMessage = error.response?.data?.error?.message || error.message;
+    
+    switch (status) {
+      case 429:
+        throw new OpenAIError(
+          '⚠️ APIの利用制限に達しました。しばらく時間をおいてからお試しください。',
+          503,
+          'quota_exceeded'
+        );
+      case 401:
+        throw new OpenAIError(
+          '🔐 API認証エラーが発生しました。管理者にお問い合わせください。',
+          503,
+          'auth_error'
+        );
+      case 500:
+      case 502:
+      case 503:
+        throw new OpenAIError(
+          '🔧 OpenAI APIサービスが一時的に利用できません。しばらくしてからお試しください。',
+          503,
+          'service_unavailable'
+        );
+      default:
+        throw new OpenAIError(
+          `🚫 AI処理中にエラーが発生しました: ${errorMessage}`,
+          502,
+          'api_error'
+        );
+    }
+  } else if (error?.code === 'insufficient_quota') {
+    throw new OpenAIError(
+      '💳 APIクォータが不足しています。プランをアップグレードしてください。',
+      503,
+      'quota_exceeded'
+    );
+  }
+  
+  // Generic error
+  throw new OpenAIError(
+    '❌ AI処理中に予期しないエラーが発生しました。',
+    500,
+    'unknown_error'
+  );
+}
+
+// Helper function to send error responses with appropriate status codes
+function sendErrorResponse(res: Response, error: any, defaultMessage: string): void {
+  if (error instanceof OpenAIError) {
+    res.status(error.statusCode).json({
+      success: false,
+      error: error.message,
+      errorType: error.errorType,
+      message: defaultMessage
+    });
+  } else {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({
+      success: false,
+      error: errorMessage,
+      message: defaultMessage
+    });
+  }
+}
+
 // Generate structured summary for PDF
 async function generatePDFSummary(
   pdfContent: PDFContent,
@@ -745,8 +835,7 @@ Keep the summary concise but informative.`;
 
     return completion.choices[0].message.content || 'Summary generation failed';
   } catch (error) {
-    console.error('Error generating PDF summary:', error);
-    throw error;
+    handleOpenAIError(error);
   }
 }
 
@@ -1201,17 +1290,22 @@ ${timestampedSegments.map(segment => {
 
     const maxTokens = gptModel === 'gpt-3.5-turbo' ? 1500 : 2000;
 
-    const response = await openai.chat.completions.create({
-      model: gptModel,
-      messages: [
-        {
-          role: 'system',
-          content: systemMessage
-        }
-      ],
-      max_tokens: maxTokens,
-      temperature: 0.3
-    });
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: gptModel,
+        messages: [
+          {
+            role: 'system',
+            content: systemMessage
+          }
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3
+      });
+    } catch (error) {
+      handleOpenAIError(error);
+    }
 
     const inputTokens = Math.ceil(systemMessage.length / 4);
     const outputTokens = Math.ceil((response.choices[0].message.content || '').length / 4);
@@ -1289,7 +1383,12 @@ async function transcribeAudio(audioPath: string, language: string = 'original',
     transcriptionParams.language = language;
   }
   
-  const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+  let transcription;
+  try {
+    transcription = await openai.audio.transcriptions.create(transcriptionParams);
+  } catch (error) {
+    handleOpenAIError(error);
+  }
   
   return {
     text: transcription.text,
@@ -1353,7 +1452,12 @@ async function transcribeLargeAudio(audioPath: string, language: string = 'origi
             transcriptionParams.language = language;
           }
           
-          const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+          let transcription;
+          try {
+            transcription = await openai.audio.transcriptions.create(transcriptionParams);
+          } catch (error) {
+            handleOpenAIError(error);
+          }
           
           transcripts.push({
             text: transcription.text,
@@ -1532,17 +1636,22 @@ async function analyzeNeedForArticleContext(message: string): Promise<boolean> {
 
 回答は "YES" または "NO" のみで答えてください。`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'user',
-          content: analysisPrompt
-        }
-      ],
-      max_tokens: 10,
-      temperature: 0
-    });
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: analysisPrompt
+          }
+        ],
+        max_tokens: 10,
+        temperature: 0
+      });
+    } catch (error) {
+      handleOpenAIError(error);
+    }
 
     const result = (response.choices[0].message.content || '').trim().toUpperCase();
     return result === 'YES';
@@ -2058,11 +2167,7 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
       console.error('Error cleaning up file after processing error:', cleanupError);
     }
 
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error processing video file',
-      message: 'Failed to process video file'
-    });
+    sendErrorResponse(res, error, 'Failed to process video file');
   }
 });
 
@@ -2296,11 +2401,7 @@ app.post('/api/upload-audio-file', upload.single('file'), async (req: Request, r
       console.error('Error cleaning up file after processing error:', cleanupError);
     }
 
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error processing audio file',
-      message: 'Failed to process audio file'
-    });
+    sendErrorResponse(res, error, 'Failed to process audio file');
   }
 });
 
@@ -2516,11 +2617,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       }
     }
 
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error processing PDF',
-      message: 'Failed to process PDF'
-    });
+    sendErrorResponse(res, error, 'Failed to process PDF');
   }
 });
 
@@ -3007,12 +3104,17 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     console.log('  - OpenAI instance ready:', !!openai)
     console.log('  - API Key configured:', process.env.OPENAI_API_KEY ? 'YES' : 'NO')
     
-    const response = await openai.chat.completions.create({
-      model: gptModel,
-      messages: messages as any,
-      max_tokens: 2000,
-      temperature: 0.7
-    });
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: gptModel,
+        messages: messages as any,
+        max_tokens: 2000,
+        temperature: 0.7
+      });
+    } catch (error) {
+      handleOpenAIError(error);
+    }
 
     console.log('🤖 === OPENAI API RESPONSE ===')
     console.log('  - Response received:', !!response)
@@ -3454,7 +3556,7 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('Error generating summary:', error);
-    res.status(500).json({ error: 'Failed to generate summary' });
+    sendErrorResponse(res, error, 'Failed to generate summary');
   }
 });
 
@@ -3527,17 +3629,22 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
     console.log('Transcript preview (first 200 chars):', transcript.substring(0, 200) + '...');
     console.log('Using prompts.json template:', !!prompts.article?.template);
     
-    const completion = await openai.chat.completions.create({
-      model: gptModel,
-      messages: [
-        {
-          role: 'user',
-          content: finalPrompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 4000
-    });
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: gptModel,
+        messages: [
+          {
+            role: 'user',
+            content: finalPrompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 4000
+      });
+    } catch (error) {
+      handleOpenAIError(error);
+    }
 
     const article = completion.choices[0]?.message?.content || '';
     
@@ -3603,11 +3710,7 @@ app.post('/api/generate-article', async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('❌ Error generating article:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    res.status(500).json({ 
-      success: false,
-      error: `Failed to generate article: ${errorMessage}` 
-    });
+    sendErrorResponse(res, error, 'Failed to generate article');
   }
 });
 
