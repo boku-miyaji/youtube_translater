@@ -823,19 +823,25 @@ Provide a comprehensive summary including:
 
 Keep the summary concise but informative.`;
 
-    const completion = await openai.chat.completions.create({
-      model: gptModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 2000
-    });
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: gptModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000
+      });
+    } catch (error) {
+      handleOpenAIError(error);
+    }
 
     return completion.choices[0].message.content || 'Summary generation failed';
   } catch (error) {
-    handleOpenAIError(error);
+    // Re-throw the error to be handled by the caller
+    throw error;
   }
 }
 
@@ -2261,12 +2267,22 @@ app.post('/api/upload-audio-file', upload.single('file'), async (req: Request, r
         }
       };
       
-      const summaryResult = await generateSummary(
-        transcriptionResult.text,
-        audioAsVideoMetadata,
-        gptModel,
-        transcriptionResult.segments
-      );
+      let summaryResult;
+      try {
+        summaryResult = await generateSummary(
+          transcriptionResult.text,
+          audioAsVideoMetadata,
+          gptModel,
+          transcriptionResult.segments
+        );
+      } catch (summaryError) {
+        console.error('Error generating audio summary:', summaryError);
+        // Create a default summary result
+        summaryResult = {
+          content: '',
+          cost: 0
+        };
+      }
       
       if (summaryResult) {
         summary = summaryResult.text || summaryResult.content || '';
@@ -2501,15 +2517,28 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       console.log('📝 Generating PDF summary...');
       summaryStartTime = new Date();
       
-      summary = await generatePDFSummary(pdfContent, pdfMetadata, gptModel, language);
-      
-      // Calculate summary cost
-      const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
-      const inputTokens = Math.ceil(pdfContent.fullText.length / 4); // Rough token estimate
-      const outputTokens = Math.ceil(summary.length / 4);
-      summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
-      
-      summaryEndTime = new Date();
+      try {
+        summary = await generatePDFSummary(pdfContent, pdfMetadata, gptModel, language);
+        
+        // Calculate summary cost
+        const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
+        const inputTokens = Math.ceil(pdfContent.fullText.length / 4); // Rough token estimate
+        const outputTokens = Math.ceil(summary.length / 4);
+        summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
+        
+        summaryEndTime = new Date();
+      } catch (summaryError) {
+        console.error('Error generating PDF summary:', summaryError);
+        // Continue without summary - don't fail the entire request
+        summary = '';
+        summaryCost = 0;
+        summaryEndTime = new Date();
+        
+        // If it's an OpenAI error, we might want to include it in the response
+        if (summaryError instanceof OpenAIError) {
+          console.log('OpenAI API error detected, continuing without summary');
+        }
+      }
     }
 
     // 4. Track costs
