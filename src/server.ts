@@ -815,102 +815,6 @@ function sendErrorResponse(res: Response, error: any, defaultMessage: string): v
   }
 }
 
-// Generate structured summary for PDF
-async function generatePDFSummary(
-  pdfContent: PDFContent,
-  metadata: PDFMetadata,
-  gptModel: string,
-  language: string
-): Promise<string> {
-  try {
-    console.log('📄 === generatePDFSummary DEBUG ===');
-    console.log('  - PDF pages:', metadata.pageCount);
-    console.log('  - Sections count:', pdfContent.sections.length);
-    console.log('  - Full text length:', pdfContent.fullText.length);
-    console.log('  - Language:', language);
-    console.log('  - Model:', gptModel);
-    
-    // モックモードのチェック
-    if (process.env.MOCK_OPENAI === 'true') {
-      console.log('🎭 Using MOCK response for PDF summary');
-      return `## 📄 PDF文書の要約
-
-**タイトル**: ${metadata.title}
-**著者**: ${metadata.authors?.join(', ') || '不明'}
-**ページ数**: ${metadata.pageCount}
-
-### 📋 概要
-このPDF文書から抽出されたテキストの要約です。[モックモード]
-
-### 🎯 主要な内容
-${pdfContent.sections.slice(0, 3).map(s => `- ${s.type}: ${s.content.substring(0, 100)}...`).join('\n')}
-
-### 💡 重要な発見
-PDFの内容が正常に抽出され、構造が分析されました。
-
-### 🔑 結論
-実際の要約を生成するには、有効なOpenAI APIキーとクォータが必要です。
-
-[モックモード: 実際のAI分析は行われていません]`;
-    }
-    
-    // PDFコンテンツの長さを制限（トークン数削減）
-    const maxSectionLength = 1000;
-    const truncatedSections = pdfContent.sections.map(s => ({
-      ...s,
-      content: s.content.length > maxSectionLength ? 
-        s.content.substring(0, maxSectionLength) + '...' : 
-        s.content
-    }));
-    
-    const systemPrompt = `You are an expert at analyzing and summarizing academic papers and documents. 
-    Provide a clear, structured summary that captures the key points, methodology, findings, and implications.
-    ${language === 'ja' ? 'Please respond in Japanese.' : 'Please respond in English.'}`;
-
-    const userPrompt = `Please summarize the following PDF document:
-
-Title: ${metadata.title}
-Authors: ${metadata.authors?.join(', ') || 'Unknown'}
-Pages: ${metadata.pageCount}
-
-Content sections:
-${truncatedSections.map(s => `\n[${s.type.toUpperCase()}]\n${s.content}`).join('\n\n')}
-
-Provide a comprehensive summary including:
-1. Main topic and objectives
-2. Key methodology or approach
-3. Main findings or arguments
-4. Conclusions and implications
-5. Notable limitations or future work
-
-Keep the summary concise but informative.`;
-
-    console.log('  - Prompt length:', userPrompt.length);
-    
-    let completion;
-    try {
-      completion = await openai.chat.completions.create({
-        model: gptModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000
-      });
-      console.log('✅ PDF summary generated successfully');
-    } catch (error) {
-      console.error('❌ Error in generatePDFSummary:', error);
-      handleOpenAIError(error);
-    }
-
-    return completion.choices[0].message.content || 'Summary generation failed';
-  } catch (error) {
-    console.error('❌ generatePDFSummary error:', error);
-    // Re-throw the error to be handled by the caller
-    throw error;
-  }
-}
 
 // Estimate GPT costs for summary and article
 function estimateGPTCosts(durationMinutes: number, gptModel: string, generateSummary: boolean = true, generateArticle: boolean = false): { summary: number; article: number } {
@@ -1296,12 +1200,14 @@ async function generateSummary(
   transcript: string,
   metadata: VideoMetadata | null,
   gptModel: string = 'gpt-4o-mini',
-  timestampedSegments: TimestampedSegment[] = []
+  timestampedSegments: TimestampedSegment[] = [],
+  contentType: 'youtube' | 'pdf' | 'audio' = 'youtube'
 ): Promise<Summary | null> {
   console.log('🎯 === generateSummary DEBUG START ===');
   console.log('  - Transcript length:', transcript?.length || 0);
   console.log('  - Has metadata:', !!metadata);
   console.log('  - GPT Model:', gptModel);
+  console.log('  - Content Type:', contentType);
   console.log('  - Timestamped segments count:', timestampedSegments?.length || 0);
   console.log('  - OpenAI client configured:', !!openai);
   console.log('  - API Key exists:', !!process.env.OPENAI_API_KEY);
@@ -1313,11 +1219,65 @@ async function generateSummary(
     const prompts = loadPrompts();
     let promptTemplate = '';
     
-    if (prompts && prompts.summary && prompts.summary.template) {
-      promptTemplate = prompts.summary.template;
+    // Get content-type specific prompt
+    if (prompts && prompts.summarize && prompts.summarize[contentType] && prompts.summarize[contentType].template) {
+      promptTemplate = prompts.summarize[contentType].template;
+      console.log(`📝 Using ${contentType} prompt template from prompts.json`);
+    } else if (prompts && prompts.summary && typeof prompts.summary === 'object' && 'template' in prompts.summary) {
+      // Backward compatibility: check old structure
+      const summaryPrompt = prompts.summary as any;
+      if (summaryPrompt.template && typeof summaryPrompt.template === 'string') {
+        promptTemplate = summaryPrompt.template;
+        console.log('📝 Using legacy prompt template from prompts.json');
+      }
     } else {
-      // Default prompt
-      promptTemplate = `あなたは動画コンテンツの分析専門家です。以下のYouTube動画の文字起こしを分析し、読みやすくコンパクトな要約を生成してください。
+      // Default prompts for each content type
+      console.log(`📝 Using default ${contentType} prompt template`);
+      
+      if (contentType === 'pdf') {
+        promptTemplate = `あなたは学術論文・文書の分析専門家です。以下のPDF文書のテキストを分析し、学術的で構造化された要約を生成してください。
+
+文書情報: タイトル={{title}}, 著者={{authors}}, ページ数={{pageCount}}
+
+要約の形式:
+## 📋 文書概要
+(研究の目的、対象、手法を2-3文で要約)
+## 🎯 主要な貢献・発見
+- (論文の核となる新規性や主張を3-5個の箇条書きで)
+## 🔬 研究手法・アプローチ
+(使用された手法、実験設計、データセットなど)
+## 📊 主要な結果・知見
+(数値結果、統計的知見、重要な発見)
+## 🔑 キーワード・専門用語
+(重要な専門用語や概念を分かりやすく説明)
+## 📈 実用的価値・応用
+(研究成果の実際の応用可能性や影響)
+
+注意事項: 学術的な正確性を重視、専門用語は適切に説明、数値や統計結果は具体的に記載
+{{transcriptContent}}`;
+      } else if (contentType === 'audio') {
+        promptTemplate = `あなたは音声コンテンツの分析専門家です。以下の音声ファイルの文字起こしを分析し、音声特有の特徴を考慮した要約を生成してください。
+
+音声情報: タイトル={{title}}, 長さ={{duration}}
+{{timestampNote}}
+
+要約の形式:
+## 📋 音声概要
+(音声の目的、内容、形式を2-3文で要約)
+## 🎯 主要なトピック
+- (重要な話題を3-5個の箇条書きで。時間参照を含める)
+## 💡 詳細な内容
+(各トピックの詳しい説明。具体的な時間を含める)
+## 🔑 キーワード・用語
+(重要な専門用語や固有名詞を説明。初出時間を含める)
+## 📈 実践的価値
+(聞き手が実際に活用できる内容。関連時間を含める)
+
+注意事項: 音声特有の表現やニュアンスを考慮、時間参照は自然な文章の中に組み込む
+{{transcriptContent}}`;
+      } else {
+        // YouTube default
+        promptTemplate = `あなたは動画コンテンツの分析専門家です。以下のYouTube動画の文字起こしを分析し、読みやすくコンパクトな要約を生成してください。
 動画情報: タイトル={{title}}, 長さ={{duration}}, チャンネル={{channel}}
 {{timestampNote}}
 出力形式（重要：節間に余分な空行を入れない）:
@@ -1333,12 +1293,41 @@ async function generateSummary(
 (視聴者が実際に活用できる内容。関連時間を含める)
 注意事項: 情報は正確で簡潔に、専門用語は分かりやすく説明、時間参照は自然な文章中に組み込む(例: 3:45で説明)。セクション間には空行を入れず、コンパクトに出力すること。
 {{transcriptContent}}`;
+      }
     }
     
-    // Template variable replacement
-    const title = metadata?.basic?.title || '不明';
-    const duration = metadata?.basic?.duration ? Math.floor(metadata.basic.duration/60) + '分' + (metadata.basic.duration%60) + '秒' : '不明';
-    const channel = metadata?.basic?.channel || '不明';
+    // Template variable replacement based on content type
+    let title: string, duration: string, channel: string, authors: string, pageCount: string, language: string, format: string;
+    
+    if (contentType === 'pdf') {
+      // PDF metadata handling
+      const pdfMeta = (metadata as any)?.pdfMetadata || metadata; // Check for pdfMetadata field first
+      title = pdfMeta?.title || pdfMeta?.basic?.title || '不明';
+      authors = (pdfMeta?.authors && Array.isArray(pdfMeta.authors)) ? pdfMeta.authors.join(', ') : '不明';
+      pageCount = pdfMeta?.pageCount?.toString() || '不明';
+      language = pdfMeta?.language || '不明';
+      duration = '不明'; // PDFs don't have duration
+      channel = '不明'; // PDFs don't have channels
+      format = 'PDF';
+    } else if (contentType === 'audio') {
+      // Audio metadata handling
+      title = metadata?.basic?.title || '不明';
+      duration = metadata?.basic?.duration ? Math.floor(metadata.basic.duration/60) + '分' + (metadata.basic.duration%60) + '秒' : '不明';
+      channel = metadata?.basic?.channel || '不明';
+      format = '音声ファイル';
+      authors = '不明';
+      pageCount = '不明';
+      language = '不明';
+    } else {
+      // YouTube/video metadata handling
+      title = metadata?.basic?.title || '不明';
+      duration = metadata?.basic?.duration ? Math.floor(metadata.basic.duration/60) + '分' + (metadata.basic.duration%60) + '秒' : '不明';
+      channel = metadata?.basic?.channel || '不明';
+      authors = '不明';
+      pageCount = '不明';
+      language = '不明';
+      format = '動画';
+    }
     
     const timestampNote = hasTimestamps ? 
       `⚠️ 重要: タイムスタンプ情報が利用可能です。要約の各セクションで言及する内容には、該当する時間を必ず含めてください。
@@ -1356,17 +1345,21 @@ ${timestampedSegments.map(segment => {
   const endTime = formatTime(segment.start + segment.duration);
   return `[${startTime}-${endTime}] ${segment.text}`;
 }).join('\n')}` :
-      `ℹ️ 注意: この動画にはタイムスタンプ情報がありません。内容の順序や流れを意識して要約を作成してください。`;
+      (contentType === 'pdf' ? 
+        `ℹ️ 注意: この文書にはタイムスタンプ情報がありません。論文の構造と内容の論理的な流れを意識して要約を作成してください。` :
+        `ℹ️ 注意: この${format}にはタイムスタンプ情報がありません。内容の順序や流れを意識して要約を作成してください。`);
     
-    const timestampInstruction = hasTimestamps ? 'タイムスタンプ付き' : '内容の順序を意識';
-    const transcriptContent = hasTimestamps ? '' : `文字起こし内容:\n${transcript}`;
+    const transcriptContent = hasTimestamps ? '' : `${contentType === 'pdf' ? '文書内容' : '文字起こし内容'}:\n${transcript}`;
     
     const systemMessage = promptTemplate
       .replace(/\{\{title\}\}/g, title)
       .replace(/\{\{duration\}\}/g, duration)
       .replace(/\{\{channel\}\}/g, channel)
+      .replace(/\{\{authors\}\}/g, authors)
+      .replace(/\{\{pageCount\}\}/g, pageCount)
+      .replace(/\{\{language\}\}/g, language)
+      .replace(/\{\{format\}\}/g, format)
       .replace(/\{\{timestampNote\}\}/g, timestampNote)
-      .replace(/\{\{timestampInstruction\}\}/g, timestampInstruction)
       .replace(/\{\{transcriptContent\}\}/g, transcriptContent);
 
     const maxTokens = gptModel === 'gpt-3.5-turbo' ? 1500 : 2000;
@@ -1993,7 +1986,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     let summaryResult = null;
     try {
       console.log('Generating summary...');
-      summaryResult = await generateSummary(transcript, metadata, model, timestampedSegments);
+      summaryResult = await generateSummary(transcript, metadata, model, timestampedSegments, 'youtube');
       console.log('Summary generation successful');
       // Calculate actual summary generation time
       summaryDuration = Math.round((new Date().getTime() - summaryStartTime.getTime()) / 1000);
@@ -2200,7 +2193,8 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
           transcriptionResult.text,
           null, // No YouTube metadata for file uploads
           gptModel,
-          transcriptionResult.segments
+          transcriptionResult.segments,
+          'youtube'
         );
         
         if (summaryResponse) {
@@ -2693,7 +2687,36 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       };
       
       try {
-        summary = await generatePDFSummary(pdfContent, metadataForSummary, gptModel, language);
+        // Prepare transcript for generateSummary
+        const pdfTranscript = pdfContent.fullText;
+        
+        // Create metadata object compatible with VideoMetadata
+        const pdfVideoMetadata = {
+          basic: {
+            title: metadataForSummary.title || fileName,
+            duration: 0, // PDFs don't have duration
+            thumbnail: '',
+            channel: metadataForSummary.authors?.join(', ') || '',
+            views: 0,
+            likes: 0
+          },
+          detailed: {
+            publishedAt: '',
+            description: `PDF Document: ${metadataForSummary.pageCount} pages`
+          },
+          pdfMetadata: metadataForSummary // Preserve original PDF metadata
+        };
+        
+        // Use generateSummary with 'pdf' content type
+        const summaryResult = await generateSummary(
+          pdfTranscript,
+          pdfVideoMetadata as any,
+          gptModel,
+          [], // No timestamped segments for PDF
+          'pdf' // Content type
+        );
+        
+        summary = summaryResult?.content || summaryResult?.text || '';
         
         // Calculate summary cost
         const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
@@ -3701,32 +3724,15 @@ app.post('/api/settings', (req: Request, res: Response) => {
 
 app.get('/api/prompts', (_req: Request, res: Response) => {
   const prompts = loadPrompts();
-  // Convert the server format to frontend format
-  const frontendPrompts = {};
-  Object.keys(prompts).forEach(key => {
-    frontendPrompts[key] = prompts[key]?.template || '';
-  });
-  res.json(frontendPrompts);
+  res.json(prompts);
 });
 
 app.post('/api/prompts', (req: Request, res: Response) => {
   try {
     const newPrompts = req.body;
-    const prompts = loadPrompts();
-    
-    Object.keys(newPrompts).forEach(key => {
-      if (newPrompts[key] && newPrompts[key].trim() !== '') {
-        prompts[key] = {
-          name: key,
-          template: newPrompts[key]
-        };
-      } else {
-        delete prompts[key];
-      }
-    });
     
     const promptsFile = 'prompts.json';
-    fs.writeFileSync(promptsFile, JSON.stringify(prompts, null, 2));
+    fs.writeFileSync(promptsFile, JSON.stringify(newPrompts, null, 2));
     
     res.json({
       success: true,
@@ -3746,7 +3752,7 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
   console.log('  - GPT Model:', req.body.gptModel || 'gpt-4o-mini');
   
   try {
-    const { transcript, gptModel = 'gpt-4o-mini' } = req.body;
+    const { transcript, gptModel = 'gpt-4o-mini', contentType, analysisType } = req.body;
     
     if (!transcript) {
       return res.status(400).json({ error: 'Transcript is required' });
@@ -3760,8 +3766,21 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
       });
     }
 
+    // Determine content type
+    let detectedContentType: 'youtube' | 'pdf' | 'audio' = 'youtube'; // default
+    
+    if (contentType) {
+      detectedContentType = contentType;
+    } else if (analysisType === 'pdf') {
+      detectedContentType = 'pdf';
+    } else if (analysisType === 'audio') {
+      detectedContentType = 'audio';
+    }
+    
+    console.log('📝 Detected content type:', detectedContentType);
+
     // Generate summary
-    const summary = await generateSummary(transcript, null, gptModel, []);
+    const summary = await generateSummary(transcript, null, gptModel, [], detectedContentType);
     
     if (!summary) {
       console.error('❌ generateSummary returned null');
