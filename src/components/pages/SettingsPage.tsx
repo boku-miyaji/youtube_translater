@@ -208,30 +208,30 @@ const SettingsPage: React.FC = () => {
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('summarize')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-4 rounded-md font-medium text-sm transition-colors ${
                 activeTab === 'summarize'
-                  ? 'border-gray-900 text-gray-900 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-gray-200 text-black font-semibold'
+                  : 'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
               要約 (Summarize)
             </button>
             <button
               onClick={() => setActiveTab('article')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-4 rounded-md font-medium text-sm transition-colors ${
                 activeTab === 'article'
-                  ? 'border-gray-900 text-gray-900 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-gray-200 text-black font-semibold'
+                  : 'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
               記事 (Article)
             </button>
             <button
               onClick={() => setActiveTab('chat')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-4 rounded-md font-medium text-sm transition-colors ${
                 activeTab === 'chat'
-                  ? 'border-gray-900 text-gray-900 font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-gray-200 text-black font-semibold'
+                  : 'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
               チャット (Chat)
@@ -248,30 +248,30 @@ const SettingsPage: React.FC = () => {
                   <nav className="-mb-px flex space-x-4">
                     <button
                       onClick={() => setActiveSummarizeTab('youtube')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      className={`py-2 px-3 rounded-md font-medium text-sm transition-colors ${
                         activeSummarizeTab === 'youtube'
-                          ? 'border-gray-900 text-gray-900 font-semibold'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'bg-gray-200 text-black font-semibold'
+                          : 'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                       }`}
                     >
                       YouTube
                     </button>
                     <button
                       onClick={() => setActiveSummarizeTab('pdf')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      className={`py-2 px-3 rounded-md font-medium text-sm transition-colors ${
                         activeSummarizeTab === 'pdf'
-                          ? 'border-gray-900 text-gray-900 font-semibold'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'bg-gray-200 text-black font-semibold'
+                          : 'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                       }`}
                     >
                       PDF
                     </button>
                     <button
                       onClick={() => setActiveSummarizeTab('audio')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      className={`py-2 px-3 rounded-md font-medium text-sm transition-colors ${
                         activeSummarizeTab === 'audio'
-                          ? 'border-gray-900 text-gray-900 font-semibold'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'bg-gray-200 text-black font-semibold'
+                          : 'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                       }`}
                     >
                       音声 (Audio)
