@@ -49,8 +49,6 @@ import {
   PDFMetadata,
   PDFContent,
   PDFSection,
-  AudioUploadRequest,
-  PDFAnalysisRequest,
   AudioUploadResponse,
   PDFAnalysisResponse,
   FileTypeInfo,
@@ -229,14 +227,6 @@ const processingSpeed = {
 };
 
 // Helper function to get the correct response format for transcription models
-function getTranscriptionResponseFormat(model: string): 'verbose_json' | 'json' {
-  // GPT-4o models don't support verbose_json, only json or text
-  if (model === 'gpt-4o-transcribe' || model === 'gpt-4o-mini-transcribe') {
-    return 'json';
-  }
-  // Whisper-1 supports verbose_json which includes timestamps
-  return 'verbose_json';
-}
 
 // 履歴ファイルのパス
 const historyFile = path.join('history', 'transcripts.json');
@@ -379,9 +369,6 @@ async function cleanupTempFile(filePath: string, delay: number = 60000): Promise
   }, delay);
 }
 
-function calculateWhisperCost(durationMinutes: number): number {
-  return durationMinutes * pricing.whisper;
-}
 
 // Calculate transcription cost based on model
 function calculateTranscriptionCost(transcriptionModel: string, durationMinutes: number, audioTokens?: number): number {
@@ -516,7 +503,7 @@ function formatDuration(seconds: number): string {
 }
 
 // Detect file type based on MIME type and magic numbers
-function detectFileType(file: Express.Multer.File): FileTypeInfo {
+function detectFileType(file: any): FileTypeInfo {
   const mimeTypeMap: Record<string, { type: 'video' | 'audio' | 'pdf'; extension: string }> = {
     // Video
     'video/mp4': { type: 'video', extension: 'mp4' },
@@ -627,7 +614,7 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
     let currentSection: PDFSection | null = null;
     let currentContent: string[] = [];
 
-    lines.forEach((line, index) => {
+    lines.forEach((line, _index) => {
       const trimmedLine = line.trim();
       
       // Check if this line is a section header
@@ -1219,17 +1206,27 @@ async function generateSummary(
     const prompts = loadPrompts();
     let promptTemplate = '';
     
-    // Get content-type specific prompt
-    if (prompts && prompts.summarize && prompts.summarize[contentType] && prompts.summarize[contentType].template) {
-      promptTemplate = prompts.summarize[contentType].template;
-      console.log(`📝 Using ${contentType} prompt template from prompts.json`);
-    } else if (prompts && prompts.summary && typeof prompts.summary === 'object' && 'template' in prompts.summary) {
+    // Get base template and context
+    if (prompts && prompts.summarize && prompts.summarize.base && prompts.summarize.contexts && prompts.summarize.contexts[contentType]) {
+      const baseTemplate = prompts.summarize.base.template;
+      const context = prompts.summarize.contexts[contentType];
+      
+      // First replace context variables in base template
+      promptTemplate = baseTemplate
+        .replace(/\{\{contentType\}\}/g, context.contentType)
+        .replace(/\{\{contextInfo\}\}/g, context.contextInfo)
+        .replace(/\{\{overviewInstruction\}\}/g, context.overviewInstruction)
+        .replace(/\{\{timeReference\}\}/g, context.timeReference)
+        .replace(/\{\{additionalSections\}\}/g, context.additionalSections)
+        .replace(/\{\{questionSectionTitle\}\}/g, context.questionSectionTitle)
+        .replace(/\{\{questionExamples\}\}/g, context.questionExamples)
+        .replace(/\{\{additionalNotes\}\}/g, context.additionalNotes);
+      
+      console.log(`📝 Using ${contentType} context with base prompt template from prompts.json`);
+    } else if (prompts && prompts.summarize && prompts.summarize[contentType] && prompts.summarize[contentType].template) {
       // Backward compatibility: check old structure
-      const summaryPrompt = prompts.summary as any;
-      if (summaryPrompt.template && typeof summaryPrompt.template === 'string') {
-        promptTemplate = summaryPrompt.template;
-        console.log('📝 Using legacy prompt template from prompts.json');
-      }
+      promptTemplate = prompts.summarize[contentType].template;
+      console.log(`📝 Using legacy ${contentType} prompt template from prompts.json`);
     } else {
       // Default prompts for each content type
       console.log(`📝 Using default ${contentType} prompt template`);
@@ -2200,7 +2197,7 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
         if (summaryResponse) {
           summary = summaryResponse.content;
           summaryCost = summaryResponse.cost;
-          summaryTokens = summaryResponse.tokens;
+          // summaryTokens = summaryResponse.tokens;
         }
       } catch (error) {
         console.error('Error generating summary:', error);

@@ -65,6 +65,8 @@ export interface VideoMetadata {
   originalFilename?: string;
   fileSize?: number;
   uploadedAt?: string;
+  // Analysis type for different content types
+  analysisType?: AnalysisType;
 }
 
 // Extended metadata for audio files
@@ -230,10 +232,37 @@ export interface PromptTemplate {
   template: string;
 }
 
+export interface PromptContext {
+  contentType: string;
+  contextInfo: string;
+  overviewInstruction: string;
+  timeReference: string;
+  additionalSections: string;
+  questionSectionTitle: string;
+  questionExamples: string;
+  additionalNotes: string;
+}
+
+export interface ContentTypePrompts {
+  base?: PromptTemplate;
+  contexts?: {
+    youtube?: PromptContext;
+    pdf?: PromptContext;
+    audio?: PromptContext;
+    [key: string]: PromptContext | undefined;
+  };
+  // Legacy support
+  youtube?: PromptTemplate;
+  pdf?: PromptTemplate;
+  audio?: PromptTemplate;
+  [key: string]: PromptTemplate | PromptContext | { [key: string]: PromptContext | undefined } | undefined;
+}
+
 export interface PromptsConfig {
-  summary?: PromptTemplate;
+  summarize?: ContentTypePrompts;
   article?: PromptTemplate;
-  [key: string]: PromptTemplate | undefined;
+  chat?: PromptTemplate;
+  [key: string]: ContentTypePrompts | PromptTemplate | undefined;
 }
 
 export interface TranscriptionResult {

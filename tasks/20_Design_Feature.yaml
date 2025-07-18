@@ -6,7 +6,7 @@ type: 'Feature'
 state: Dev
 design: tasks/design/20_Feature.md
 createdAt: '2025-07-15T04:21:24Z'
-updatedAt: '2025-07-17T02:46:00Z'
+updatedAt: '2025-07-18T05:09:01Z'
 implementation:
   branch: feature/implement-20
   commits:
@@ -22,3 +22,8 @@ implementation:
     - '3c78596: fix: Fix environment variable loading and improve error handling for OpenAI API'
     - '3678107: fix: Implement mock mode for OpenAI API and improve error handling'
     - '940beee: fix: Disable mock mode and improve PDF summary generation'
+    - '7877c2d: fix: Separate PDF and YouTube summary prompts and enable prompt editing'
+    - 'd53cd14: fix: Fix JSX syntax error in SettingsPage component'
+    - '129e39f: style: Improve button visibility with simpler color scheme'
+    - '9148920: style: Improve tab button contrast with background-based design'
+    - 'bc85734: fix: Make article and chat prompts generic for all content types'

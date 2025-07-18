@@ -10,6 +10,7 @@ interface TranscriptViewerProps {
   }>
   summary?: string
   transcriptSource?: 'subtitle' | 'whisper'
+  analysisType?: 'youtube' | 'video' | 'audio' | 'pdf'
   onSeek?: (time: number) => void
   onQuestionClick?: (question: string) => void
   onArticleGenerated?: (cost: number) => void
@@ -24,7 +25,7 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, onSeek, onQuestionClick, onArticleGenerated }) => {
+const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, analysisType, onSeek, onQuestionClick, onArticleGenerated }) => {
   const [activeTab, setActiveTab] = useState<TabType>('transcript')
   const [summary, setSummary] = useState(initialSummary || '')
   const [article, setArticle] = useState('')
@@ -42,7 +43,10 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ transcript }),
+        body: JSON.stringify({ 
+          transcript,
+          analysisType: analysisType || 'youtube'
+        }),
       })
 
       if (!response.ok) {

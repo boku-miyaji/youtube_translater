@@ -1707,6 +1707,7 @@ const AnalyzePage: React.FC = () => {
               timestampedSegments={currentVideo.timestampedSegments}
               summary={currentVideo.summary}
               transcriptSource={currentVideo.transcriptSource}
+              analysisType={currentVideo.analysisType}
               onSeek={(time) => {
                 console.log('🎥 AnalyzePage: onSeek called with time:', time)
                 console.log('🎥 AnalyzePage: playerRef available:', !!playerRef)
