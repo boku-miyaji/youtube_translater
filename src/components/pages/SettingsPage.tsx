@@ -190,7 +190,7 @@ const SettingsPage: React.FC = () => {
             id="language"
             value={language || 'original'}
             onChange={(e) => setLanguage(e.target.value)}
-            className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
           >
             <option value="ja">Japanese (日本語)</option>
             <option value="en">English</option>
@@ -210,7 +210,7 @@ const SettingsPage: React.FC = () => {
               onClick={() => setActiveTab('summarize')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'summarize'
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-gray-900 text-gray-900 font-semibold'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -220,7 +220,7 @@ const SettingsPage: React.FC = () => {
               onClick={() => setActiveTab('article')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'article'
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-gray-900 text-gray-900 font-semibold'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -230,7 +230,7 @@ const SettingsPage: React.FC = () => {
               onClick={() => setActiveTab('chat')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'chat'
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-gray-900 text-gray-900 font-semibold'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -250,7 +250,7 @@ const SettingsPage: React.FC = () => {
                       onClick={() => setActiveSummarizeTab('youtube')}
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         activeSummarizeTab === 'youtube'
-                          ? 'border-blue-500 text-blue-600'
+                          ? 'border-gray-900 text-gray-900 font-semibold'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
@@ -260,7 +260,7 @@ const SettingsPage: React.FC = () => {
                       onClick={() => setActiveSummarizeTab('pdf')}
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         activeSummarizeTab === 'pdf'
-                          ? 'border-blue-500 text-blue-600'
+                          ? 'border-gray-900 text-gray-900 font-semibold'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
@@ -270,7 +270,7 @@ const SettingsPage: React.FC = () => {
                       onClick={() => setActiveSummarizeTab('audio')}
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         activeSummarizeTab === 'audio'
-                          ? 'border-blue-500 text-blue-600'
+                          ? 'border-gray-900 text-gray-900 font-semibold'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
@@ -291,7 +291,7 @@ const SettingsPage: React.FC = () => {
                   rows={10}
                   value={prompts.summarize?.[activeSummarizeTab]?.template || DEFAULT_PROMPTS.summarize?.[activeSummarizeTab]?.template || ''}
                   onChange={(e) => handlePromptChange('summarize', activeSummarizeTab, e.target.value)}
-                  className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                  className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-gray-400 focus:border-gray-400 font-mono text-sm"
                   disabled={!isLoaded}
                 />
                 <p className="mt-2 text-xs text-gray-500">
@@ -310,7 +310,7 @@ const SettingsPage: React.FC = () => {
                 rows={10}
                 value={prompts.article?.template || DEFAULT_PROMPTS.article?.template || ''}
                 onChange={(e) => handlePromptChange('article', null, e.target.value)}
-                className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-gray-400 focus:border-gray-400 font-mono text-sm"
                 disabled={!isLoaded}
               />
               <p className="mt-2 text-xs text-gray-500">
@@ -328,7 +328,7 @@ const SettingsPage: React.FC = () => {
                 rows={10}
                 value={prompts.chat?.template || DEFAULT_PROMPTS.chat?.template || ''}
                 onChange={(e) => handlePromptChange('chat', null, e.target.value)}
-                className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                className="mt-1 block w-full border-app-medium rounded-md shadow-sm focus:ring-2 focus:ring-gray-400 focus:border-gray-400 font-mono text-sm"
                 disabled={!isLoaded}
               />
               <p className="mt-2 text-xs text-gray-500">
@@ -342,7 +342,7 @@ const SettingsPage: React.FC = () => {
           <button
             onClick={savePrompts}
             disabled={loading}
-            className="btn-primary inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 bg-gray-700 text-white border border-transparent text-sm font-medium rounded-md shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:hover:bg-gray-700 transition-colors"
           >
             {loading ? (
               <>
@@ -364,7 +364,7 @@ const SettingsPage: React.FC = () => {
             <p className="text-sm text-app-secondary mb-2">Export your data for backup or migration</p>
             <button
               onClick={() => window.open('/api/export', '_blank')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors"
             >
               <span className="mr-2">📤</span>
               Export Data
