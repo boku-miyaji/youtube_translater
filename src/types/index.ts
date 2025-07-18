@@ -606,6 +606,7 @@ export interface CostEstimationResponse {
     transcriptionRate?: string;  // e.g., "動画1分あたり30.0秒"
     summaryRate?: string;        // e.g., "動画1分あたり60.0秒"
     durationMinutes?: number;    // video duration in minutes
+    confidenceLevel?: number;  // 0-1, how confident we are in the estimate
   };
   error?: string;
   message?: string;
@@ -632,6 +633,7 @@ export interface FileCostEstimationResponse {
     transcriptionRate?: string;  // e.g., "動画1分あたり30.0秒"
     summaryRate?: string;        // e.g., "動画1分あたり60.0秒"
     durationMinutes?: number;    // video duration in minutes
+    confidenceLevel?: number;  // 0-1, how confident we are in the estimate
   };
   error?: string;
   message?: string;

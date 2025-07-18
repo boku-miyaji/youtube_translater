@@ -55,6 +55,7 @@ import {
   AnalysisType
 } from './types/index';
 import { formatProcessingTime } from './utils/formatTime';
+import { analysisProgressDB } from './database/analysis-progress';
 
 
 const app = express();
@@ -388,53 +389,14 @@ function calculateTranscriptionCost(transcriptionModel: string, durationMinutes:
   return durationMinutes * pricing.transcription['whisper-1'];
 }
 
-// Calculate average summary time from historical data
-function calculateAverageSummaryTime(gptModel: string, durationMinutes: number): number | null {
-  try {
-    const history = loadHistory();
-    
-    // Filter relevant historical entries with actual summary time data
-    const relevantEntries = history.filter(entry => {
-      return entry.gptModel === gptModel && 
-             entry.analysisTime?.summary && 
-             entry.analysisTime.summary > 0 &&
-             entry.metadata?.basic?.duration;
-    });
-    
-    // Need at least 3 samples for reliable estimation
-    if (relevantEntries.length < 3) {
-      return null;
-    }
-    
-    // Calculate time per minute for each entry
-    const timePerMinuteRatios: number[] = relevantEntries.map(entry => {
-      const videoDurationMinutes = entry.metadata!.basic!.duration! / 60;
-      const summaryTimeMinutes = entry.analysisTime!.summary! / 60;
-      return summaryTimeMinutes / videoDurationMinutes;
-    });
-    
-    // Remove outliers (top and bottom 10%) if we have enough samples
-    if (timePerMinuteRatios.length >= 10) {
-      timePerMinuteRatios.sort((a, b) => a - b);
-      const trimCount = Math.floor(timePerMinuteRatios.length * 0.1);
-      const trimmedRatios = timePerMinuteRatios.slice(trimCount, -trimCount);
-      
-      // Calculate average
-      const avgRatio = trimmedRatios.reduce((sum, ratio) => sum + ratio, 0) / trimmedRatios.length;
-      return Math.ceil(avgRatio * durationMinutes * 60); // Return in seconds
-    } else {
-      // For small sample size, use simple average
-      const avgRatio = timePerMinuteRatios.reduce((sum, ratio) => sum + ratio, 0) / timePerMinuteRatios.length;
-      return Math.ceil(avgRatio * durationMinutes * 60); // Return in seconds
-    }
-  } catch (error) {
-    console.error('Error calculating average summary time:', error);
-    return null;
-  }
-}
 
-// Calculate estimated processing time based on model and video duration
-function calculateProcessingTime(transcriptionModel: string, gptModel: string, durationMinutes: number): {
+// Calculate estimated processing time based on model and video duration using historical data
+function calculateProcessingTime(
+  transcriptionModel: string, 
+  gptModel: string, 
+  durationMinutes: number,
+  contentType: 'youtube' | 'audio' | 'pdf' = 'youtube'
+): {
   transcription: number;
   summary: number;
   total: number;
@@ -443,33 +405,76 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
   transcriptionRate: string;  // e.g., "10x速" or "0.1分/分"
   summaryRate: string;        // e.g., "0.5分/分"
   durationMinutes: number;    // Pass through for UI
+  confidenceLevel: number;    // How confident we are in the estimate (0-1)
 } {
-  // Calculate transcription time (in seconds)
-  const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
-  const transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
+  // Get historical analysis statistics
+  const stats = analysisProgressDB.getAnalysisStats();
   
-  // Calculate transcription rate (seconds per video minute)
-  const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
-  const transcriptionRate = `動画1分あたり${transcriptionSecondsPerVideoMinute.toFixed(1)}秒`;
-  
-  // Try to calculate summary time from historical data first
-  const historicalSummaryTime = calculateAverageSummaryTime(gptModel, durationMinutes);
+  let transcriptionTime: number;
   let summaryTime: number;
   let isHistoricalEstimate = false;
+  let confidenceLevel = 0.1; // Default low confidence
   
-  if (historicalSummaryTime !== null) {
-    summaryTime = historicalSummaryTime;
+  // Calculate transcription time
+  if (stats.transcriptionStats.sampleSize > 0) {
+    // Use historical data for transcription model if available
+    const modelStats = stats.transcriptionStats.modelStats[transcriptionModel];
+    if (modelStats && modelStats.sampleSize >= 2) {
+      transcriptionTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
+      confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
+      console.log(`📊 Using historical data for transcription time: ${transcriptionTime}s (${modelStats.sampleSize} samples)`);
+    } else {
+      // Use overall transcription average
+      transcriptionTime = Math.ceil(durationMinutes * stats.transcriptionStats.averageSecondsPerMinute);
+      confidenceLevel = Math.max(confidenceLevel, stats.transcriptionStats.confidenceLevel);
+      console.log(`📊 Using overall transcription average: ${transcriptionTime}s (${stats.transcriptionStats.sampleSize} samples)`);
+    }
     isHistoricalEstimate = true;
-    console.log(`📊 Using historical data for summary time estimation: ${summaryTime}s for ${gptModel}`);
+  } else {
+    // Fall back to default speed coefficients
+    const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
+    transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
+    console.log(`📊 Using default transcription coefficients: ${transcriptionTime}s`);
+  }
+  
+  // Calculate summary time
+  if (stats.summaryStats.sampleSize > 0) {
+    // Use historical data for GPT model if available
+    const modelStats = stats.summaryStats.modelStats[gptModel];
+    if (modelStats && modelStats.sampleSize >= 2) {
+      summaryTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
+      confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
+      console.log(`📊 Using historical data for summary time: ${summaryTime}s (${modelStats.sampleSize} samples)`);
+    } else {
+      // Use overall summary average
+      summaryTime = Math.ceil(durationMinutes * stats.summaryStats.averageSecondsPerMinute);
+      confidenceLevel = Math.max(confidenceLevel, stats.summaryStats.confidenceLevel);
+      console.log(`📊 Using overall summary average: ${summaryTime}s (${stats.summaryStats.sampleSize} samples)`);
+    }
+    isHistoricalEstimate = true;
   } else {
     // Fall back to default speed coefficients
     const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.5;
     summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
-    console.log(`📊 Using default coefficients for summary time estimation: ${summaryTime}s for ${gptModel}`);
+    console.log(`📊 Using default summary coefficients: ${summaryTime}s`);
   }
   
-  // Calculate summary rate (seconds per video minute)
+  // Apply content type adjustments if we have data
+  if (stats.contentTypeStats[contentType] && stats.contentTypeStats[contentType].sampleSize >= 2) {
+    const contentTypeStats = stats.contentTypeStats[contentType];
+    const transcriptionAdjustment = contentTypeStats.transcriptionAverage / stats.transcriptionStats.averageSecondsPerMinute;
+    const summaryAdjustment = contentTypeStats.summaryAverage / stats.summaryStats.averageSecondsPerMinute;
+    
+    transcriptionTime = Math.ceil(transcriptionTime * transcriptionAdjustment);
+    summaryTime = Math.ceil(summaryTime * summaryAdjustment);
+    
+    console.log(`📊 Applied content type adjustments for ${contentType}: transcription x${transcriptionAdjustment.toFixed(2)}, summary x${summaryAdjustment.toFixed(2)}`);
+  }
+  
+  // Calculate rates for display
+  const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
   const summarySecondsPerVideoMinute = summaryTime / durationMinutes;
+  const transcriptionRate = `動画1分あたり${transcriptionSecondsPerVideoMinute.toFixed(1)}秒`;
   const summaryRate = `動画1分あたり${summarySecondsPerVideoMinute.toFixed(1)}秒`;
   
   const totalTime = transcriptionTime + summaryTime;
@@ -482,7 +487,8 @@ function calculateProcessingTime(transcriptionModel: string, gptModel: string, d
     isHistoricalEstimate,
     transcriptionRate,
     summaryRate,
-    durationMinutes
+    durationMinutes,
+    confidenceLevel
   };
 }
 
@@ -1898,6 +1904,8 @@ function calculateInferenceStats(
 
 // API version of upload endpoint
 app.post('/api/upload-youtube', async (req: Request, res: Response) => {
+  let progressId: string | undefined;
+  
   try {
     const analysisStartTime = new Date();
     const analysisStartTimeISO = analysisStartTime.toISOString();
@@ -1917,6 +1925,17 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     }
     const videoId = metadata.basic.videoId;
 
+    // Create progress tracking record
+    progressId = analysisProgressDB.createRecord(
+      'youtube',
+      metadata.basic.duration,
+      transcriptionModel,
+      model,
+      0, // We'll update this once we have the transcript
+      undefined, // audioQuality not applicable for YouTube
+      language
+    );
+
     // Process transcript
     let transcript = '';
     let timestampedSegments: TimestampedSegment[] = [];
@@ -1926,6 +1945,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
 
     // Track transcription start time
     const transcriptionStartTime = new Date();
+    analysisProgressDB.updateTranscriptionProgress(progressId, transcriptionStartTime.toISOString());
 
     // Try subtitle first
     console.log('Attempting subtitle extraction...');
@@ -1939,6 +1959,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       console.log('Subtitle extraction successful');
       // Subtitle extraction is fast, estimate 1-2 seconds
       transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
+      analysisProgressDB.updateTranscriptionProgress(progressId, transcriptionStartTime.toISOString(), new Date().toISOString());
     } else {
       console.log('Subtitle extraction failed, trying Whisper...');
       try {
@@ -1959,8 +1980,10 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
 
         // Calculate actual transcription time
         transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
+        analysisProgressDB.updateTranscriptionProgress(progressId, transcriptionStartTime.toISOString(), new Date().toISOString());
       } catch (whisperError) {
         console.error('Whisper transcription failed:', whisperError);
+        analysisProgressDB.completeAnalysis(progressId, false, 'Whisper transcription failed');
         throw new Error('Failed to extract transcript using both methods');
       }
     }
@@ -1975,9 +1998,13 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       sessionCosts.total += transcriptionCost;
     }
 
+    // Update progress database with transcript length
+    analysisProgressDB.updateTranscriptionProgress(progressId, transcriptionStartTime.toISOString(), new Date().toISOString());
+    
     // Track summary start time
     const summaryStartTime = new Date();
     let summaryDuration = 0;
+    analysisProgressDB.updateSummaryProgress(progressId, summaryStartTime.toISOString());
 
     // Generate summary
     let summaryResult = null;
@@ -1987,9 +2014,11 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       console.log('Summary generation successful');
       // Calculate actual summary generation time
       summaryDuration = Math.round((new Date().getTime() - summaryStartTime.getTime()) / 1000);
+      analysisProgressDB.updateSummaryProgress(progressId, summaryStartTime.toISOString(), new Date().toISOString());
     } catch (summaryError) {
       console.warn('Summary generation failed:', summaryError);
       summaryDuration = Math.round((new Date().getTime() - summaryStartTime.getTime()) / 1000);
+      analysisProgressDB.updateSummaryProgress(progressId, summaryStartTime.toISOString(), new Date().toISOString());
     }
 
     // Update current state
@@ -2117,8 +2146,17 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
       message: 'Video transcribed and analyzed successfully'
     });
 
+    // Complete progress tracking
+    analysisProgressDB.completeAnalysis(progressId, true);
+    
   } catch (error) {
     console.error('Error in /api/upload-youtube:', error);
+    
+    // Complete progress tracking with error
+    if (progressId) {
+      analysisProgressDB.completeAnalysis(progressId, false, error instanceof Error ? error.message : 'Unknown error');
+    }
+    
     res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -4027,7 +4065,7 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
     console.log(`📊 Cost estimation for "${videoDetails.title}": ${duration}s, $${totalCost.toFixed(4)}`);
     
     // Calculate processing time
-    const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes);
+    const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes, 'youtube');
     console.log(`📊 Estimated processing time: ${processingTime.formatted}`);
     
     const response: CostEstimationResponse = {
@@ -4096,7 +4134,9 @@ app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, 
     console.log(`📊 Cost estimation for "${originalName}": ${duration}s, $${totalCost.toFixed(4)}`);
     
     // Calculate processing time
-    const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes);
+    const fileType = detectFileType(req.file);
+    const contentType = fileType.type === 'video' ? 'youtube' : 'audio'; // Treat video files as youtube for processing estimation
+    const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes, contentType);
     console.log(`📊 Estimated processing time: ${processingTime.formatted}`);
     
     // Clean up temporary file
