@@ -698,7 +698,7 @@ const AnalyzePage: React.FC = () => {
                   </div>
                   <div className="text-xs text-blue-700 space-y-1">
                     <div className="flex justify-between">
-                      <span>文字起こし速度:</span>
+                      <span>{getFirstStageSpeedLabel()}:</span>
                       <span className="font-mono">{processingTime.transcriptionRate || `${formatProcessingTime(processingTime.transcription)}`}</span>
                     </div>
                     <div className="flex justify-between">
@@ -712,7 +712,7 @@ const AnalyzePage: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-xs text-blue-600 mt-1">
-                    ※動画1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）
+                    {renderProcessingTimeNote()}
                   </div>
                 </div>
               </div>
@@ -748,6 +748,100 @@ const AnalyzePage: React.FC = () => {
     return null
   }
 
+  // Render processing time note based on content type
+  const renderProcessingTimeNote = () => {
+    // Determine content type from current input type or current video analysis type
+    let contentType = 'youtube'; // default
+    
+    if (currentVideo?.analysisType) {
+      contentType = currentVideo.analysisType;
+    } else if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+      contentType = 'pdf';
+    } else if (inputType === InputType.AUDIO_FILE) {
+      contentType = 'audio';
+    } else if (inputType === InputType.VIDEO_FILE) {
+      contentType = 'youtube'; // treat video files as youtube-like
+    }
+
+    switch (contentType) {
+      case 'pdf':
+        return '※文書ページあたりの処理時間を表示（実際の時間はサーバー負荷により変動）';
+      case 'audio':
+        return '※音声1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）';
+      case 'youtube':
+      default:
+        return '※動画1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）';
+    }
+  }
+
+  // Get first stage title based on content type
+  const getFirstStageTitle = () => {
+    const contentType = currentVideo?.analysisType || 'youtube';
+    switch (contentType) {
+      case 'pdf':
+        return '📄 文書解析';
+      case 'audio':
+        return '🎵 文字起こし';
+      case 'youtube':
+      default:
+        return '📝 文字起こし';
+    }
+  }
+
+  // Get first stage method based on content type
+  const getFirstStageMethod = () => {
+    const contentType = currentVideo?.analysisType || 'youtube';
+    switch (contentType) {
+      case 'pdf':
+        return 'PDF解析';
+      case 'audio':
+        return 'Whisper AI';
+      case 'youtube':
+      default:
+        return currentVideo?.transcriptSource === 'subtitle' ? 'YouTube字幕' : 'Whisper AI';
+    }
+  }
+
+  // Get first stage processing time based on content type
+  const getFirstStageProcessingTime = () => {
+    if (!currentVideo?.analysisTime) return null;
+    
+    const contentType = currentVideo?.analysisType || 'youtube';
+    switch (contentType) {
+      case 'pdf':
+        return currentVideo.analysisTime.extraction ? Math.round(currentVideo.analysisTime.extraction) : null;
+      case 'audio':
+      case 'youtube':
+      default:
+        return currentVideo.analysisTime.transcription ? Math.round(currentVideo.analysisTime.transcription) : null;
+    }
+  }
+
+  // Get first stage speed label based on content type
+  const getFirstStageSpeedLabel = () => {
+    // Determine content type from current input type or current video analysis type
+    let contentType = 'youtube'; // default
+    
+    if (currentVideo?.analysisType) {
+      contentType = currentVideo.analysisType;
+    } else if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+      contentType = 'pdf';
+    } else if (inputType === InputType.AUDIO_FILE) {
+      contentType = 'audio';
+    } else if (inputType === InputType.VIDEO_FILE) {
+      contentType = 'youtube'; // treat video files as youtube-like
+    }
+
+    switch (contentType) {
+      case 'pdf':
+        return '文書解析速度';
+      case 'audio':
+        return '文字起こし速度';
+      case 'youtube':
+      default:
+        return '文字起こし速度';
+    }
+  }
 
   // Debug cost estimation state changes
   useEffect(() => {
@@ -1544,14 +1638,14 @@ const AnalyzePage: React.FC = () => {
                               💰 分析コスト（実績）
                             </h4>
                             <div className="space-y-2">
-                              {/* 文字起こしコスト詳細 */}
+                              {/* 第一段階処理コスト詳細 */}
                               <div className="bg-gray-50 p-2 rounded border border-gray-200">
-                                <div className="text-xs font-semibold text-gray-700 mb-1">📝 文字起こし</div>
+                                <div className="text-xs font-semibold text-gray-700 mb-1">{getFirstStageTitle()}</div>
                                 <div className="space-y-1 text-xs">
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">方法:</span>
                                     <span className="text-gray-800">
-                                      {currentVideo.transcriptSource === 'subtitle' ? 'YouTube字幕' : 'Whisper AI'}
+                                      {getFirstStageMethod()}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
@@ -1563,11 +1657,11 @@ const AnalyzePage: React.FC = () => {
                                       }
                                     </span>
                                   </div>
-                                  {currentVideo.analysisTime?.transcription && (
+                                  {getFirstStageProcessingTime() && (
                                     <div className="flex justify-between">
                                       <span className="text-gray-600">処理時間:</span>
                                       <span className="text-gray-800">
-                                        {Math.round(currentVideo.analysisTime.transcription)}秒
+                                        {getFirstStageProcessingTime()}秒
                                       </span>
                                     </div>
                                   )}
