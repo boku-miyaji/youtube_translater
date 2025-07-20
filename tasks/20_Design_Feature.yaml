@@ -6,7 +6,7 @@ type: 'Feature'
 state: Dev
 design: tasks/design/20_Feature.md
 createdAt: '2025-07-15T04:21:24Z'
-updatedAt: '2025-07-18T15:28:00Z'
+updatedAt: '2025-07-20T10:00:00Z'
 implementation:
   branch: feature/implement-20
   commits:
@@ -30,3 +30,5 @@ implementation:
     - 'b64c9b6: fix: Implement generic prompt system with context-based templates'
     - 'cf9fe40: feat: Implement accurate progress calculation system with historical data'
     - 'b50bd34: feat: Add PDF and audio processing time display to analysis screen'
+    - '7b21c7c: feat: Enhanced analysis screen with comprehensive content type support'
+    - 'cda0760: fix: Prevent invalid date errors in PDF analysis time calculations'
