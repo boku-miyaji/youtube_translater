@@ -12,12 +12,22 @@ const AnalysisPage: React.FC = () => {
   const { data: history } = useHistory()
   const [selectedContentType, setSelectedContentType] = useState<'all' | 'youtube' | 'audio' | 'pdf'>('all')
 
+  // Helper function to safely create Date objects
+  const safeCreateDate = (timestamp: string | number | Date): Date | null => {
+    try {
+      const date = new Date(timestamp)
+      return isNaN(date.getTime()) ? null : date
+    } catch {
+      return null
+    }
+  }
+
   const totalCost = costs ? costs.reduce((sum, cost) => sum + (cost.totalCost || 0), 0) : 0
   const thisMonthCosts = costs ? costs.filter(cost => {
     const thisMonth = new Date().getMonth()
     const thisYear = new Date().getFullYear()
-    const costDate = new Date(cost.timestamp)
-    return costDate.getMonth() === thisMonth && costDate.getFullYear() === thisYear
+    const costDate = safeCreateDate(cost.timestamp)
+    return costDate && costDate.getMonth() === thisMonth && costDate.getFullYear() === thisYear
   }) : []
   const thisMonthTotal = thisMonthCosts.reduce((sum, cost) => sum + (cost.totalCost || 0), 0)
 
@@ -209,9 +219,10 @@ const AnalysisPage: React.FC = () => {
                   {(() => {
                     const totalCost = costs.reduce((sum, cost) => sum + cost.totalCost, 0)
                     const avgCost = costs.length > 0 ? totalCost / costs.length : 0
-                    const todayCosts = costs.filter(c => 
-                      new Date(c.timestamp).toDateString() === new Date().toDateString()
-                    )
+                    const todayCosts = costs.filter(c => {
+                      const costDate = safeCreateDate(c.timestamp)
+                      return costDate && costDate.toDateString() === new Date().toDateString()
+                    })
                     const todayTotal = todayCosts.reduce((sum, cost) => sum + cost.totalCost, 0)
                     
                     return (
@@ -390,19 +401,24 @@ const AnalysisPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-6">
             {(() => {
               // Sort costs by date
-              const sortedCosts = [...costs].sort((a, b) => 
-                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-              )
+              const sortedCosts = [...costs]
+                .filter(cost => safeCreateDate(cost.timestamp)) // Filter out invalid timestamps
+                .sort((a, b) => {
+                  const dateA = safeCreateDate(a.timestamp)
+                  const dateB = safeCreateDate(b.timestamp)
+                  return (dateA?.getTime() || 0) - (dateB?.getTime() || 0)
+                })
               
               // Calculate cumulative costs
               let cumulative = 0
               const cumulativeData = sortedCosts.map(cost => {
                 cumulative += cost.totalCost
+                const costDate = safeCreateDate(cost.timestamp)
                 return {
-                  date: new Date(cost.timestamp).toLocaleDateString('ja-JP', { 
+                  date: costDate ? costDate.toLocaleDateString('ja-JP', { 
                     month: 'short', 
                     day: 'numeric' 
-                  }),
+                  }) : 'Invalid Date',
                   value: Math.round(cumulative * 10000) / 10000
                 }
               })
@@ -452,9 +468,10 @@ const AnalysisPage: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">今週の処理:</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {history.filter(h => 
-                        new Date(h.timestamp) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                      ).length}本
+                      {history.filter(h => {
+                        const historyDate = safeCreateDate(h.timestamp)
+                        return historyDate && historyDate > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                      }).length}本
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -706,15 +723,22 @@ const AnalysisPage: React.FC = () => {
           {history && history.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               {(() => {
-                // Sort history by timestamp first (oldest to newest)
-                const sortedHistory = [...history].sort((a, b) => 
-                  new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-                )
+                // Sort history by timestamp first (oldest to newest), filtering out invalid timestamps
+                const sortedHistory = [...history]
+                  .filter(item => safeCreateDate(item.timestamp)) // Filter out invalid timestamps
+                  .sort((a, b) => {
+                    const dateA = safeCreateDate(a.timestamp)
+                    const dateB = safeCreateDate(b.timestamp)
+                    return (dateA?.getTime() || 0) - (dateB?.getTime() || 0)
+                  })
 
                 // Group by date
                 const dailyData = sortedHistory.reduce((acc: any, item) => {
-                  const date = new Date(item.timestamp).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
-                  acc[date] = (acc[date] || 0) + 1
+                  const itemDate = safeCreateDate(item.timestamp)
+                  if (itemDate) {
+                    const date = itemDate.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
+                    acc[date] = (acc[date] || 0) + 1
+                  }
                   return acc
                 }, {})
 
@@ -755,8 +779,8 @@ const AnalysisPage: React.FC = () => {
                   const weekLabel = `${(weekStart.getMonth() + 1)}/${weekStart.getDate()}`
                   
                   const count = history.filter(h => {
-                    const timestamp = new Date(h.timestamp)
-                    return timestamp >= weekStart && timestamp < weekEnd
+                    const timestamp = safeCreateDate(h.timestamp)
+                    return timestamp && timestamp >= weekStart && timestamp < weekEnd
                   }).length
                   
                   weeklyData.push({
