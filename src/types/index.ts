@@ -444,6 +444,7 @@ export interface PDFAnalysisResponse extends ApiResponse {
 export interface SessionCosts {
   whisper: number;
   gpt: number;
+  pdf: number;  // Added for PDF processing costs
   total: number;
 }
 
@@ -488,16 +489,17 @@ export interface HistoryEntry {
 // Cost entry for tracking individual costs
 export interface CostEntry {
   date: string;
-  service?: 'whisper' | 'gpt' | 'total';
+  service?: 'whisper' | 'gpt' | 'pdf' | 'total';
   cost?: number;
   // Additional fields used in server
   videoId?: string;
   title?: string;
-  method?: 'subtitle' | 'whisper';
+  method?: 'subtitle' | 'whisper' | 'pdf';
   language?: string;
   gptModel?: string;
   whisperCost?: number;
   gptCost?: number;
+  pdfCost?: number;  // Added for PDF processing costs
   totalCost?: number;
   timestamp?: string;
 }

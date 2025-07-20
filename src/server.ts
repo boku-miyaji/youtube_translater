@@ -174,6 +174,7 @@ let currentArticle: string | null = null;
 let sessionCosts: SessionCosts = {
   whisper: 0,
   gpt: 0,
+  pdf: 0,
   total: 0
 };
 
@@ -904,12 +905,13 @@ function saveCosts(costs: CostEntry[]): void {
 function addCostEntry(
   videoId: string,
   title: string,
-  method: 'subtitle' | 'whisper',
+  method: 'subtitle' | 'whisper' | 'pdf',
   language: string,
   gptModel: string,
   whisperCost: number,
   gptCost: number,
-  totalCost: number
+  totalCost: number,
+  pdfCost: number = 0
 ): CostEntry {
   const costs = loadCosts();
   const entry: CostEntry = {
@@ -920,6 +922,7 @@ function addCostEntry(
     gptModel,
     whisperCost,
     gptCost,
+    pdfCost,
     totalCost,
     timestamp: new Date().toISOString(),
     date: new Date().toISOString().split('T')[0] // YYYY-MM-DD format
@@ -2774,19 +2777,21 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       }
     }
 
-    // 4. Track costs
+    // 4. Track costs (PDF parsing is free, only summary cost)
     sessionCosts.gpt += summaryCost;
+    sessionCosts.pdf += 0; // PDF parsing is currently free
     sessionCosts.total += summaryCost;
 
     // Save to costs history
     const costEntry: CostEntry = {
       videoId: fileId,
       title: pdfMetadata?.title || fileName,
-      method: 'subtitle', // No transcription for PDF
+      method: 'pdf', // PDF processing method
       language,
       gptModel,
       whisperCost: 0,
       gptCost: summaryCost,
+      pdfCost: 0, // PDF parsing is currently free (no cost for PDF extraction)
       totalCost: summaryCost,
       timestamp: new Date().toISOString(),
       date: new Date().toISOString()
@@ -4011,6 +4016,7 @@ app.post('/reset-session-costs', (_req: Request, res: Response) => {
   sessionCosts = {
     whisper: 0,
     gpt: 0,
+    pdf: 0,
     total: 0
   };
   console.log('Session costs reset');
@@ -4187,6 +4193,7 @@ app.listen(PORT, () => {
   sessionCosts = {
     whisper: 0,
     gpt: 0,
+    pdf: 0,
     total: 0
   };
   console.log('Session costs initialized to zero');

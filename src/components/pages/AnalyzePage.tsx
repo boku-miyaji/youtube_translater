@@ -882,6 +882,23 @@ const AnalyzePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model, transcriptionModel]) // Depend on both model changes to avoid infinite loops
 
+  // Helper function to safely format date
+  const formatSafeDate = (timestamp: string | undefined | null, fallback: string = '不明'): string => {
+    try {
+      if (!timestamp) return fallback
+      const date = new Date(timestamp)
+      if (isNaN(date.getTime())) return fallback
+      return date.toLocaleString('ja-JP', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return fallback
+    }
+  }
+
   // Debug current video data
   useEffect(() => {
     console.log('🎬 UploadPage: VIDEO DATA CHANGED EVENT')
@@ -1556,7 +1573,7 @@ const AnalyzePage: React.FC = () => {
 
                 {currentVideo.basic?.uploadDate && (
                   <p className="text-xs text-gray-500">
-                    Uploaded: {new Date(currentVideo.basic.uploadDate).toLocaleDateString()}
+                    Uploaded: {formatSafeDate(currentVideo.basic.uploadDate, 'Unknown Date')}
                   </p>
                 )}
 
@@ -1725,23 +1742,13 @@ const AnalyzePage: React.FC = () => {
                             <div className="flex justify-between items-center">
                               <span className="text-gray-800 font-medium">開始:</span>
                               <span className="font-semibold text-black">
-                                {new Date(currentVideo.analysisTime.startTime).toLocaleString('ja-JP', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {formatSafeDate(currentVideo.analysisTime.startTime)}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-gray-800 font-medium">終了:</span>
                               <span className="font-semibold text-black">
-                                {new Date(currentVideo.analysisTime.endTime).toLocaleString('ja-JP', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {formatSafeDate(currentVideo.analysisTime.endTime)}
                               </span>
                             </div>
                             <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
