@@ -817,13 +817,9 @@ const AnalyzePage: React.FC = () => {
     const contentType = currentVideo?.analysisType || 'youtube';
     switch (contentType) {
       case 'pdf':
-        // For PDFs, try extraction time first, then fall back to duration or total
-        if (currentVideo.analysisTime.extraction && currentVideo.analysisTime.extraction > 0) {
-          return Math.round(currentVideo.analysisTime.extraction);
-        } else if (currentVideo.analysisTime.duration && currentVideo.analysisTime.duration > 0) {
+        // For PDFs, use duration field directly (no extraction field exists in PDFs)
+        if (currentVideo.analysisTime.duration && currentVideo.analysisTime.duration > 0) {
           return Math.round(currentVideo.analysisTime.duration);
-        } else if (currentVideo.analysisTime.total && currentVideo.analysisTime.total > 0) {
-          return Math.round(currentVideo.analysisTime.total);
         }
         return null;
       case 'audio':
