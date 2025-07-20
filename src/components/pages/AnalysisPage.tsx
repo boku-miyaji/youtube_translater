@@ -44,8 +44,11 @@ const AnalysisPage: React.FC = () => {
 
   // Helper function to determine content type from history entry
   const getContentType = (historyEntry: any): 'youtube' | 'audio' | 'pdf' => {
-    // Check if it's PDF based on analysisTime structure (has extraction field)
-    if (historyEntry.analysisTime?.extraction !== undefined) {
+    // Check if it's PDF based on multiple criteria
+    if (historyEntry.analysisTime?.extraction !== undefined || 
+        (historyEntry.url && /\.pdf$/i.test(historyEntry.url)) ||
+        (historyEntry.originalFilename && /\.pdf$/i.test(historyEntry.originalFilename)) ||
+        historyEntry.analysisType === 'pdf') {
       return 'pdf'
     }
     // Check if it's audio based on file extension or metadata
@@ -79,27 +82,32 @@ const AnalysisPage: React.FC = () => {
     
     switch (contentType) {
       case 'pdf':
-        return historyEntry.analysisTime.extraction || null
+        return historyEntry.analysisTime?.extraction || null
       case 'audio':
       case 'youtube':
       default:
-        return historyEntry.analysisTime.transcription || null
+        return historyEntry.analysisTime?.transcription || null
     }
   }
 
   // Helper function to normalize processing time based on content type
   const normalizeProcessingTime = (processingTime: number, historyEntry: any, contentType: 'youtube' | 'audio' | 'pdf'): number => {
+    // Validate processing time
+    if (!processingTime || isNaN(processingTime) || processingTime <= 0) {
+      return 0
+    }
+    
     switch (contentType) {
       case 'pdf':
         // For PDF, normalize by page count if available, otherwise return absolute time
         const pageCount = historyEntry.metadata?.pdfMetadata?.pageCount || historyEntry.pdfMetadata?.pageCount
-        return pageCount ? processingTime / pageCount : processingTime
+        return pageCount && pageCount > 0 ? processingTime / pageCount : processingTime
       case 'audio':
       case 'youtube':
       default:
         // For audio/video, normalize by duration in minutes
         const duration = historyEntry.metadata?.basic?.duration
-        return duration ? processingTime / (duration / 60) : processingTime
+        return duration && duration > 0 ? processingTime / (duration / 60) : processingTime
     }
   }
 
@@ -541,13 +549,18 @@ const AnalysisPage: React.FC = () => {
 
                     // Calculate processing time statistics with appropriate normalization
                     const processingTimeData = filteredHistory
-                      .filter(h => h.analysisTime?.duration || h.analysisTime?.total)
+                      .filter(h => {
+                        // Ensure analysisTime exists and has valid data
+                        if (!h.analysisTime) return false
+                        const time = h.analysisTime.duration || h.analysisTime.total
+                        return time && !isNaN(time) && time > 0
+                      })
                       .map(h => {
                         const contentType = getContentType(h)
-                        const processingTime = h.analysisTime!.duration || h.analysisTime!.total
+                        const processingTime = h.analysisTime.duration || h.analysisTime.total || 0
                         return normalizeProcessingTime(processingTime, h, contentType)
                       })
-                      .filter(time => time > 0)
+                      .filter(time => time > 0 && !isNaN(time) && isFinite(time))
                     
                     const avgTimePerUnit = processingTimeData.length > 0 ? 
                       processingTimeData.reduce((a, b) => a + b, 0) / processingTimeData.length : 0
@@ -686,13 +699,18 @@ const AnalysisPage: React.FC = () => {
               {(() => {
                 const filteredHistory = getFilteredHistory()
                 const normalizedProcessingTimes = filteredHistory
-                  .filter(h => h.analysisTime?.duration || h.analysisTime?.total)
+                  .filter(h => {
+                    // Ensure analysisTime exists and has valid data
+                    if (!h.analysisTime) return false
+                    const time = h.analysisTime.duration || h.analysisTime.total
+                    return time && !isNaN(time) && time > 0
+                  })
                   .map(h => {
                     const contentType = getContentType(h)
-                    const processingTime = h.analysisTime!.duration || h.analysisTime!.total
+                    const processingTime = h.analysisTime.duration || h.analysisTime.total || 0
                     return normalizeProcessingTime(processingTime, h, contentType)
                   })
-                  .filter(time => time > 0)
+                  .filter(time => time > 0 && !isNaN(time) && isFinite(time))
                 
                 const unit = selectedContentType === 'all' ? 'ユニット' : 
                            getNormalizationUnit(selectedContentType as any).replace('の処理時間', '')
