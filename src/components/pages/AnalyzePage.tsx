@@ -663,8 +663,16 @@ const AnalyzePage: React.FC = () => {
                   </div>
                   <div className="border-t border-green-200 mt-1 pt-1"></div>
                   <div className="flex justify-between">
-                    <span>文字起こし費用:</span>
-                    <span className="font-mono">${costs.transcription.toFixed(4)}</span>
+                    <span>
+                      {(inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 
+                        'PDF解析費用:' : '文字起こし費用:'
+                      }
+                    </span>
+                    <span className="font-mono">
+                      {(inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 
+                        '無料' : `$${costs.transcription.toFixed(4)}`
+                      }
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>要約生成費用:</span>
@@ -793,7 +801,7 @@ const AnalyzePage: React.FC = () => {
     const contentType = currentVideo?.analysisType || 'youtube';
     switch (contentType) {
       case 'pdf':
-        return 'PDF解析';
+        return 'PDF Parser';
       case 'audio':
         return 'Whisper AI';
       case 'youtube':
@@ -809,7 +817,15 @@ const AnalyzePage: React.FC = () => {
     const contentType = currentVideo?.analysisType || 'youtube';
     switch (contentType) {
       case 'pdf':
-        return currentVideo.analysisTime.extraction ? Math.round(currentVideo.analysisTime.extraction) : null;
+        // For PDFs, try extraction time first, then fall back to duration or total
+        if (currentVideo.analysisTime.extraction && currentVideo.analysisTime.extraction > 0) {
+          return Math.round(currentVideo.analysisTime.extraction);
+        } else if (currentVideo.analysisTime.duration && currentVideo.analysisTime.duration > 0) {
+          return Math.round(currentVideo.analysisTime.duration);
+        } else if (currentVideo.analysisTime.total && currentVideo.analysisTime.total > 0) {
+          return Math.round(currentVideo.analysisTime.total);
+        }
+        return null;
       case 'audio':
       case 'youtube':
       default:
@@ -1668,20 +1684,29 @@ const AnalyzePage: React.FC = () => {
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">コスト:</span>
                                     <span className="font-semibold text-black">
-                                      {currentVideo.costs.transcription > 0 ? 
-                                        `$${currentVideo.costs.transcription.toFixed(4)}` : 
-                                        '無料'
+                                      {(() => {
+                                        const contentType = currentVideo?.analysisType || 'youtube';
+                                        if (contentType === 'pdf') {
+                                          // For PDFs, show PDF parsing cost (which is currently free)
+                                          return 'PDF解析: 無料';
+                                        } else {
+                                          // For audio/video, show transcription cost
+                                          return currentVideo.costs.transcription > 0 ? 
+                                            `$${currentVideo.costs.transcription.toFixed(4)}` : 
+                                            '無料';
+                                        }
+                                      })()}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">処理時間:</span>
+                                    <span className="text-gray-800">
+                                      {getFirstStageProcessingTime() ? 
+                                        `${getFirstStageProcessingTime()}秒` : 
+                                        '計測中...'
                                       }
                                     </span>
                                   </div>
-                                  {getFirstStageProcessingTime() && (
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">処理時間:</span>
-                                      <span className="text-gray-800">
-                                        {getFirstStageProcessingTime()}秒
-                                      </span>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                               
