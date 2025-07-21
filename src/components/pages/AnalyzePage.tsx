@@ -798,15 +798,13 @@ const AnalyzePage: React.FC = () => {
 
   // Get first stage method based on content type
   const getFirstStageMethod = () => {
-    const contentType = currentVideo?.analysisType || 'youtube';
-    switch (contentType) {
-      case 'pdf':
-        return 'PDF Parser';
-      case 'audio':
-        return 'Whisper AI';
-      case 'youtube':
-      default:
-        return currentVideo?.transcriptSource === 'subtitle' ? 'YouTube字幕' : 'Whisper AI';
+    if (isPdfContent(currentVideo)) {
+      return 'PDF Parser';
+    } else if (currentVideo?.analysisType === 'audio') {
+      return 'Whisper AI';
+    } else {
+      // YouTube or other video content
+      return currentVideo?.transcriptSource === 'subtitle' ? 'YouTube字幕' : 'Whisper AI';
     }
   }
 
@@ -814,18 +812,15 @@ const AnalyzePage: React.FC = () => {
   const getFirstStageProcessingTime = () => {
     if (!currentVideo?.analysisTime) return null;
     
-    const contentType = currentVideo?.analysisType || 'youtube';
-    switch (contentType) {
-      case 'pdf':
-        // For PDFs, use duration field directly (no extraction field exists in PDFs)
-        if (currentVideo.analysisTime.duration && currentVideo.analysisTime.duration > 0) {
-          return Math.round(currentVideo.analysisTime.duration);
-        }
-        return null;
-      case 'audio':
-      case 'youtube':
-      default:
-        return currentVideo.analysisTime.transcription ? Math.round(currentVideo.analysisTime.transcription) : null;
+    if (isPdfContent(currentVideo)) {
+      // For PDFs, use duration field directly
+      if (currentVideo.analysisTime.duration && currentVideo.analysisTime.duration > 0) {
+        return Math.round(currentVideo.analysisTime.duration);
+      }
+      return null;
+    } else {
+      // For audio/video content
+      return currentVideo.analysisTime.transcription ? Math.round(currentVideo.analysisTime.transcription) : null;
     }
   }
 
@@ -909,6 +904,33 @@ const AnalyzePage: React.FC = () => {
     } catch {
       return fallback
     }
+  }
+
+  // Helper function to safely format duration
+  const formatSafeDuration = (duration: number | undefined | null): string => {
+    if (!duration || isNaN(duration) || duration <= 0) {
+      return '計測中...';
+    }
+    
+    const safeDuration = Math.round(duration);
+    if (safeDuration < 60) {
+      return `${safeDuration}秒`;
+    } else {
+      const minutes = Math.floor(safeDuration / 60);
+      const seconds = safeDuration % 60;
+      return `${minutes}分${seconds}秒`;
+    }
+  }
+
+  // Helper function to detect if video is PDF based on URL and method
+  const isPdfContent = (video: any): boolean => {
+    if (video?.url && video.url.includes('.pdf')) {
+      return true;
+    }
+    if (video?.method === 'subtitle' && !video?.url?.includes('youtube.com') && !video?.url?.includes('youtu.be')) {
+      return true;
+    }
+    return video?.analysisType === 'pdf';
   }
 
   // Debug current video data
@@ -1681,8 +1703,7 @@ const AnalyzePage: React.FC = () => {
                                     <span className="text-gray-600">コスト:</span>
                                     <span className="font-semibold text-black">
                                       {(() => {
-                                        const contentType = currentVideo?.analysisType || 'youtube';
-                                        if (contentType === 'pdf') {
+                                        if (isPdfContent(currentVideo)) {
                                           // For PDFs, show PDF parsing cost (which is currently free)
                                           return 'PDF解析: 無料';
                                         } else {
@@ -1775,10 +1796,7 @@ const AnalyzePage: React.FC = () => {
                             <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
                               <span className="text-black font-semibold">所要時間:</span>
                               <span className="font-bold text-black text-base">
-                                {currentVideo.analysisTime.duration < 60 ? 
-                                  `${currentVideo.analysisTime.duration}秒` : 
-                                  `${Math.floor(currentVideo.analysisTime.duration / 60)}分${currentVideo.analysisTime.duration % 60}秒`
-                                }
+                                {formatSafeDuration(currentVideo.analysisTime.duration)}
                               </span>
                             </div>
                           </div>
