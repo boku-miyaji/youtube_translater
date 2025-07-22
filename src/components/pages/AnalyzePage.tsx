@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 import TranscriptViewer from '../shared/TranscriptViewer'
+import PDFViewer from '../shared/PDFViewer'
 import ChatInterface from '../shared/ChatInterface'
 import VideoFileUpload from '../shared/VideoFileUpload'
 import AnalysisProgress from '../shared/AnalysisProgress'
@@ -552,7 +553,9 @@ const AnalyzePage: React.FC = () => {
           // Set videoPath for uploaded files
           videoPath: (inputType === InputType.VIDEO_FILE || data.source === 'file') ? (data.metadata?.basic?.videoPath || data.videoPath) : undefined,
           // Set audioPath for audio files
-          audioPath: (inputType === InputType.AUDIO_FILE) ? (data.metadata?.basic?.audioPath || data.audioPath) : undefined
+          audioPath: (inputType === InputType.AUDIO_FILE) ? (data.metadata?.basic?.audioPath || data.audioPath) : undefined,
+          // Set pdfUrl for PDF files from URL input
+          pdfUrl: (inputType === InputType.PDF_URL) ? input : undefined
         },
         chapters: data.metadata?.chapters || [],
         captions: data.metadata?.captions || [],
@@ -1749,6 +1752,14 @@ const AnalyzePage: React.FC = () => {
                   >
                     Your browser does not support the video tag.
                   </video>
+                )}
+                {currentVideo.basic?.pdfUrl && !currentVideo.basic?.videoId && !currentVideo.basic?.videoPath && (
+                  <iframe
+                    src={currentVideo.basic.pdfUrl}
+                    title={currentVideo.basic.title || 'PDF Document'}
+                    className="w-full h-full"
+                    allowFullScreen
+                  />
                 )}
               </div>
               

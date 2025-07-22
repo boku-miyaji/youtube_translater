@@ -39,6 +39,7 @@ export interface VideoMetadata {
     category?: string;
     description?: string;
     videoPath?: string;  // Path to local video file
+    pdfUrl?: string;     // URL to PDF for embedding
     thumbnail?: string;  // YouTube thumbnail URL
   };
   chapters?: Array<{ title: string; start: number }>;
