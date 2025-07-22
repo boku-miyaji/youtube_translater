@@ -2051,9 +2051,35 @@ const AnalyzePage: React.FC = () => {
                               <span className="text-black font-semibold">所要時間:</span>
                               <span className="font-bold text-black text-base">
                                 {(() => {
-                                  const duration = currentVideo.analysisTime.duration;
-                                  console.log('⏱️ Analysis duration from currentVideo:', duration);
-                                  return formatSafeDuration(duration);
+                                  console.log('⏱️ === TOTAL DURATION CALCULATION DEBUG ===');
+                                  console.log('⏱️ Full analysisTime object:', currentVideo.analysisTime);
+                                  
+                                  let totalDuration = currentVideo.analysisTime.duration;
+                                  
+                                  // For PDF analysis, calculate extraction + summary
+                                  if (isPdfContent(currentVideo)) {
+                                    const extraction = currentVideo.analysisTime.extraction;
+                                    const summary = currentVideo.analysisTime.summary;
+                                    
+                                    console.log('⏱️ PDF extraction time:', extraction);
+                                    console.log('⏱️ PDF summary time:', summary);
+                                    
+                                    if (extraction && typeof extraction === 'number' && extraction > 0 &&
+                                        summary && typeof summary === 'number' && summary > 0) {
+                                      totalDuration = extraction + summary;
+                                      console.log(`⏱️ PDF calculated total: ${extraction} + ${summary} = ${totalDuration}`);
+                                    } else if (extraction && typeof extraction === 'number' && extraction > 0) {
+                                      totalDuration = extraction;
+                                      console.log(`⏱️ PDF using extraction only: ${totalDuration}`);
+                                    } else {
+                                      console.log('⏱️ PDF falling back to duration field:', totalDuration);
+                                    }
+                                  }
+                                  
+                                  console.log('⏱️ Final total duration:', totalDuration);
+                                  console.log('⏱️ ==========================================');
+                                  
+                                  return formatSafeDuration(totalDuration);
                                 })()}
                               </span>
                             </div>

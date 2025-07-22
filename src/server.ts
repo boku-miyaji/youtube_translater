@@ -2816,6 +2816,10 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     const summaryDuration = summaryStartTime && summaryEndTime 
       ? Math.round((summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000)
       : 0;
+    
+    // Calculate actual processing time as extraction + summary
+    const actualProcessingTime = extractionDuration + summaryDuration;
+    console.log(`📊 PDF timing calculation: extraction=${extractionDuration}s + summary=${summaryDuration}s = total=${actualProcessingTime}s (wall clock=${totalAnalysisTime}s)`);
 
     // 6. Prepare response
     const response: PDFAnalysisResponse = {
@@ -2841,7 +2845,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         duration: totalAnalysisTime,
         extraction: extractionDuration,
         summary: summaryDuration,
-        total: totalAnalysisTime
+        total: actualProcessingTime
       },
       message: 'PDF analyzed successfully'
     };
@@ -2874,7 +2878,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         duration: totalAnalysisTime,
         extraction: extractionDuration,
         summary: summaryDuration,
-        total: totalAnalysisTime
+        total: actualProcessingTime
       }
     );
 
