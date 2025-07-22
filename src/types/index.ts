@@ -433,6 +433,9 @@ export interface PDFAnalysisResponse extends ApiResponse {
   pdfContent?: PDFContent;
   pdfMetadata?: PDFMetadata;
   analysisTime?: {
+    startTime?: string;
+    endTime?: string;
+    duration?: number;
     extraction?: number;
     transcription?: number;
     summary: number;

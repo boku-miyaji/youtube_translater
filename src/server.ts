@@ -954,7 +954,15 @@ function addToHistory(
   tags: string[] = [],
   mainTags: string[] = [],
   article: string | null = null,
-  analysisTime: { startTime: string; endTime: string; duration: number } | null = null
+  analysisTime: { 
+    startTime: string; 
+    endTime: string; 
+    duration: number;
+    transcription?: number;
+    extraction?: number;
+    summary?: number;
+    total?: number;
+  } | null = null
 ): HistoryEntry {
   const history = loadHistory();
   const entry: HistoryEntry = {
@@ -2828,6 +2836,9 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         total: summaryCost
       },
       analysisTime: {
+        startTime: analysisStartTime.toISOString(),
+        endTime: analysisEndTime.toISOString(),
+        duration: totalAnalysisTime,
         extraction: extractionDuration,
         summary: summaryDuration,
         total: totalAnalysisTime
@@ -2860,7 +2871,10 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       {  // analysisTime
         startTime: analysisStartTime.toISOString(),
         endTime: analysisEndTime.toISOString(),
-        duration: totalAnalysisTime
+        duration: totalAnalysisTime,
+        extraction: extractionDuration,
+        summary: summaryDuration,
+        total: totalAnalysisTime
       }
     );
 

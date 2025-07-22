@@ -813,9 +813,9 @@ const AnalyzePage: React.FC = () => {
     if (!currentVideo?.analysisTime) return null;
     
     if (isPdfContent(currentVideo)) {
-      // For PDFs, use duration field directly
-      if (currentVideo.analysisTime.duration && currentVideo.analysisTime.duration > 0) {
-        return Math.round(currentVideo.analysisTime.duration);
+      // For PDFs, use extraction time (PDF parsing time)
+      if (currentVideo.analysisTime.extraction && currentVideo.analysisTime.extraction > 0) {
+        return Math.round(currentVideo.analysisTime.extraction);
       }
       return null;
     } else {
@@ -908,11 +908,17 @@ const AnalyzePage: React.FC = () => {
 
   // Helper function to safely format duration
   const formatSafeDuration = (duration: number | undefined | null): string => {
-    if (!duration || isNaN(duration) || duration <= 0) {
+    // For PDFs, try to get duration from analysisTime.total if duration is not available
+    let effectiveDuration = duration;
+    if ((!duration || isNaN(duration) || duration <= 0) && isPdfContent(currentVideo) && currentVideo?.analysisTime?.total) {
+      effectiveDuration = currentVideo.analysisTime.total;
+    }
+    
+    if (!effectiveDuration || isNaN(effectiveDuration) || effectiveDuration <= 0) {
       return '計測中...';
     }
     
-    const safeDuration = Math.round(duration);
+    const safeDuration = Math.round(effectiveDuration);
     if (safeDuration < 60) {
       return `${safeDuration}秒`;
     } else {
