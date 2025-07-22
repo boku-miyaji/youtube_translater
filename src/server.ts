@@ -2817,9 +2817,18 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       ? Math.round((summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000)
       : 0;
     
+    // Validate timing values to ensure they are reasonable
+    const validatedExtractionDuration = Math.max(0, extractionDuration || 0);
+    const validatedSummaryDuration = Math.max(0, summaryDuration || 0);
+    
     // Calculate actual processing time as extraction + summary
-    const actualProcessingTime = extractionDuration + summaryDuration;
-    console.log(`📊 PDF timing calculation: extraction=${extractionDuration}s + summary=${summaryDuration}s = total=${actualProcessingTime}s (wall clock=${totalAnalysisTime}s)`);
+    const actualProcessingTime = validatedExtractionDuration + validatedSummaryDuration;
+    
+    console.log(`📊 PDF timing calculation (validated):`);
+    console.log(`   📄 Extraction: ${extractionDuration}s → ${validatedExtractionDuration}s`);
+    console.log(`   📝 Summary: ${summaryDuration}s → ${validatedSummaryDuration}s`); 
+    console.log(`   ⏱️ Total processing: ${actualProcessingTime}s`);
+    console.log(`   🕒 Wall clock: ${totalAnalysisTime}s`);
 
     // 6. Prepare response (limit content size to prevent network errors)
     let limitedPdfContent = undefined;
@@ -2862,8 +2871,8 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         startTime: analysisStartTime.toISOString(),
         endTime: analysisEndTime.toISOString(),
         duration: totalAnalysisTime,
-        extraction: extractionDuration,
-        summary: summaryDuration,
+        extraction: validatedExtractionDuration,
+        summary: validatedSummaryDuration,
         total: actualProcessingTime
       },
       message: 'PDF analyzed successfully'
@@ -2895,8 +2904,8 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         startTime: analysisStartTime.toISOString(),
         endTime: analysisEndTime.toISOString(),
         duration: totalAnalysisTime,
-        extraction: extractionDuration,
-        summary: summaryDuration,
+        extraction: validatedExtractionDuration,
+        summary: validatedSummaryDuration,
         total: actualProcessingTime
       }
     );

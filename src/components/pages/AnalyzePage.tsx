@@ -1139,19 +1139,10 @@ const AnalyzePage: React.FC = () => {
         return Math.round(analysisTime.transcription);
       }
       
-      // Priority 3: duration field (general duration)
-      if (analysisTime.duration && typeof analysisTime.duration === 'number' && analysisTime.duration > 0) {
-        console.log(`✅ PDF using duration time: ${analysisTime.duration}`);
-        return Math.round(analysisTime.duration);
-      }
-      
-      // Priority 4: total field (total processing time)
-      if (analysisTime.total && typeof analysisTime.total === 'number' && analysisTime.total > 0) {
-        console.log(`✅ PDF using total time: ${analysisTime.total}`);
-        return Math.round(analysisTime.total);
-      }
-      
-      console.log('❌ PDF: No valid timing data found in any field');
+      // For PDF, do NOT fall back to duration field as it represents wall clock time, not extraction time
+      // If extraction timing is not available, return null rather than misleading data
+      console.log('❌ PDF: No valid extraction timing data found. Available fields:', Object.keys(analysisTime));
+      console.log('❌ PDF: extraction =', analysisTime.extraction, ', transcription =', analysisTime.transcription);
       return null;
     } else {
       // For audio/video content
@@ -2352,21 +2343,18 @@ const AnalyzePage: React.FC = () => {
                                       totalDuration = serverTotal;
                                       console.log(`⏱️ PDF using server total: ${totalDuration}`);
                                     }
-                                    // Fallback: calculate extraction + summary
+                                    // Fallback: calculate extraction + summary if both are available
                                     else if (extraction && typeof extraction === 'number' && extraction > 0 &&
                                         summary && typeof summary === 'number' && summary > 0) {
                                       totalDuration = extraction + summary;
                                       console.log(`⏱️ PDF calculated total: ${extraction} + ${summary} = ${totalDuration}`);
                                     }
-                                    // Fallback: use extraction only
-                                    else if (extraction && typeof extraction === 'number' && extraction > 0) {
-                                      totalDuration = extraction;
-                                      console.log(`⏱️ PDF using extraction only: ${totalDuration}`);
-                                    }
-                                    // Final fallback: use duration field (wall clock time)
+                                    // If timing data is incomplete, don't show misleading total time
                                     else {
-                                      totalDuration = currentVideo.analysisTime.duration;
-                                      console.log('⏱️ PDF falling back to duration field:', totalDuration);
+                                      console.log('❌ PDF: Incomplete timing data - cannot calculate accurate total');
+                                      console.log('❌ PDF: serverTotal:', serverTotal, ', extraction:', extraction, ', summary:', summary);
+                                      // Show "計測中..." (measuring...) or similar instead of misleading data
+                                      totalDuration = null;
                                     }
                                   } else {
                                     // For non-PDF content, use duration field as before
