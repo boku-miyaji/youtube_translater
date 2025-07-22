@@ -2068,6 +2068,8 @@ const AnalyzePage: React.FC = () => {
                                 {(() => {
                                   console.log('⏱️ === TOTAL DURATION CALCULATION DEBUG ===');
                                   console.log('⏱️ Full analysisTime object:', currentVideo.analysisTime);
+                                  console.log('⏱️ analysisTime keys:', Object.keys(currentVideo.analysisTime || {}));
+                                  console.log('⏱️ isPdfContent result:', isPdfContent(currentVideo));
                                   
                                   let totalDuration;
                                   
@@ -2076,10 +2078,12 @@ const AnalyzePage: React.FC = () => {
                                     const serverTotal = currentVideo.analysisTime.total;
                                     const extraction = currentVideo.analysisTime.extraction;
                                     const summary = currentVideo.analysisTime.summary;
+                                    const duration = currentVideo.analysisTime.duration;
                                     
-                                    console.log('⏱️ PDF server total field:', serverTotal);
-                                    console.log('⏱️ PDF extraction time:', extraction);
-                                    console.log('⏱️ PDF summary time:', summary);
+                                    console.log('⏱️ PDF server total field:', serverTotal, 'type:', typeof serverTotal);
+                                    console.log('⏱️ PDF extraction time:', extraction, 'type:', typeof extraction);
+                                    console.log('⏱️ PDF summary time:', summary, 'type:', typeof summary);
+                                    console.log('⏱️ PDF duration field:', duration, 'type:', typeof duration);
                                     
                                     // First priority: use server-calculated total
                                     if (serverTotal && typeof serverTotal === 'number' && serverTotal > 0) {

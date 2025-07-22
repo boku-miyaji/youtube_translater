@@ -466,6 +466,7 @@ export interface HistoryEntry {
   costs?: DetailedCosts;
   analysisTime?: {
     transcription?: number;
+    extraction?: number;  // Added for PDF processing
     summary?: number;
     total?: number;
     startTime?: string;
