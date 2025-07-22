@@ -6,7 +6,7 @@ type: 'Feature'
 state: Dev
 design: tasks/design/20_Feature.md
 createdAt: '2025-07-15T04:21:24Z'
-updatedAt: '2025-07-22T09:33:30Z'
+updatedAt: '2025-07-22T09:45:00Z'
 implementation:
   branch: feature/implement-20
   commits:
@@ -45,3 +45,4 @@ implementation:
     - 'f08f503: fix: Resolve PDF analysis display issues with comprehensive fixes'
     - '04ab889: fix: Implement robust PDF analysis timing display with comprehensive fallbacks'
     - '260529b: fix: Definitively resolve PDF analysis start/end time display issues'
+    - '26d83d2: fix: Correct PDF analysis total time calculation to sum extraction + summary'
