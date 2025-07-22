@@ -555,7 +555,7 @@ const AnalyzePage: React.FC = () => {
           // Set audioPath for audio files
           audioPath: (inputType === InputType.AUDIO_FILE) ? (data.metadata?.basic?.audioPath || data.audioPath) : undefined,
           // Set pdfUrl for PDF files from URL input
-          pdfUrl: (inputType === InputType.PDF_URL) ? input : undefined
+          pdfUrl: (inputType === InputType.PDF_URL) ? url.trim() : undefined
         },
         chapters: data.metadata?.chapters || [],
         captions: data.metadata?.captions || [],
