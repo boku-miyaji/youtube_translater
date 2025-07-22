@@ -520,6 +520,7 @@ const AnalyzePage: React.FC = () => {
       
       console.log('🕒 AnalyzePage: Server response analysis time:', data.analysisTime)
       console.log('🕒 AnalyzePage: Metadata analysis time:', data.metadata?.analysisTime)
+      console.log('🕒 AnalyzePage: Full server response:', data)
       
       // Convert server response to VideoMetadata format
       const videoMetadata = {
@@ -572,6 +573,19 @@ const AnalyzePage: React.FC = () => {
       console.log('🕒 AnalyzePage: Final videoMetadata analysisType:', videoMetadata.analysisType)
       console.log('🕒 AnalyzePage: Final videoMetadata source:', videoMetadata.source)
       console.log('🕒 AnalyzePage: inputType:', inputType)
+      
+      // Special debugging for PDF analysis
+      if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+        console.log('📄 ===== PDF ANALYSIS DEBUG =====');
+        console.log('📄 Server analysisTime:', data.analysisTime);
+        console.log('📄 VideoMetadata analysisTime:', videoMetadata.analysisTime);
+        console.log('📄 Extract startTime:', videoMetadata.analysisTime?.startTime);
+        console.log('📄 Extract endTime:', videoMetadata.analysisTime?.endTime);
+        console.log('📄 Extract duration:', videoMetadata.analysisTime?.duration);
+        console.log('📄 Extract extraction:', videoMetadata.analysisTime?.extraction);
+        console.log('📄 Extract total:', videoMetadata.analysisTime?.total);
+        console.log('📄 ===============================');
+      }
       
       setCurrentVideo(videoMetadata)
       // Auto-collapse form after successful analysis
@@ -815,29 +829,44 @@ const AnalyzePage: React.FC = () => {
 
   // Get first stage processing time based on content type
   const getFirstStageProcessingTime = () => {
-    console.log('🔍 getFirstStageProcessingTime called');
-    console.log('  - currentVideo exists:', !!currentVideo);
-    console.log('  - analysisTime exists:', !!currentVideo?.analysisTime);
-    console.log('  - analysisTime structure:', currentVideo?.analysisTime);
-    console.log('  - isPdfContent result:', isPdfContent(currentVideo));
+    if (!currentVideo?.analysisTime) {
+      console.log('❌ getFirstStageProcessingTime: No analysisTime data');
+      return null;
+    }
     
-    if (!currentVideo?.analysisTime) return null;
+    const isPdf = isPdfContent(currentVideo);
+    console.log(`📊 getFirstStageProcessingTime: isPdf=${isPdf}, analysisTime=`, currentVideo.analysisTime);
     
-    if (isPdfContent(currentVideo)) {
-      console.log('  - Processing as PDF');
-      console.log('  - extraction field:', currentVideo.analysisTime.extraction);
-      console.log('  - duration field:', currentVideo.analysisTime.duration);
-      console.log('  - total field:', currentVideo.analysisTime.total);
+    if (isPdf) {
+      const analysisTime = currentVideo.analysisTime;
       
-      // For PDFs, use extraction time (PDF parsing time)
-      if (currentVideo.analysisTime.extraction && currentVideo.analysisTime.extraction > 0) {
-        console.log('  - Using extraction time:', currentVideo.analysisTime.extraction);
-        return Math.round(currentVideo.analysisTime.extraction);
+      // Priority 1: extraction field (specific for PDF text extraction)
+      if (analysisTime.extraction && typeof analysisTime.extraction === 'number' && analysisTime.extraction > 0) {
+        console.log(`✅ PDF using extraction time: ${analysisTime.extraction}`);
+        return Math.round(analysisTime.extraction);
       }
-      console.log('  - No valid extraction time, returning null');
+      
+      // Priority 2: transcription field (in case extraction is named differently)
+      if (analysisTime.transcription && typeof analysisTime.transcription === 'number' && analysisTime.transcription > 0) {
+        console.log(`✅ PDF using transcription time: ${analysisTime.transcription}`);
+        return Math.round(analysisTime.transcription);
+      }
+      
+      // Priority 3: duration field (general duration)
+      if (analysisTime.duration && typeof analysisTime.duration === 'number' && analysisTime.duration > 0) {
+        console.log(`✅ PDF using duration time: ${analysisTime.duration}`);
+        return Math.round(analysisTime.duration);
+      }
+      
+      // Priority 4: total field (total processing time)
+      if (analysisTime.total && typeof analysisTime.total === 'number' && analysisTime.total > 0) {
+        console.log(`✅ PDF using total time: ${analysisTime.total}`);
+        return Math.round(analysisTime.total);
+      }
+      
+      console.log('❌ PDF: No valid timing data found in any field');
       return null;
     } else {
-      console.log('  - Processing as video/audio');
       // For audio/video content
       return currentVideo.analysisTime.transcription ? Math.round(currentVideo.analysisTime.transcription) : null;
     }
@@ -910,43 +939,106 @@ const AnalyzePage: React.FC = () => {
 
   // Helper function to safely format date
   const formatSafeDate = (timestamp: string | undefined | null, fallback: string = '不明'): string => {
+    console.log(`📅 formatSafeDate: input=${timestamp}`);
+    
     try {
-      if (!timestamp) return fallback
-      const date = new Date(timestamp)
-      if (isNaN(date.getTime())) return fallback
-      return date.toLocaleString('ja-JP', {
+      if (!timestamp) {
+        console.log('❌ formatSafeDate: No timestamp provided');
+        
+        // Fallback: try to use current analysis time fields
+        if (currentVideo?.analysisTime) {
+          const analysisTime = currentVideo.analysisTime;
+          
+          // If we're being called for startTime, try startTime from analysisTime
+          if (timestamp === currentVideo.analysisTime.startTime || !timestamp) {
+            if (analysisTime.startTime && typeof analysisTime.startTime === 'string') {
+              console.log(`📅 Using fallback startTime: ${analysisTime.startTime}`);
+              timestamp = analysisTime.startTime;
+            }
+          }
+          
+          // If we're being called for endTime, try endTime from analysisTime  
+          if (timestamp === currentVideo.analysisTime.endTime || !timestamp) {
+            if (analysisTime.endTime && typeof analysisTime.endTime === 'string') {
+              console.log(`📅 Using fallback endTime: ${analysisTime.endTime}`);
+              timestamp = analysisTime.endTime;
+            }
+          }
+        }
+        
+        if (!timestamp) {
+          return fallback;
+        }
+      }
+      
+      // Ensure timestamp is string
+      const timeStr = String(timestamp);
+      
+      const date = new Date(timeStr);
+      if (isNaN(date.getTime())) {
+        console.log('❌ formatSafeDate: Invalid date after conversion');
+        return fallback;
+      }
+      
+      const formatted = date.toLocaleString('ja-JP', {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-      })
-    } catch {
-      return fallback
+      });
+      
+      console.log(`✅ formatSafeDate: formatted=${formatted}`);
+      return formatted;
+    } catch (error) {
+      console.log('❌ formatSafeDate: Error formatting date:', error);
+      return fallback;
     }
   }
 
   // Helper function to safely format duration
   const formatSafeDuration = (duration: number | undefined | null): string => {
-    console.log('🕰️ formatSafeDuration called');
-    console.log('  - input duration:', duration);
-    console.log('  - isPdfContent:', isPdfContent(currentVideo));
-    console.log('  - currentVideo.analysisTime?.total:', currentVideo?.analysisTime?.total);
+    console.log(`⏱️ formatSafeDuration: input=${duration}, isPdf=${isPdfContent(currentVideo)}`);
     
-    // For PDFs, try to get duration from analysisTime.total if duration is not available
     let effectiveDuration = duration;
-    if ((!duration || isNaN(duration) || duration <= 0) && isPdfContent(currentVideo) && currentVideo?.analysisTime?.total) {
-      console.log('  - Using PDF fallback to analysisTime.total');
-      effectiveDuration = currentVideo.analysisTime.total;
+    
+    // If input duration is invalid and we have a current video with analysis time
+    if ((!duration || isNaN(duration) || duration <= 0) && currentVideo?.analysisTime) {
+      const analysisTime = currentVideo.analysisTime;
+      
+      if (isPdfContent(currentVideo)) {
+        // For PDFs, try multiple fallback sources
+        // Priority 1: total field (most comprehensive)
+        if (analysisTime.total && typeof analysisTime.total === 'number' && analysisTime.total > 0) {
+          console.log(`⏱️ PDF using total: ${analysisTime.total}`);
+          effectiveDuration = analysisTime.total;
+        }
+        // Priority 2: extraction field
+        else if (analysisTime.extraction && typeof analysisTime.extraction === 'number' && analysisTime.extraction > 0) {
+          console.log(`⏱️ PDF using extraction: ${analysisTime.extraction}`);
+          effectiveDuration = analysisTime.extraction;
+        }
+        // Priority 3: duration field
+        else if (analysisTime.duration && typeof analysisTime.duration === 'number' && analysisTime.duration > 0) {
+          console.log(`⏱️ PDF using duration: ${analysisTime.duration}`);
+          effectiveDuration = analysisTime.duration;
+        }
+      } else {
+        // For video/audio content
+        if (analysisTime.total && typeof analysisTime.total === 'number' && analysisTime.total > 0) {
+          console.log(`⏱️ Video/Audio using total: ${analysisTime.total}`);
+          effectiveDuration = analysisTime.total;
+        }
+      }
     }
     
-    console.log('  - effective duration:', effectiveDuration);
-    
     if (!effectiveDuration || isNaN(effectiveDuration) || effectiveDuration <= 0) {
-      console.log('  - No valid duration, returning "計測中..."');
+      console.log('❌ formatSafeDuration: No valid duration available after all fallbacks');
       return '計測中...';
     }
     
     const safeDuration = Math.round(effectiveDuration);
+    console.log(`✅ formatSafeDuration: Using duration ${safeDuration} seconds`);
+    
     if (safeDuration < 60) {
       return `${safeDuration}秒`;
     } else {
@@ -958,46 +1050,36 @@ const AnalyzePage: React.FC = () => {
 
   // Helper function to detect if video is PDF based on URL and method
   const isPdfContent = (video: any): boolean => {
-    console.log('📄 isPdfContent called');
-    console.log('  - video object:', video);
-    console.log('  - video.url:', video?.url);
-    console.log('  - video.method:', video?.method);
-    console.log('  - video.analysisType:', video?.analysisType);
-    console.log('  - video.source:', video?.source);
-    console.log('  - video.originalFilename:', video?.originalFilename);
-    console.log('  - current inputType:', inputType);
-    
     // Check by input type first (most reliable for current session)
     if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
-      console.log('  - Detected PDF by current inputType');
+      console.log('📄 PDF detected by inputType');
       return true;
     }
     
     // Check by analysis type
     if (video?.analysisType === 'pdf') {
-      console.log('  - Detected PDF by analysisType');
+      console.log('📄 PDF detected by analysisType');
       return true;
     }
     
     // Check by URL
     if (video?.url && video.url.includes('.pdf')) {
-      console.log('  - Detected PDF by URL');
+      console.log('📄 PDF detected by URL');
       return true;
     }
     
     // Check by filename
     if (video?.originalFilename && video.originalFilename.toLowerCase().endsWith('.pdf')) {
-      console.log('  - Detected PDF by originalFilename');
+      console.log('📄 PDF detected by filename');
       return true;
     }
     
     // Legacy check by method (non-YouTube subtitle)
     if (video?.method === 'subtitle' && !video?.url?.includes('youtube.com') && !video?.url?.includes('youtu.be')) {
-      console.log('  - Detected PDF by method (non-YouTube subtitle)');
+      console.log('📄 PDF detected by method');
       return true;
     }
     
-    console.log('  - Not detected as PDF');
     return false;
   }
 
@@ -1852,19 +1934,31 @@ const AnalyzePage: React.FC = () => {
                             <div className="flex justify-between items-center">
                               <span className="text-gray-800 font-medium">開始:</span>
                               <span className="font-semibold text-black">
-                                {formatSafeDate(currentVideo.analysisTime.startTime)}
+                                {(() => {
+                                  const startTime = currentVideo.analysisTime.startTime;
+                                  console.log('📅 Analysis start time from currentVideo:', startTime);
+                                  return formatSafeDate(startTime);
+                                })()}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-gray-800 font-medium">終了:</span>
                               <span className="font-semibold text-black">
-                                {formatSafeDate(currentVideo.analysisTime.endTime)}
+                                {(() => {
+                                  const endTime = currentVideo.analysisTime.endTime;
+                                  console.log('📅 Analysis end time from currentVideo:', endTime);
+                                  return formatSafeDate(endTime);
+                                })()}
                               </span>
                             </div>
                             <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
                               <span className="text-black font-semibold">所要時間:</span>
                               <span className="font-bold text-black text-base">
-                                {formatSafeDuration(currentVideo.analysisTime.duration)}
+                                {(() => {
+                                  const duration = currentVideo.analysisTime.duration;
+                                  console.log('⏱️ Analysis duration from currentVideo:', duration);
+                                  return formatSafeDuration(duration);
+                                })()}
                               </span>
                             </div>
                           </div>
