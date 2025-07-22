@@ -8,6 +8,7 @@ import VideoFileUpload from '../shared/VideoFileUpload'
 import AnalysisProgress from '../shared/AnalysisProgress'
 import { VideoFile, AudioFile, PDFFile, InputType } from '../../types'
 import { formatProcessingTime } from '../../utils/formatTime'
+import { ProcessingTimePredictor, PredictionInput, PredictionResult, createTimePredictor } from '../../utils/timePredictor'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
@@ -31,6 +32,8 @@ const AnalyzePage: React.FC = () => {
   const [costEstimation, setCostEstimation] = useState<any>(null)
   const [loadingCostEstimation, setLoadingCostEstimation] = useState(false)
   const [estimatedProcessingTime, setEstimatedProcessingTime] = useState<any>(null)
+  const [historicalData, setHistoricalData] = useState<any[]>([])
+  const [timePredictor, setTimePredictor] = useState<ProcessingTimePredictor | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const costEstimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isFirstModelChange = useRef(true)
@@ -55,6 +58,104 @@ const AnalyzePage: React.FC = () => {
       setVideoFile(location.state.videoFile)
     }
   }, [location.state])
+
+  // Load historical data for time prediction on component mount
+  useEffect(() => {
+    const loadHistoricalData = async () => {
+      try {
+        const response = await fetch('/api/history')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.history) {
+            console.log('📊 Loaded historical data for time prediction:', data.history.length, 'entries')
+            setHistoricalData(data.history)
+            
+            // Initialize time predictor
+            const predictor = createTimePredictor(data.history)
+            setTimePredictor(predictor)
+            
+            // Log statistics for debugging
+            const statsSummary = predictor.getStatsSummary()
+            console.log('🎯 Time prediction stats:', statsSummary)
+          }
+        } else {
+          console.warn('Failed to load historical data for time prediction')
+        }
+      } catch (error) {
+        console.error('Error loading historical data:', error)
+      }
+    }
+
+    loadHistoricalData()
+  }, [])
+
+  // Generate improved time prediction using historical data
+  const generateImprovedTimePrediction = (inputType: InputType, url: string, language: string, transcriptionModel: string, model: string): PredictionResult | null => {
+    if (!timePredictor) {
+      console.warn('Time predictor not initialized yet')
+      return null
+    }
+
+    try {
+      let predictionInput: PredictionInput
+
+      if (inputType === InputType.YOUTUBE_URL) {
+        // For YouTube, we need to estimate duration or use a default
+        const estimatedDuration = 300 // Default 5 minutes - could be improved with YouTube API
+        predictionInput = {
+          contentType: 'youtube',
+          duration: estimatedDuration,
+          transcriptionModel,
+          gptModel: model,
+          language
+        }
+      } else if (inputType === InputType.PDF_URL) {
+        // For PDF, estimate character count based on typical PDF sizes
+        const estimatedCharacterCount = 50000 // Default ~50k characters for academic paper
+        predictionInput = {
+          contentType: 'pdf',
+          characterCount: estimatedCharacterCount,
+          transcriptionModel: 'extraction', // PDF doesn't need transcription model
+          gptModel: model,
+          language
+        }
+      } else if (inputType === InputType.AUDIO_FILE && audioFile) {
+        predictionInput = {
+          contentType: 'audio',
+          duration: audioFile.duration || 300, // Use actual duration if available
+          transcriptionModel,
+          gptModel: model,
+          language
+        }
+      } else if (inputType === InputType.VIDEO_FILE && videoFile) {
+        predictionInput = {
+          contentType: 'video',
+          duration: videoFile.duration || 300, // Use actual duration if available
+          transcriptionModel,
+          gptModel: model,
+          language
+        }
+      } else {
+        console.warn('Unsupported input type for time prediction:', inputType)
+        return null
+      }
+
+      const prediction = timePredictor.predictProcessingTime(predictionInput)
+      
+      console.log('🎯 Generated improved time prediction:', {
+        inputType,
+        prediction,
+        confidence: prediction.confidence,
+        basedOn: prediction.basedOn,
+        sampleSize: prediction.sampleSize
+      })
+
+      return prediction
+    } catch (error) {
+      console.error('Error generating time prediction:', error)
+      return null
+    }
+  }
 
   // YouTube URL validation function
   const validateYouTubeUrl = (url: string): boolean => {
@@ -342,21 +443,47 @@ const AnalyzePage: React.FC = () => {
       }
     }
 
-    // Get estimated processing time from state or cost estimation
+    // Get estimated processing time - try improved prediction first
     let processingTime = estimatedProcessingTime || costEstimation?.estimatedProcessingTime
     
-    // If no processing time is available, set a default based on typical durations
-    if (!processingTime) {
-      console.log('⚠️ No processing time available, setting default')
-      // Default: assume 5 minutes video, with typical processing speeds
+    // Generate improved prediction using historical data
+    const improvedPrediction = generateImprovedTimePrediction(inputType, url.trim(), language, transcriptionModel, model)
+    
+    if (improvedPrediction && improvedPrediction.confidence > 0.3) {
+      // Use improved prediction if confidence is reasonable
+      processingTime = {
+        transcription: improvedPrediction.transcription,
+        summary: improvedPrediction.summary,
+        total: improvedPrediction.total,
+        formatted: improvedPrediction.formatted,
+        confidence: improvedPrediction.confidence,
+        basedOn: improvedPrediction.basedOn,
+        sampleSize: improvedPrediction.sampleSize,
+        transcriptionRate: improvedPrediction.transcriptionRate,
+        summaryRate: improvedPrediction.summaryRate
+      }
+      setEstimatedProcessingTime(processingTime)
+      console.log('🎯 Using improved time prediction:', {
+        confidence: improvedPrediction.confidence,
+        basedOn: improvedPrediction.basedOn,
+        sampleSize: improvedPrediction.sampleSize,
+        prediction: processingTime
+      })
+    } else if (!processingTime) {
+      // Fall back to defaults only if no other prediction is available
+      console.log('⚠️ No processing time available, setting default fallback')
       const defaultTime = {
         transcription: 30, // 30 seconds for transcription
         summary: 60,       // 60 seconds for summary
         total: 90,         // 90 seconds total
-        formatted: '1 min 30 sec'
+        formatted: '1 min 30 sec',
+        confidence: 0.1,
+        basedOn: 'global_default' as const,
+        sampleSize: 0
       }
       processingTime = defaultTime
       setEstimatedProcessingTime(defaultTime)
+      console.log('📉 Using default fallback prediction')
     }
     
     // Debug log for estimated processing time
