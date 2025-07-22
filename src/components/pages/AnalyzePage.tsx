@@ -550,7 +550,7 @@ const AnalyzePage: React.FC = () => {
         transcript: data.transcript,
         summary: data.summary,
         timestampedSegments: data.timestampedSegments || [],
-        transcriptSource: data.method as 'subtitle' | 'whisper',
+        transcriptSource: (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 'subtitle' : (data.method as 'subtitle' | 'whisper'),
         costs: data.costs || {
           transcription: 0,
           summary: 0,
@@ -558,6 +558,8 @@ const AnalyzePage: React.FC = () => {
           total: 0
         },
         analysisTime: data.analysisTime,
+        // Add analysis type from server response or infer from input type
+        analysisType: data.analysisType || (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE ? 'pdf' : undefined),
         // Add file-specific metadata
         source: inputType,
         fileId: data.fileId,
@@ -567,6 +569,9 @@ const AnalyzePage: React.FC = () => {
       }
       
       console.log('🕒 AnalyzePage: Final videoMetadata analysis time:', videoMetadata.analysisTime)
+      console.log('🕒 AnalyzePage: Final videoMetadata analysisType:', videoMetadata.analysisType)
+      console.log('🕒 AnalyzePage: Final videoMetadata source:', videoMetadata.source)
+      console.log('🕒 AnalyzePage: inputType:', inputType)
       
       setCurrentVideo(videoMetadata)
       // Auto-collapse form after successful analysis
@@ -810,15 +815,29 @@ const AnalyzePage: React.FC = () => {
 
   // Get first stage processing time based on content type
   const getFirstStageProcessingTime = () => {
+    console.log('🔍 getFirstStageProcessingTime called');
+    console.log('  - currentVideo exists:', !!currentVideo);
+    console.log('  - analysisTime exists:', !!currentVideo?.analysisTime);
+    console.log('  - analysisTime structure:', currentVideo?.analysisTime);
+    console.log('  - isPdfContent result:', isPdfContent(currentVideo));
+    
     if (!currentVideo?.analysisTime) return null;
     
     if (isPdfContent(currentVideo)) {
+      console.log('  - Processing as PDF');
+      console.log('  - extraction field:', currentVideo.analysisTime.extraction);
+      console.log('  - duration field:', currentVideo.analysisTime.duration);
+      console.log('  - total field:', currentVideo.analysisTime.total);
+      
       // For PDFs, use extraction time (PDF parsing time)
       if (currentVideo.analysisTime.extraction && currentVideo.analysisTime.extraction > 0) {
+        console.log('  - Using extraction time:', currentVideo.analysisTime.extraction);
         return Math.round(currentVideo.analysisTime.extraction);
       }
+      console.log('  - No valid extraction time, returning null');
       return null;
     } else {
+      console.log('  - Processing as video/audio');
       // For audio/video content
       return currentVideo.analysisTime.transcription ? Math.round(currentVideo.analysisTime.transcription) : null;
     }
@@ -908,13 +927,22 @@ const AnalyzePage: React.FC = () => {
 
   // Helper function to safely format duration
   const formatSafeDuration = (duration: number | undefined | null): string => {
+    console.log('🕰️ formatSafeDuration called');
+    console.log('  - input duration:', duration);
+    console.log('  - isPdfContent:', isPdfContent(currentVideo));
+    console.log('  - currentVideo.analysisTime?.total:', currentVideo?.analysisTime?.total);
+    
     // For PDFs, try to get duration from analysisTime.total if duration is not available
     let effectiveDuration = duration;
     if ((!duration || isNaN(duration) || duration <= 0) && isPdfContent(currentVideo) && currentVideo?.analysisTime?.total) {
+      console.log('  - Using PDF fallback to analysisTime.total');
       effectiveDuration = currentVideo.analysisTime.total;
     }
     
+    console.log('  - effective duration:', effectiveDuration);
+    
     if (!effectiveDuration || isNaN(effectiveDuration) || effectiveDuration <= 0) {
+      console.log('  - No valid duration, returning "計測中..."');
       return '計測中...';
     }
     
@@ -930,13 +958,47 @@ const AnalyzePage: React.FC = () => {
 
   // Helper function to detect if video is PDF based on URL and method
   const isPdfContent = (video: any): boolean => {
+    console.log('📄 isPdfContent called');
+    console.log('  - video object:', video);
+    console.log('  - video.url:', video?.url);
+    console.log('  - video.method:', video?.method);
+    console.log('  - video.analysisType:', video?.analysisType);
+    console.log('  - video.source:', video?.source);
+    console.log('  - video.originalFilename:', video?.originalFilename);
+    console.log('  - current inputType:', inputType);
+    
+    // Check by input type first (most reliable for current session)
+    if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+      console.log('  - Detected PDF by current inputType');
+      return true;
+    }
+    
+    // Check by analysis type
+    if (video?.analysisType === 'pdf') {
+      console.log('  - Detected PDF by analysisType');
+      return true;
+    }
+    
+    // Check by URL
     if (video?.url && video.url.includes('.pdf')) {
+      console.log('  - Detected PDF by URL');
       return true;
     }
+    
+    // Check by filename
+    if (video?.originalFilename && video.originalFilename.toLowerCase().endsWith('.pdf')) {
+      console.log('  - Detected PDF by originalFilename');
+      return true;
+    }
+    
+    // Legacy check by method (non-YouTube subtitle)
     if (video?.method === 'subtitle' && !video?.url?.includes('youtube.com') && !video?.url?.includes('youtu.be')) {
+      console.log('  - Detected PDF by method (non-YouTube subtitle)');
       return true;
     }
-    return video?.analysisType === 'pdf';
+    
+    console.log('  - Not detected as PDF');
+    return false;
   }
 
   // Debug current video data
