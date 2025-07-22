@@ -6,7 +6,7 @@ type: 'Feature'
 state: Dev
 design: tasks/design/20_Feature.md
 createdAt: '2025-07-15T04:21:24Z'
-updatedAt: '2025-07-22T09:45:00Z'
+updatedAt: '2025-07-22T22:58:52Z'
 implementation:
   branch: feature/implement-20
   commits:
@@ -46,3 +46,10 @@ implementation:
     - '04ab889: fix: Implement robust PDF analysis timing display with comprehensive fallbacks'
     - '260529b: fix: Definitively resolve PDF analysis start/end time display issues'
     - '26d83d2: fix: Correct PDF analysis total time calculation to sum extraction + summary'
+    - 'd084935: fix: Replace YouTube caption tags with PDF text tags for PDF transcription'
+    - 'bc11c93: feat: Add PDF embedding similar to YouTube player functionality'
+    - 'be1bcf0: fix: Fix undefined variable error in PDF URL processing'
+    - '76d683c: fix: Resolve PDF analysis ERR_CONTENT_LENGTH_MISMATCH error'
+    - 'ffbe529: feat: Implement history-based processing time prediction system'
+    - 'd27b9f9: feat: Add enhanced time prediction display and real-time updates'
+    - '863a0f2: fix: Correct PDF analysis time calculation and display logic'
