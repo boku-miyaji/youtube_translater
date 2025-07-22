@@ -51,7 +51,7 @@ export interface VideoMetadata {
   transcript?: string;
   summary?: string;
   timestampedSegments?: TimestampedSegment[];
-  transcriptSource?: 'subtitle' | 'whisper';
+  transcriptSource?: 'subtitle' | 'whisper' | 'pdf';
   // Computed properties
   costs?: DetailedCosts;
   analysisTime?: {

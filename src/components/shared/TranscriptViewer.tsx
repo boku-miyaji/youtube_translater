@@ -156,6 +156,11 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                           <span className="mr-1">📺</span>
                           YouTube キャプション
                         </>
+                      ) : transcriptSource === 'pdf' ? (
+                        <>
+                          <span className="mr-1">📄</span>
+                          PDF テキスト
+                        </>
                       ) : (
                         <>
                           <span className="mr-1">🤖</span>
@@ -210,6 +215,11 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                       <>
                         <span className="mr-1">📺</span>
                         YouTube キャプション
+                      </>
+                    ) : transcriptSource === 'pdf' ? (
+                      <>
+                        <span className="mr-1">📄</span>
+                        PDF テキスト
                       </>
                     ) : (
                       <>

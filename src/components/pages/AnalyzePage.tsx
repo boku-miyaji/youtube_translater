@@ -564,7 +564,7 @@ const AnalyzePage: React.FC = () => {
         transcript: data.transcript,
         summary: data.summary,
         timestampedSegments: data.timestampedSegments || [],
-        transcriptSource: (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 'subtitle' : (data.method as 'subtitle' | 'whisper'),
+        transcriptSource: (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 'pdf' : (data.method as 'subtitle' | 'whisper'),
         costs: data.costs || {
           transcription: 0,
           summary: 0,
