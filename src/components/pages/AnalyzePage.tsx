@@ -1019,13 +1019,28 @@ const AnalyzePage: React.FC = () => {
   }
 
   // Helper function to safely format duration
-  const formatSafeDuration = (duration: number | undefined | null): string => {
-    console.log(`⏱️ formatSafeDuration: input=${duration}, isPdf=${isPdfContent(currentVideo)}`);
+  const formatSafeDuration = (duration: number | undefined | null, forceCalculatePdfTotal: boolean = false): string => {
+    console.log(`⏱️ formatSafeDuration: input=${duration}, isPdf=${isPdfContent(currentVideo)}, forceCalculate=${forceCalculatePdfTotal}`);
     
     let effectiveDuration = duration;
     
+    // Special handling for PDF total duration calculation
+    if (forceCalculatePdfTotal && isPdfContent(currentVideo) && currentVideo?.analysisTime) {
+      const analysisTime = currentVideo.analysisTime;
+      const extraction = analysisTime.extraction;
+      const summary = analysisTime.summary;
+      
+      console.log(`⏱️ PDF force calculation - extraction: ${extraction}, summary: ${summary}`);
+      
+      if (extraction && typeof extraction === 'number' && extraction > 0 &&
+          summary && typeof summary === 'number' && summary > 0) {
+        effectiveDuration = extraction + summary;
+        console.log(`⏱️ PDF force calculated total: ${extraction} + ${summary} = ${effectiveDuration}`);
+      }
+    }
+    
     // If input duration is invalid and we have a current video with analysis time
-    if ((!duration || isNaN(duration) || duration <= 0) && currentVideo?.analysisTime) {
+    if ((!effectiveDuration || isNaN(effectiveDuration) || effectiveDuration <= 0) && currentVideo?.analysisTime) {
       const analysisTime = currentVideo.analysisTime;
       
       if (isPdfContent(currentVideo)) {
@@ -2054,26 +2069,43 @@ const AnalyzePage: React.FC = () => {
                                   console.log('⏱️ === TOTAL DURATION CALCULATION DEBUG ===');
                                   console.log('⏱️ Full analysisTime object:', currentVideo.analysisTime);
                                   
-                                  let totalDuration = currentVideo.analysisTime.duration;
+                                  let totalDuration;
                                   
-                                  // For PDF analysis, calculate extraction + summary
+                                  // For PDF analysis, prioritize the 'total' field from server
                                   if (isPdfContent(currentVideo)) {
+                                    const serverTotal = currentVideo.analysisTime.total;
                                     const extraction = currentVideo.analysisTime.extraction;
                                     const summary = currentVideo.analysisTime.summary;
                                     
+                                    console.log('⏱️ PDF server total field:', serverTotal);
                                     console.log('⏱️ PDF extraction time:', extraction);
                                     console.log('⏱️ PDF summary time:', summary);
                                     
-                                    if (extraction && typeof extraction === 'number' && extraction > 0 &&
+                                    // First priority: use server-calculated total
+                                    if (serverTotal && typeof serverTotal === 'number' && serverTotal > 0) {
+                                      totalDuration = serverTotal;
+                                      console.log(`⏱️ PDF using server total: ${totalDuration}`);
+                                    }
+                                    // Fallback: calculate extraction + summary
+                                    else if (extraction && typeof extraction === 'number' && extraction > 0 &&
                                         summary && typeof summary === 'number' && summary > 0) {
                                       totalDuration = extraction + summary;
                                       console.log(`⏱️ PDF calculated total: ${extraction} + ${summary} = ${totalDuration}`);
-                                    } else if (extraction && typeof extraction === 'number' && extraction > 0) {
+                                    }
+                                    // Fallback: use extraction only
+                                    else if (extraction && typeof extraction === 'number' && extraction > 0) {
                                       totalDuration = extraction;
                                       console.log(`⏱️ PDF using extraction only: ${totalDuration}`);
-                                    } else {
+                                    }
+                                    // Final fallback: use duration field (wall clock time)
+                                    else {
+                                      totalDuration = currentVideo.analysisTime.duration;
                                       console.log('⏱️ PDF falling back to duration field:', totalDuration);
                                     }
+                                  } else {
+                                    // For non-PDF content, use duration field as before
+                                    totalDuration = currentVideo.analysisTime.duration;
+                                    console.log('⏱️ Non-PDF using duration field:', totalDuration);
                                   }
                                   
                                   console.log('⏱️ Final total duration:', totalDuration);
