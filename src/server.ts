@@ -2821,7 +2821,26 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     const actualProcessingTime = extractionDuration + summaryDuration;
     console.log(`📊 PDF timing calculation: extraction=${extractionDuration}s + summary=${summaryDuration}s = total=${actualProcessingTime}s (wall clock=${totalAnalysisTime}s)`);
 
-    // 6. Prepare response
+    // 6. Prepare response (limit content size to prevent network errors)
+    let limitedPdfContent = undefined;
+    if (shouldExtractStructure && pdfContent) {
+      // Create a limited version of PDF content to prevent ERR_CONTENT_LENGTH_MISMATCH
+      limitedPdfContent = {
+        fullText: pdfContent.fullText.length > 50000 
+          ? pdfContent.fullText.substring(0, 50000) + '... [Content truncated for network transmission]'
+          : pdfContent.fullText,
+        sections: pdfContent.sections.map(section => ({
+          ...section,
+          // Limit section content to 1000 chars each
+          content: section.content.length > 1000 
+            ? section.content.substring(0, 1000) + '... [Truncated]'
+            : section.content
+        })).slice(0, 20), // Limit to first 20 sections
+        pageCount: pdfContent.pageCount,
+        language: pdfContent.language
+      };
+    }
+
     const response: PDFAnalysisResponse = {
       success: true,
       title: pdfMetadata?.title || fileName,
@@ -2830,7 +2849,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       size: fileSize,
       transcript: pdfContent.fullText,  // Add the extracted text as transcript
       summary,
-      pdfContent: shouldExtractStructure ? pdfContent : undefined,
+      pdfContent: limitedPdfContent,
       pdfMetadata,
       analysisType: 'pdf' as AnalysisType,  // Specify the analysis type
       costs: {

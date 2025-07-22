@@ -464,29 +464,58 @@ const AnalyzePage: React.FC = () => {
 
         data = await response.json()
       } else if (inputType === InputType.PDF_URL) {
-        // Handle PDF URL processing
+        // Handle PDF URL processing with retry logic for network errors
         console.log('Sending request to /api/analyze-pdf with:', { url: url.trim(), language, model })
-        response = await fetch('/api/analyze-pdf', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: url.trim(),
-            language,
-            gptModel: model,
-            generateSummary: true,
-            extractStructure: true,
-          }),
-        })
+        
+        let retryCount = 0;
+        const maxRetries = 2;
+        
+        while (retryCount <= maxRetries) {
+          try {
+            response = await fetch('/api/analyze-pdf', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url: url.trim(),
+                language,
+                gptModel: model,
+                generateSummary: true,
+                extractStructure: true,
+              }),
+            })
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error('PDF URL processing failed:', response.status, response.statusText, errorText)
-          throw new Error(`Failed to process PDF URL: ${response.status} ${response.statusText}`)
+            if (!response.ok) {
+              const errorText = await response.text()
+              console.error('PDF URL processing failed:', response.status, response.statusText, errorText)
+              throw new Error(`Failed to process PDF URL: ${response.status} ${response.statusText}`)
+            }
+
+            data = await response.json()
+            break; // Success, exit retry loop
+            
+          } catch (networkError: any) {
+            console.error(`PDF processing attempt ${retryCount + 1} failed:`, networkError);
+            
+            // Check if it's a network error that might benefit from retry
+            const errorMessage = networkError.message || networkError.toString();
+            const isNetworkError = errorMessage.includes('ERR_CONTENT_LENGTH_MISMATCH') ||
+                                   errorMessage.includes('ERR_NETWORK') ||
+                                   errorMessage.includes('Failed to fetch') ||
+                                   errorMessage.includes('network');
+            
+            if (isNetworkError && retryCount < maxRetries) {
+              retryCount++;
+              console.log(`Retrying PDF processing (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Wait before retry
+              continue;
+            } else {
+              // Either not a network error or exhausted retries
+              throw networkError;
+            }
+          }
         }
-
-        data = await response.json()
       } else if (inputType === InputType.PDF_FILE) {
         // Handle PDF file upload processing
         const formData = new FormData()
@@ -628,9 +657,19 @@ const AnalyzePage: React.FC = () => {
       setFormCollapsed(true)
     } catch (error) {
       console.error('Error processing video:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      let errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      // Provide user-friendly error messages for common network issues
+      if (errorMessage.includes('ERR_CONTENT_LENGTH_MISMATCH')) {
+        errorMessage = 'PDF processing failed due to network issues. The file may be too large or there was a connection problem. Please try again with a smaller PDF.'
+      } else if (errorMessage.includes('ERR_NETWORK') || errorMessage.includes('Failed to fetch')) {
+        errorMessage = 'Network connection error. Please check your internet connection and try again.'
+      }
+      
       if (inputType === InputType.VIDEO_FILE || inputType === InputType.AUDIO_FILE || inputType === InputType.PDF_FILE) {
         setFileError(`Failed to process file: ${errorMessage}`)
+      } else if (inputType === InputType.PDF_URL) {
+        setUrlError(`Failed to process PDF: ${errorMessage}`)
       } else {
         alert(`Failed to process: ${errorMessage}`)
       }
