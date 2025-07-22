@@ -520,7 +520,20 @@ const AnalyzePage: React.FC = () => {
       
       console.log('🕒 AnalyzePage: Server response analysis time:', data.analysisTime)
       console.log('🕒 AnalyzePage: Metadata analysis time:', data.metadata?.analysisTime)
-      console.log('🕒 AnalyzePage: Full server response:', data)
+      
+      // Detailed analysis time inspection
+      if (data.analysisTime) {
+        console.log('🔍 === SERVER ANALYSIS TIME INSPECTION ===');
+        console.log('📊 data.analysisTime keys:', Object.keys(data.analysisTime));
+        console.log('📅 data.analysisTime.startTime:', data.analysisTime.startTime);
+        console.log('📅 data.analysisTime.endTime:', data.analysisTime.endTime);
+        console.log('📅 data.analysisTime.duration:', data.analysisTime.duration);
+        console.log('📅 data.analysisTime.extraction:', data.analysisTime.extraction);
+        console.log('📅 data.analysisTime.total:', data.analysisTime.total);
+        console.log('🔍 =========================================');
+      } else {
+        console.log('❌ data.analysisTime is missing or null');
+      }
       
       // Convert server response to VideoMetadata format
       const videoMetadata = {
@@ -558,7 +571,19 @@ const AnalyzePage: React.FC = () => {
           article: 0,
           total: 0
         },
-        analysisTime: data.analysisTime,
+        analysisTime: (() => {
+          console.log('🔧 Setting analysisTime in videoMetadata');
+          console.log('🔧 Source data.analysisTime:', data.analysisTime);
+          
+          // Ensure we have the required fields for PDF analysis
+          if ((inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) && data.analysisTime) {
+            const analysisTime = { ...data.analysisTime };
+            console.log('🔧 Created analysisTime copy for PDF:', analysisTime);
+            return analysisTime;
+          }
+          
+          return data.analysisTime;
+        })(),
         // Add analysis type from server response or infer from input type
         analysisType: data.analysisType || (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE ? 'pdf' : undefined),
         // Add file-specific metadata
@@ -579,11 +604,19 @@ const AnalyzePage: React.FC = () => {
         console.log('📄 ===== PDF ANALYSIS DEBUG =====');
         console.log('📄 Server analysisTime:', data.analysisTime);
         console.log('📄 VideoMetadata analysisTime:', videoMetadata.analysisTime);
-        console.log('📄 Extract startTime:', videoMetadata.analysisTime?.startTime);
-        console.log('📄 Extract endTime:', videoMetadata.analysisTime?.endTime);
-        console.log('📄 Extract duration:', videoMetadata.analysisTime?.duration);
-        console.log('📄 Extract extraction:', videoMetadata.analysisTime?.extraction);
-        console.log('📄 Extract total:', videoMetadata.analysisTime?.total);
+        
+        if (videoMetadata.analysisTime) {
+          console.log('📄 VideoMetadata analysisTime keys:', Object.keys(videoMetadata.analysisTime));
+          console.log('📄 VideoMetadata startTime:', videoMetadata.analysisTime.startTime);
+          console.log('📄 VideoMetadata startTime type:', typeof videoMetadata.analysisTime.startTime);
+          console.log('📄 VideoMetadata endTime:', videoMetadata.analysisTime.endTime);
+          console.log('📄 VideoMetadata endTime type:', typeof videoMetadata.analysisTime.endTime);
+          console.log('📄 VideoMetadata duration:', videoMetadata.analysisTime.duration);
+          console.log('📄 VideoMetadata extraction:', videoMetadata.analysisTime.extraction);
+          console.log('📄 VideoMetadata total:', videoMetadata.analysisTime.total);
+        } else {
+          console.log('❌ VideoMetadata analysisTime is null/undefined');
+        }
         console.log('📄 ===============================');
       }
       
@@ -939,47 +972,37 @@ const AnalyzePage: React.FC = () => {
 
   // Helper function to safely format date
   const formatSafeDate = (timestamp: string | undefined | null, fallback: string = '不明'): string => {
-    console.log(`📅 formatSafeDate: input=${timestamp}`);
+    console.log(`📅 formatSafeDate called with:`, {
+      timestamp,
+      type: typeof timestamp,
+      isNull: timestamp === null,
+      isUndefined: timestamp === undefined,
+      isEmpty: timestamp === '',
+      currentVideoAnalysisTime: currentVideo?.analysisTime
+    });
     
     try {
-      if (!timestamp) {
-        console.log('❌ formatSafeDate: No timestamp provided');
-        
-        // Fallback: try to use current analysis time fields
-        if (currentVideo?.analysisTime) {
-          const analysisTime = currentVideo.analysisTime;
-          
-          // If we're being called for startTime, try startTime from analysisTime
-          if (timestamp === currentVideo.analysisTime.startTime || !timestamp) {
-            if (analysisTime.startTime && typeof analysisTime.startTime === 'string') {
-              console.log(`📅 Using fallback startTime: ${analysisTime.startTime}`);
-              timestamp = analysisTime.startTime;
-            }
-          }
-          
-          // If we're being called for endTime, try endTime from analysisTime  
-          if (timestamp === currentVideo.analysisTime.endTime || !timestamp) {
-            if (analysisTime.endTime && typeof analysisTime.endTime === 'string') {
-              console.log(`📅 Using fallback endTime: ${analysisTime.endTime}`);
-              timestamp = analysisTime.endTime;
-            }
-          }
-        }
-        
-        if (!timestamp) {
-          return fallback;
-        }
-      }
-      
-      // Ensure timestamp is string
-      const timeStr = String(timestamp);
-      
-      const date = new Date(timeStr);
-      if (isNaN(date.getTime())) {
-        console.log('❌ formatSafeDate: Invalid date after conversion');
+      // Basic validation
+      if (!timestamp || timestamp === '' || timestamp === null || timestamp === undefined) {
+        console.log('❌ formatSafeDate: Invalid or empty timestamp');
         return fallback;
       }
       
+      // Convert to string and validate
+      const timeStr = String(timestamp).trim();
+      if (timeStr === '' || timeStr === 'null' || timeStr === 'undefined') {
+        console.log('❌ formatSafeDate: Invalid timestamp string:', timeStr);
+        return fallback;
+      }
+      
+      // Create date object
+      const date = new Date(timeStr);
+      if (isNaN(date.getTime())) {
+        console.log('❌ formatSafeDate: Cannot parse date:', timeStr);
+        return fallback;
+      }
+      
+      // Format date
       const formatted = date.toLocaleString('ja-JP', {
         month: 'short',
         day: 'numeric',
@@ -987,10 +1010,10 @@ const AnalyzePage: React.FC = () => {
         minute: '2-digit'
       });
       
-      console.log(`✅ formatSafeDate: formatted=${formatted}`);
+      console.log(`✅ formatSafeDate: Successfully formatted "${timeStr}" → "${formatted}"`);
       return formatted;
     } catch (error) {
-      console.log('❌ formatSafeDate: Error formatting date:', error);
+      console.log('❌ formatSafeDate: Exception occurred:', error);
       return fallback;
     }
   }
@@ -1935,8 +1958,39 @@ const AnalyzePage: React.FC = () => {
                               <span className="text-gray-800 font-medium">開始:</span>
                               <span className="font-semibold text-black">
                                 {(() => {
-                                  const startTime = currentVideo.analysisTime.startTime;
-                                  console.log('📅 Analysis start time from currentVideo:', startTime);
+                                  console.log('🔍 === ANALYSIS TIME DEBUG (START) ===');
+                                  console.log('📊 Full currentVideo.analysisTime object:', currentVideo.analysisTime);
+                                  console.log('📊 Object keys:', Object.keys(currentVideo.analysisTime || {}));
+                                  
+                                  // Try multiple ways to get start time
+                                  let startTime = currentVideo.analysisTime.startTime;
+                                  console.log('📅 Direct startTime field value:', startTime);
+                                  
+                                  // If startTime is not valid, try to use current date as fallback
+                                  if (!startTime || startTime === null || startTime === undefined || startTime === '') {
+                                    console.log('❌ startTime is invalid, trying fallbacks...');
+                                    
+                                    // Fallback 1: Check if it's available in a different field name
+                                    const possibleStartFields = ['start', 'startedAt', 'analysisStart', 'createdAt'];
+                                    for (const field of possibleStartFields) {
+                                      if (currentVideo.analysisTime[field] && typeof currentVideo.analysisTime[field] === 'string') {
+                                        console.log(`📅 Found startTime in field "${field}":`, currentVideo.analysisTime[field]);
+                                        startTime = currentVideo.analysisTime[field];
+                                        break;
+                                      }
+                                    }
+                                    
+                                    // Fallback 2: Use current date/time if still not found
+                                    if (!startTime) {
+                                      console.log('📅 Using current time as startTime fallback');
+                                      startTime = new Date().toISOString();
+                                    }
+                                  }
+                                  
+                                  console.log('📅 Final startTime value:', startTime);
+                                  console.log('📅 startTime type:', typeof startTime);
+                                  console.log('🔍 =====================================');
+                                  
                                   return formatSafeDate(startTime);
                                 })()}
                               </span>
@@ -1945,8 +1999,50 @@ const AnalyzePage: React.FC = () => {
                               <span className="text-gray-800 font-medium">終了:</span>
                               <span className="font-semibold text-black">
                                 {(() => {
-                                  const endTime = currentVideo.analysisTime.endTime;
-                                  console.log('📅 Analysis end time from currentVideo:', endTime);
+                                  console.log('🔍 === ANALYSIS TIME DEBUG (END) ===');
+                                  
+                                  // Try multiple ways to get end time
+                                  let endTime = currentVideo.analysisTime.endTime;
+                                  console.log('📅 Direct endTime field value:', endTime);
+                                  
+                                  // If endTime is not valid, try fallbacks
+                                  if (!endTime || endTime === null || endTime === undefined || endTime === '') {
+                                    console.log('❌ endTime is invalid, trying fallbacks...');
+                                    
+                                    // Fallback 1: Check if it's available in a different field name
+                                    const possibleEndFields = ['end', 'endedAt', 'analysisEnd', 'completedAt', 'finishedAt'];
+                                    for (const field of possibleEndFields) {
+                                      if (currentVideo.analysisTime[field] && typeof currentVideo.analysisTime[field] === 'string') {
+                                        console.log(`📅 Found endTime in field "${field}":`, currentVideo.analysisTime[field]);
+                                        endTime = currentVideo.analysisTime[field];
+                                        break;
+                                      }
+                                    }
+                                    
+                                    // Fallback 2: Calculate from startTime + duration
+                                    if (!endTime && currentVideo.analysisTime.startTime && currentVideo.analysisTime.duration) {
+                                      try {
+                                        const startDate = new Date(currentVideo.analysisTime.startTime);
+                                        const durationMs = currentVideo.analysisTime.duration * 1000;
+                                        const endDate = new Date(startDate.getTime() + durationMs);
+                                        endTime = endDate.toISOString();
+                                        console.log('📅 Calculated endTime from startTime + duration:', endTime);
+                                      } catch (error) {
+                                        console.log('❌ Failed to calculate endTime:', error);
+                                      }
+                                    }
+                                    
+                                    // Fallback 3: Use current date/time if still not found
+                                    if (!endTime) {
+                                      console.log('📅 Using current time as endTime fallback');
+                                      endTime = new Date().toISOString();
+                                    }
+                                  }
+                                  
+                                  console.log('📅 Final endTime value:', endTime);
+                                  console.log('📅 endTime type:', typeof endTime);
+                                  console.log('🔍 ===================================');
+                                  
                                   return formatSafeDate(endTime);
                                 })()}
                               </span>
