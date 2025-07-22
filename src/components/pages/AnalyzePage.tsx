@@ -89,6 +89,58 @@ const AnalyzePage: React.FC = () => {
     loadHistoricalData()
   }, [])
 
+  // Auto-update time prediction when input changes
+  useEffect(() => {
+    if (!timePredictor) return
+
+    const updateTimePrediction = () => {
+      let shouldPredict = false
+      let inputValue = ''
+
+      // Check if we have valid inputs for prediction
+      if (inputType === InputType.YOUTUBE_URL && url.trim() && validateYouTubeUrl(url.trim())) {
+        shouldPredict = true
+        inputValue = url.trim()
+      } else if (inputType === InputType.PDF_URL && url.trim() && validatePDFUrl(url.trim())) {
+        shouldPredict = true
+        inputValue = url.trim()
+      } else if (inputType === InputType.VIDEO_FILE && videoFile) {
+        shouldPredict = true
+        inputValue = 'video-file'
+      } else if (inputType === InputType.AUDIO_FILE && audioFile) {
+        shouldPredict = true
+        inputValue = 'audio-file'
+      }
+
+      if (shouldPredict) {
+        const prediction = generateImprovedTimePrediction(inputType, inputValue, language, transcriptionModel, model)
+        if (prediction && prediction.confidence > 0.2) {
+          const updatedProcessingTime = {
+            transcription: prediction.transcription,
+            summary: prediction.summary,
+            total: prediction.total,
+            formatted: prediction.formatted,
+            confidence: prediction.confidence,
+            basedOn: prediction.basedOn,
+            sampleSize: prediction.sampleSize,
+            transcriptionRate: prediction.transcriptionRate,
+            summaryRate: prediction.summaryRate
+          }
+          setEstimatedProcessingTime(updatedProcessingTime)
+          console.log('🔄 Auto-updated time prediction:', {
+            inputType,
+            confidence: prediction.confidence,
+            basedOn: prediction.basedOn
+          })
+        }
+      }
+    }
+
+    // Debounce the update to avoid too many calls
+    const timeoutId = setTimeout(updateTimePrediction, 500)
+    return () => clearTimeout(timeoutId)
+  }, [inputType, url, language, transcriptionModel, model, videoFile, audioFile, timePredictor])
+
   // Generate improved time prediction using historical data
   const generateImprovedTimePrediction = (inputType: InputType, url: string, language: string, transcriptionModel: string, model: string): PredictionResult | null => {
     if (!timePredictor) {
@@ -939,9 +991,42 @@ const AnalyzePage: React.FC = () => {
                       <span>合計処理時間:</span>
                       <span className="font-mono">{processingTime.formatted}</span>
                     </div>
+                    {processingTime.basedOn && (
+                      <div className="border-t border-blue-200 mt-1 pt-1">
+                        <div className="flex justify-between text-xs">
+                          <span>予測根拠:</span>
+                          <span className={`font-mono ${
+                            processingTime.basedOn === 'historical' ? 'text-green-600' :
+                            processingTime.basedOn === 'model_default' ? 'text-blue-600' :
+                            'text-gray-500'
+                          }`}>
+                            {processingTime.basedOn === 'historical' ? `履歴データ (${processingTime.sampleSize || 0}件)` :
+                             processingTime.basedOn === 'model_default' ? 'モデル標準値' :
+                             'デフォルト値'}
+                          </span>
+                        </div>
+                        {processingTime.confidence && (
+                          <div className="flex justify-between text-xs">
+                            <span>予測信頼度:</span>
+                            <span className={`font-mono ${
+                              processingTime.confidence >= 0.7 ? 'text-green-600' :
+                              processingTime.confidence >= 0.4 ? 'text-yellow-600' :
+                              'text-red-500'
+                            }`}>
+                              {Math.round(processingTime.confidence * 100)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs text-blue-600 mt-1">
                     {renderProcessingTimeNote()}
+                    {processingTime.basedOn === 'historical' && (
+                      <div className="text-green-600 mt-1">
+                        ✓ 過去の実績データから予測 - 精度が向上しています
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
