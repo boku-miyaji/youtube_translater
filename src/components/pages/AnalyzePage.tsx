@@ -1289,8 +1289,8 @@ const AnalyzePage: React.FC = () => {
       
       console.log(`⏱️ PDF force calculation - extraction: ${extraction}, summary: ${summary}`);
       
-      if (extraction && typeof extraction === 'number' && extraction > 0 &&
-          summary && typeof summary === 'number' && summary > 0) {
+      if (extraction && typeof extraction === 'number' && extraction >= 0 &&
+          summary && typeof summary === 'number' && summary >= 0) {
         effectiveDuration = extraction + summary;
         console.log(`⏱️ PDF force calculated total: ${extraction} + ${summary} = ${effectiveDuration}`);
       }
@@ -1308,7 +1308,7 @@ const AnalyzePage: React.FC = () => {
           effectiveDuration = analysisTime.total;
         }
         // Priority 2: extraction field
-        else if (analysisTime.extraction && typeof analysisTime.extraction === 'number' && analysisTime.extraction > 0) {
+        else if (analysisTime.extraction && typeof analysisTime.extraction === 'number' && analysisTime.extraction >= 0) {
           console.log(`⏱️ PDF using extraction: ${analysisTime.extraction}`);
           effectiveDuration = analysisTime.extraction;
         }
@@ -2365,8 +2365,8 @@ const AnalyzePage: React.FC = () => {
                                       console.log(`⏱️ PDF using server total: ${totalDuration}`);
                                     }
                                     // Fallback: calculate extraction + summary if both are available
-                                    else if (extraction && typeof extraction === 'number' && extraction > 0 &&
-                                        summary && typeof summary === 'number' && summary > 0) {
+                                    else if (extraction && typeof extraction === 'number' && extraction >= 0 &&
+                                        summary && typeof summary === 'number' && summary >= 0) {
                                       totalDuration = extraction + summary;
                                       console.log(`⏱️ PDF calculated total: ${extraction} + ${summary} = ${totalDuration}`);
                                     }

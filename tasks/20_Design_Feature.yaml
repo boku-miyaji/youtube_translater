@@ -6,7 +6,7 @@ type: 'Feature'
 state: Dev
 design: tasks/design/20_Feature.md
 createdAt: '2025-07-15T04:21:24Z'
-updatedAt: '2025-07-23T14:00:24Z'
+updatedAt: '2025-07-23T19:08:55Z'
 implementation:
   branch: feature/implement-20
   commits:
@@ -56,3 +56,5 @@ implementation:
     - 'c4912b9: fix: Handle sub-second PDF processing times correctly'
     - '33c5d26: fix: Improve PDF processing time prediction and display'
     - '9fc0f96: fix: Definitively resolve PDF processing time "計測中..." display issue'
+    - '1058fb4: feat: Implement PDF page navigation with clickable page references'
+    - '89fa77a: fix: Resolve PDF page navigation not working - fix root cause'
