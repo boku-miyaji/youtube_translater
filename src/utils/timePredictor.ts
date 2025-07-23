@@ -132,9 +132,9 @@ export class ProcessingTimePredictor {
     const summaryRate = this.generateRateString(input, summaryTime, 'summary')
 
     return {
-      transcription: Math.round(transcriptionTime),
-      summary: Math.round(summaryTime),
-      total: Math.round(totalTime),
+      transcription: transcriptionTime < 1 ? parseFloat(transcriptionTime.toFixed(1)) : Math.round(transcriptionTime),
+      summary: summaryTime < 1 ? parseFloat(summaryTime.toFixed(1)) : Math.round(summaryTime),
+      total: totalTime < 1 ? parseFloat(totalTime.toFixed(1)) : Math.round(totalTime),
       confidence,
       formatted: formatProcessingTime(totalTime),
       basedOn,
@@ -384,16 +384,16 @@ export class ProcessingTimePredictor {
     if (transcriptionRate && input.duration) {
       transcriptionTime = (input.duration / 60) * transcriptionRate
     } else if (input.contentType === 'pdf' && input.characterCount) {
-      // PDF default: ~0.2 seconds per 1000 characters for extraction
-      transcriptionTime = (input.characterCount / 1000) * 0.2
+      // PDF default: ~1.5 seconds per 1000 characters for extraction (more realistic)
+      transcriptionTime = (input.characterCount / 1000) * 1.5
     }
 
     const summaryCoeff = summaryDefaults[input.gptModel]
     if (summaryCoeff && input.duration) {
       summaryTime = (input.duration / 60) * 30 * summaryCoeff // base 30s/min adjusted by model
     } else if (input.contentType === 'pdf' && input.characterCount) {
-      // PDF summary: ~2 seconds per 1000 characters
-      summaryTime = (input.characterCount / 1000) * 2 * (summaryCoeff || 0.8)
+      // PDF summary: ~3 seconds per 1000 characters (more realistic)
+      summaryTime = (input.characterCount / 1000) * 3 * (summaryCoeff || 0.8)
     }
 
     return {
@@ -407,7 +407,7 @@ export class ProcessingTimePredictor {
     if (input.duration) {
       return (input.duration / 60) * 6 // 6 seconds per minute default
     } else if (input.characterCount) {
-      return (input.characterCount / 1000) * 0.2 // 0.2 seconds per 1000 chars for PDF
+      return (input.characterCount / 1000) * 1.5 // 1.5 seconds per 1000 chars for PDF (more realistic)
     }
     return 30 // global fallback
   }
@@ -416,7 +416,7 @@ export class ProcessingTimePredictor {
     if (input.duration) {
       return (input.duration / 60) * 30 // 30 seconds per minute default
     } else if (input.characterCount) {
-      return (input.characterCount / 1000) * 2 // 2 seconds per 1000 chars for PDF
+      return (input.characterCount / 1000) * 3 // 3 seconds per 1000 chars for PDF (more realistic)
     }
     return 60 // global fallback
   }
