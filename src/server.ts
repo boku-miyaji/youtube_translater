@@ -609,19 +609,28 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
     // Extract page segments
     const pageSegments: PDFPageSegment[] = [];
     
-    console.log('📄 === PDF PAGE SEGMENTATION DEBUG ===');
-    console.log('  - Full text length:', fullText.length);
-    console.log('  - Page count:', pageCount);
+    // Debug logging (can be disabled by setting PDF_DEBUG=false in environment)
+    const debugEnabled = process.env.PDF_DEBUG !== 'false';
+    
+    if (debugEnabled) {
+      console.log('📄 === PDF PAGE SEGMENTATION DEBUG ===');
+      console.log('  - Full text length:', fullText.length);
+      console.log('  - Page count:', pageCount);
+    }
     
     // Try to split text by page breaks (form feed character or multiple newlines)
     // Note: pdf-parse doesn't always preserve page breaks perfectly
     const pageBreakPattern = /\f|\n{3,}/g;
     let textSegments = fullText.split(pageBreakPattern);
-    console.log('  - Text segments from page breaks:', textSegments.length);
+    if (debugEnabled) {
+      console.log('  - Text segments from page breaks:', textSegments.length);
+    }
     
     // If no clear page breaks found, split evenly by estimated page size
     if (textSegments.length < pageCount * 0.5) {
-      console.log('  - Using even split method');
+      if (debugEnabled) {
+        console.log('  - Using even split method');
+      }
       const avgCharsPerPage = Math.ceil(fullText.length / pageCount);
       textSegments = [];
       for (let i = 0; i < pageCount; i++) {
@@ -629,17 +638,25 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
         const end = Math.min((i + 1) * avgCharsPerPage, fullText.length);
         textSegments.push(fullText.slice(start, end));
       }
-      console.log('  - Text segments after even split:', textSegments.length);
+      if (debugEnabled) {
+        console.log('  - Text segments after even split:', textSegments.length);
+      }
     } else {
-      console.log('  - Using page break method');
+      if (debugEnabled) {
+        console.log('  - Using page break method');
+      }
     }
     
     // Create page segments
     let currentCharPos = 0;
-    console.log('  - Creating page segments from', Math.min(textSegments.length, pageCount), 'segments');
+    if (debugEnabled) {
+      console.log('  - Creating page segments from', Math.min(textSegments.length, pageCount), 'segments');
+    }
     for (let i = 0; i < Math.min(textSegments.length, pageCount); i++) {
       const pageText = textSegments[i].trim();
-      console.log(`  - Processing segment ${i + 1}: text length = ${pageText.length}`);
+      if (debugEnabled) {
+        console.log(`  - Processing segment ${i + 1}: text length = ${pageText.length}`);
+      }
       if (pageText) {
         const segment = {
           page: i + 1,
@@ -648,10 +665,14 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
           endChar: currentCharPos + pageText.length
         };
         pageSegments.push(segment);
-        console.log(`  - Added page segment: page ${segment.page}, ${segment.text.length} chars`);
+        if (debugEnabled) {
+          console.log(`  - Added page segment: page ${segment.page}, ${segment.text.length} chars`);
+        }
         currentCharPos += pageText.length;
       } else {
-        console.log(`  - Skipped empty segment ${i + 1}`);
+        if (debugEnabled) {
+          console.log(`  - Skipped empty segment ${i + 1}`);
+        }
       }
     }
     
@@ -665,16 +686,20 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
         endChar: currentCharPos
       };
       pageSegments.push(emptySegment);
-      console.log(`  - Added empty segment for page ${emptySegment.page}`);
+      if (debugEnabled) {
+        console.log(`  - Added empty segment for page ${emptySegment.page}`);
+      }
     }
     
-    if (originalSegmentCount < pageCount) {
+    if (originalSegmentCount < pageCount && debugEnabled) {
       console.log(`  - Added ${pageCount - originalSegmentCount} empty segments to reach ${pageCount} pages`);
     }
     
-    console.log('  - Final page segments created:', pageSegments.length);
-    console.log('  - Page segments summary:', pageSegments.map(seg => `Page ${seg.page}: ${seg.text.length} chars`));
-    console.log('📄 === PDF PAGE SEGMENTATION COMPLETE ===');
+    console.log('📄 PDF Page Segmentation:', pageSegments.length, 'segments created');
+    if (debugEnabled) {
+      console.log('  - Page segments summary:', pageSegments.map(seg => `Page ${seg.page}: ${seg.text.length} chars`));
+      console.log('📄 === PDF PAGE SEGMENTATION COMPLETE ===');
+    }
     
     // Simple section detection based on common academic paper patterns
     const sections: PDFSection[] = [];
