@@ -2705,7 +2705,11 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     const extractionStartTime = new Date();
     const pdfContent = await extractPDFText(pdfBuffer);
     const extractionEndTime = new Date();
-    const extractionDuration = Math.round((extractionEndTime.getTime() - extractionStartTime.getTime()) / 1000);
+    // Calculate extraction duration with minimum value to prevent 0-second display issues  
+    const rawExtractionDuration = (extractionEndTime.getTime() - extractionStartTime.getTime()) / 1000;
+    const extractionDuration = rawExtractionDuration < 1 ? 
+      parseFloat(rawExtractionDuration.toFixed(1)) : 
+      Math.round(rawExtractionDuration);
     
     // 2. Analyze PDF structure
     let pdfMetadata: PDFMetadata | undefined;
@@ -2813,11 +2817,15 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     // 5. Calculate analysis time
     const analysisEndTime = new Date();
     const totalAnalysisTime = Math.round((analysisEndTime.getTime() - analysisStartTime.getTime()) / 1000);
-    const summaryDuration = summaryStartTime && summaryEndTime 
-      ? Math.round((summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000)
+    // Calculate summary duration with sub-second precision  
+    const rawSummaryDuration = summaryStartTime && summaryEndTime 
+      ? (summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000
       : 0;
+    const summaryDuration = rawSummaryDuration > 0 && rawSummaryDuration < 1 ? 
+      parseFloat(rawSummaryDuration.toFixed(1)) : 
+      Math.round(rawSummaryDuration);
     
-    // Validate timing values to ensure they are reasonable
+    // Ensure timing values are reasonable (>= 0) and preserve sub-second precision
     const validatedExtractionDuration = Math.max(0, extractionDuration || 0);
     const validatedSummaryDuration = Math.max(0, summaryDuration || 0);
     

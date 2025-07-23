@@ -1131,21 +1131,27 @@ const AnalyzePage: React.FC = () => {
       const analysisTime = currentVideo.analysisTime;
       
       // Priority 1: extraction field (specific for PDF text extraction)
-      if (analysisTime.extraction && typeof analysisTime.extraction === 'number' && analysisTime.extraction > 0) {
+      if (analysisTime.extraction !== undefined && typeof analysisTime.extraction === 'number' && analysisTime.extraction >= 0) {
         console.log(`✅ PDF using extraction time: ${analysisTime.extraction}`);
         return analysisTime.extraction;
       }
       
       // Priority 2: transcription field (in case extraction is named differently)
-      if (analysisTime.transcription && typeof analysisTime.transcription === 'number' && analysisTime.transcription > 0) {
+      if (analysisTime.transcription !== undefined && typeof analysisTime.transcription === 'number' && analysisTime.transcription >= 0) {
         console.log(`✅ PDF using transcription time: ${analysisTime.transcription}`);
         return analysisTime.transcription;
       }
       
-      // For PDF, do NOT fall back to duration field as it represents wall clock time, not extraction time
-      // If extraction timing is not available, return null rather than misleading data
+      // Priority 3: For completed PDF analysis, provide fallback to prevent "計測中..." display
+      // If we have a summary time, it means analysis completed - use minimal extraction time
+      if (analysisTime.summary !== undefined && typeof analysisTime.summary === 'number' && analysisTime.summary >= 0) {
+        console.log('⚠️ PDF: Using fallback extraction time (0.1s) as analysis is completed with summary');
+        return 0.1; // Minimal fallback to indicate completion
+      }
+      
+      // If no timing data is available, return null (will show "計測中...")
       console.log('❌ PDF: No valid extraction timing data found. Available fields:', Object.keys(analysisTime));
-      console.log('❌ PDF: extraction =', analysisTime.extraction, ', transcription =', analysisTime.transcription);
+      console.log('❌ PDF: extraction =', analysisTime.extraction, ', transcription =', analysisTime.transcription, ', summary =', analysisTime.summary);
       return null;
     } else {
       // For audio/video content
