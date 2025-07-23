@@ -25,14 +25,21 @@ const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({ pdfUrl, title, pdf
 
   useImperativeHandle(ref, () => ({
     jumpToPage: (page: number) => {
+      console.log(`📄 PDFViewer: jumpToPage called with page ${page}`);
+      console.log(`📄 PDFViewer: iframeRef.current available:`, !!iframeRef.current);
+      console.log(`📄 PDFViewer: pdfUrl:`, pdfUrl);
+      
       if (iframeRef.current && pdfUrl) {
         // Use PDF URL fragment to jump to specific page
         const baseUrl = pdfUrl.split('#')[0] // Remove existing fragment
         const newUrl = `${baseUrl}#page=${page}`
+        console.log(`📄 PDFViewer: Setting iframe src to: ${newUrl}`);
         iframeRef.current.src = newUrl
-        console.log(`📄 PDFViewer: Jumping to page ${page}`)
+        console.log(`📄 PDFViewer: Successfully jumped to page ${page}`)
       } else {
         console.warn('📄 PDFViewer: Cannot jump to page - no PDF URL or iframe ref')
+        console.warn('📄 PDFViewer: iframeRef.current:', iframeRef.current);
+        console.warn('📄 PDFViewer: pdfUrl:', pdfUrl);
       }
     }
   }), [pdfUrl])

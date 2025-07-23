@@ -78,9 +78,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     const pageRegex = /\bp\.(\d+)(?:-(\d+))?/g
     let match
     
+    console.log('📄 MarkdownRenderer: Processing page references in text:', text.substring(0, 100) + '...');
+    
     while ((match = pageRegex.exec(text)) !== null) {
       const [fullMatch, startPage, endPage] = match
       const matchStart = match.index
+      
+      console.log('📄 MarkdownRenderer: Found page reference:', fullMatch, 'at position', matchStart);
       
       // Add text before page reference
       if (matchStart > lastIndex) {
@@ -88,13 +92,17 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       }
       
       const pageNumber = parseInt(startPage)
+      console.log('📄 MarkdownRenderer: Creating clickable link for page:', pageNumber);
       
       // Add clickable page reference
       parts.push(
         <span
           key={`page-${keyIndex++}`}
           className="page-link"
-          onClick={() => onPageJump(pageNumber)}
+          onClick={() => {
+            console.log('📄 MarkdownRenderer: Page link clicked for page:', pageNumber);
+            onPageJump(pageNumber);
+          }}
           title={`クリックでPDFの${pageNumber}ページにジャンプ`}
         >
           {fullMatch}

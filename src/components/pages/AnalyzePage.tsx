@@ -806,7 +806,9 @@ const AnalyzePage: React.FC = () => {
         fileId: data.fileId,
         originalFilename: data.originalName,
         fileSize: data.size,
-        uploadedAt: data.uploadedAt
+        uploadedAt: data.uploadedAt,
+        // PDF-specific content for page navigation
+        pdfContent: data.pdfContent
       }
       
       console.log('🕒 AnalyzePage: Final videoMetadata analysis time:', videoMetadata.analysisTime)
@@ -2481,6 +2483,8 @@ const AnalyzePage: React.FC = () => {
               }}
               onPageJump={(page) => {
                 console.log('📄 AnalyzePage: onPageJump called with page:', page)
+                console.log('📄 AnalyzePage: pdfViewerRef.current available:', !!pdfViewerRef.current)
+                console.log('📄 AnalyzePage: currentVideo.basic?.pdfUrl:', currentVideo.basic?.pdfUrl)
                 if (pdfViewerRef.current) {
                   pdfViewerRef.current.jumpToPage(page)
                 } else {

@@ -68,6 +68,8 @@ export interface VideoMetadata {
   uploadedAt?: string;
   // Analysis type for different content types
   analysisType?: AnalysisType;
+  // PDF-specific content for page navigation
+  pdfContent?: PDFContent;
 }
 
 // Extended metadata for audio files

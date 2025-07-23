@@ -609,13 +609,19 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
     // Extract page segments
     const pageSegments: PDFPageSegment[] = [];
     
+    console.log('📄 === PDF PAGE SEGMENTATION DEBUG ===');
+    console.log('  - Full text length:', fullText.length);
+    console.log('  - Page count:', pageCount);
+    
     // Try to split text by page breaks (form feed character or multiple newlines)
     // Note: pdf-parse doesn't always preserve page breaks perfectly
     const pageBreakPattern = /\f|\n{3,}/g;
     let textSegments = fullText.split(pageBreakPattern);
+    console.log('  - Text segments from page breaks:', textSegments.length);
     
     // If no clear page breaks found, split evenly by estimated page size
     if (textSegments.length < pageCount * 0.5) {
+      console.log('  - Using even split method');
       const avgCharsPerPage = Math.ceil(fullText.length / pageCount);
       textSegments = [];
       for (let i = 0; i < pageCount; i++) {
@@ -623,6 +629,9 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
         const end = Math.min((i + 1) * avgCharsPerPage, fullText.length);
         textSegments.push(fullText.slice(start, end));
       }
+      console.log('  - Text segments after even split:', textSegments.length);
+    } else {
+      console.log('  - Using page break method');
     }
     
     // Create page segments
@@ -649,6 +658,10 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
         endChar: currentCharPos
       });
     }
+    
+    console.log('  - Final page segments created:', pageSegments.length);
+    console.log('  - Page segments summary:', pageSegments.map(seg => `Page ${seg.page}: ${seg.text.length} chars`));
+    console.log('📄 === PDF PAGE SEGMENTATION COMPLETE ===');
     
     // Simple section detection based on common academic paper patterns
     const sections: PDFSection[] = [];
@@ -1395,6 +1408,10 @@ async function generateSummary(
     let transcriptContent = '';
     
     if (contentType === 'pdf' && pageSegments && pageSegments.length > 0) {
+      console.log('📄 === SUMMARY GENERATION WITH PAGE SEGMENTS ===');
+      console.log('  - Page segments available:', pageSegments.length);
+      console.log('  - Page segments pages:', pageSegments.map(seg => seg.page));
+      
       timestampNote = `⚠️ 重要: ページ情報が利用可能です。要約の各セクションで言及する内容には、該当するページ番号を必ず含めてください。
       
 ページの表記方法:
@@ -2909,22 +2926,27 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
 
     // 6. Prepare response (limit content size to prevent network errors)
     let limitedPdfContent = undefined;
-    if (shouldExtractStructure && pdfContent) {
+    if (pdfContent) {
       // Create a limited version of PDF content to prevent ERR_CONTENT_LENGTH_MISMATCH
+      // Always include pageSegments for page navigation functionality
       limitedPdfContent = {
         fullText: pdfContent.fullText.length > 50000 
           ? pdfContent.fullText.substring(0, 50000) + '... [Content truncated for network transmission]'
           : pdfContent.fullText,
-        sections: pdfContent.sections.map(section => ({
+        sections: shouldExtractStructure ? pdfContent.sections.map(section => ({
           ...section,
           // Limit section content to 1000 chars each
           content: section.content.length > 1000 
             ? section.content.substring(0, 1000) + '... [Truncated]'
             : section.content
-        })).slice(0, 20), // Limit to first 20 sections
+        })).slice(0, 20) : [], // Only include sections if structure extraction is enabled
         pageCount: pdfContent.pageCount,
-        language: pdfContent.language
+        language: pdfContent.language,
+        // IMPORTANT: Always include pageSegments for page navigation functionality
+        pageSegments: pdfContent.pageSegments || []
       };
+      
+      console.log('📄 PDF Response pageSegments included:', limitedPdfContent.pageSegments?.length || 0);
     }
 
     const response: PDFAnalysisResponse = {
