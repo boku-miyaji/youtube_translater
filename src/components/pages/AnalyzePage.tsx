@@ -811,6 +811,18 @@ const AnalyzePage: React.FC = () => {
         pdfContent: data.pdfContent
       }
       
+      // Debug PDF content received from server
+      if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+        console.log('📄 === PDF CONTENT DEBUG ===');
+        console.log('  - data.pdfContent exists:', !!data.pdfContent);
+        console.log('  - data.pdfContent.pageSegments length:', data.pdfContent?.pageSegments?.length || 0);
+        console.log('  - videoMetadata.pdfContent exists:', !!videoMetadata.pdfContent);
+        console.log('  - videoMetadata.pdfContent.pageSegments length:', videoMetadata.pdfContent?.pageSegments?.length || 0);
+        if (data.pdfContent?.pageSegments && data.pdfContent.pageSegments.length > 0) {
+          console.log('  - First page segment:', data.pdfContent.pageSegments[0]);
+        }
+      }
+      
       console.log('🕒 AnalyzePage: Final videoMetadata analysis time:', videoMetadata.analysisTime)
       console.log('🕒 AnalyzePage: Final videoMetadata analysisType:', videoMetadata.analysisType)
       console.log('🕒 AnalyzePage: Final videoMetadata source:', videoMetadata.source)
@@ -1303,7 +1315,7 @@ const AnalyzePage: React.FC = () => {
       if (isPdfContent(currentVideo)) {
         // For PDFs, try multiple fallback sources
         // Priority 1: total field (most comprehensive)
-        if (analysisTime.total && typeof analysisTime.total === 'number' && analysisTime.total > 0) {
+        if (analysisTime.total && typeof analysisTime.total === 'number' && analysisTime.total >= 0) {
           console.log(`⏱️ PDF using total: ${analysisTime.total}`);
           effectiveDuration = analysisTime.total;
         }
@@ -1313,7 +1325,7 @@ const AnalyzePage: React.FC = () => {
           effectiveDuration = analysisTime.extraction;
         }
         // Priority 3: duration field
-        else if (analysisTime.duration && typeof analysisTime.duration === 'number' && analysisTime.duration > 0) {
+        else if (analysisTime.duration && typeof analysisTime.duration === 'number' && analysisTime.duration >= 0) {
           console.log(`⏱️ PDF using duration: ${analysisTime.duration}`);
           effectiveDuration = analysisTime.duration;
         }

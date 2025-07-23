@@ -636,27 +636,40 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
     
     // Create page segments
     let currentCharPos = 0;
+    console.log('  - Creating page segments from', Math.min(textSegments.length, pageCount), 'segments');
     for (let i = 0; i < Math.min(textSegments.length, pageCount); i++) {
       const pageText = textSegments[i].trim();
+      console.log(`  - Processing segment ${i + 1}: text length = ${pageText.length}`);
       if (pageText) {
-        pageSegments.push({
+        const segment = {
           page: i + 1,
           text: pageText,
           startChar: currentCharPos,
           endChar: currentCharPos + pageText.length
-        });
+        };
+        pageSegments.push(segment);
+        console.log(`  - Added page segment: page ${segment.page}, ${segment.text.length} chars`);
         currentCharPos += pageText.length;
+      } else {
+        console.log(`  - Skipped empty segment ${i + 1}`);
       }
     }
     
     // If we have fewer segments than pages, create empty segments for remaining pages
+    const originalSegmentCount = pageSegments.length;
     while (pageSegments.length < pageCount) {
-      pageSegments.push({
+      const emptySegment = {
         page: pageSegments.length + 1,
         text: '',
         startChar: currentCharPos,
         endChar: currentCharPos
-      });
+      };
+      pageSegments.push(emptySegment);
+      console.log(`  - Added empty segment for page ${emptySegment.page}`);
+    }
+    
+    if (originalSegmentCount < pageCount) {
+      console.log(`  - Added ${pageCount - originalSegmentCount} empty segments to reach ${pageCount} pages`);
     }
     
     console.log('  - Final page segments created:', pageSegments.length);
@@ -1411,6 +1424,7 @@ async function generateSummary(
       console.log('📄 === SUMMARY GENERATION WITH PAGE SEGMENTS ===');
       console.log('  - Page segments available:', pageSegments.length);
       console.log('  - Page segments pages:', pageSegments.map(seg => seg.page));
+      console.log('  - Non-empty segments:', pageSegments.filter(seg => seg.text.length > 0).length);
       
       timestampNote = `⚠️ 重要: ページ情報が利用可能です。要約の各セクションで言及する内容には、該当するページ番号を必ず含めてください。
       
@@ -1444,6 +1458,12 @@ ${timestampedSegments.map(segment => {
 }).join('\n')}`;
       transcriptContent = '';
     } else {
+      if (contentType === 'pdf') {
+        console.log('❌ PDF Summary: No page segments available');
+        console.log('  - pageSegments param:', pageSegments ? `array of ${pageSegments.length}` : 'undefined');
+        console.log('  - contentType:', contentType);
+      }
+      
       timestampNote = contentType === 'pdf' ? 
         `ℹ️ 注意: この文書にはページ情報がありません。論文の構造と内容の論理的な流れを意識して要約を作成してください。` :
         `ℹ️ 注意: この${format}にはタイムスタンプ情報がありません。内容の順序や流れを意識して要約を作成してください。`;
@@ -2947,6 +2967,14 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       };
       
       console.log('📄 PDF Response pageSegments included:', limitedPdfContent.pageSegments?.length || 0);
+      if (limitedPdfContent.pageSegments && limitedPdfContent.pageSegments.length > 0) {
+        console.log('📄 First few page segments:', limitedPdfContent.pageSegments.slice(0, 3).map(seg => 
+          `Page ${seg.page}: ${seg.text.length} chars`
+        ));
+      } else {
+        console.log('❌ No page segments in response! Original pdfContent.pageSegments:', 
+          pdfContent.pageSegments?.length || 'undefined');
+      }
     }
 
     const response: PDFAnalysisResponse = {
