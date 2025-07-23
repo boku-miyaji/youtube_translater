@@ -162,11 +162,14 @@ const AnalyzePage: React.FC = () => {
           language
         }
       } else if (inputType === InputType.PDF_URL) {
-        // For PDF, estimate character count based on typical PDF sizes
-        const estimatedCharacterCount = 50000 // Default ~50k characters for academic paper
+        // For PDF, use realistic page-based estimation
+        const estimatedPageCount = 10 // Default page count for academic paper
+        const avgCharsPerPage = 4000 // Average characters per page
+        const estimatedCharacterCount = estimatedPageCount * avgCharsPerPage
         predictionInput = {
           contentType: 'pdf',
           characterCount: estimatedCharacterCount,
+          pageCount: estimatedPageCount,
           transcriptionModel: 'extraction', // PDF doesn't need transcription model
           gptModel: model,
           language
@@ -1130,13 +1133,13 @@ const AnalyzePage: React.FC = () => {
       // Priority 1: extraction field (specific for PDF text extraction)
       if (analysisTime.extraction && typeof analysisTime.extraction === 'number' && analysisTime.extraction > 0) {
         console.log(`✅ PDF using extraction time: ${analysisTime.extraction}`);
-        return Math.round(analysisTime.extraction);
+        return analysisTime.extraction;
       }
       
       // Priority 2: transcription field (in case extraction is named differently)
       if (analysisTime.transcription && typeof analysisTime.transcription === 'number' && analysisTime.transcription > 0) {
         console.log(`✅ PDF using transcription time: ${analysisTime.transcription}`);
-        return Math.round(analysisTime.transcription);
+        return analysisTime.transcription;
       }
       
       // For PDF, do NOT fall back to duration field as it represents wall clock time, not extraction time
@@ -1146,7 +1149,7 @@ const AnalyzePage: React.FC = () => {
       return null;
     } else {
       // For audio/video content
-      return currentVideo.analysisTime.transcription ? Math.round(currentVideo.analysisTime.transcription) : null;
+      return currentVideo.analysisTime.transcription || null;
     }
   }
 
@@ -1319,12 +1322,21 @@ const AnalyzePage: React.FC = () => {
       return '計測中...';
     }
     
-    const safeDuration = Math.round(effectiveDuration);
-    console.log(`✅ formatSafeDuration: Using duration ${safeDuration} seconds`);
+    console.log(`✅ formatSafeDuration: Using duration ${effectiveDuration} seconds`);
     
-    if (safeDuration < 60) {
+    // For sub-second durations, show with one decimal place
+    if (effectiveDuration < 1) {
+      const roundedDuration = Math.round(effectiveDuration * 10) / 10;
+      return `${roundedDuration}秒`;
+    }
+    // For durations less than 60 seconds, round to nearest integer
+    else if (effectiveDuration < 60) {
+      const safeDuration = Math.round(effectiveDuration);
       return `${safeDuration}秒`;
-    } else {
+    } 
+    // For longer durations, use minutes and seconds
+    else {
+      const safeDuration = Math.round(effectiveDuration);
       const minutes = Math.floor(safeDuration / 60);
       const seconds = safeDuration % 60;
       return `${minutes}分${seconds}秒`;
@@ -2160,7 +2172,7 @@ const AnalyzePage: React.FC = () => {
                                     <span className="text-gray-600">処理時間:</span>
                                     <span className="text-gray-800">
                                       {getFirstStageProcessingTime() ? 
-                                        `${getFirstStageProcessingTime()}秒` : 
+                                        formatSafeDuration(getFirstStageProcessingTime()) : 
                                         '計測中...'
                                       }
                                     </span>
@@ -2182,7 +2194,7 @@ const AnalyzePage: React.FC = () => {
                                     <div className="flex justify-between">
                                       <span className="text-gray-600">処理時間:</span>
                                       <span className="text-gray-800">
-                                        {Math.round(currentVideo.analysisTime.summary)}秒
+                                        {formatSafeDuration(currentVideo.analysisTime.summary)}
                                       </span>
                                     </div>
                                   )}

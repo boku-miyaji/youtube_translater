@@ -433,6 +433,11 @@ export interface PDFAnalysisResponse extends ApiResponse {
   size?: number;
   pdfContent?: PDFContent;
   pdfMetadata?: PDFMetadata;
+  contentMetrics?: {
+    pageCount: number;
+    characterCount: number;
+    wordCount: number;
+  };
   analysisTime?: {
     startTime?: string;
     endTime?: string;

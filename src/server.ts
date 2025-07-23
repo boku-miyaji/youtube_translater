@@ -2861,6 +2861,12 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       pdfContent: limitedPdfContent,
       pdfMetadata,
       analysisType: 'pdf' as AnalysisType,  // Specify the analysis type
+      // Add content metrics for better prediction
+      contentMetrics: {
+        pageCount: pdfContent.pageCount,
+        characterCount: pdfContent.fullText.length,
+        wordCount: pdfContent.fullText.split(/\s+/).length
+      },
       costs: {
         transcription: 0,
         summary: summaryCost,
@@ -4151,6 +4157,88 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined
     } as CostEstimationResponse);
+  }
+});
+
+// Cost estimation for PDF
+app.post('/api/estimate-cost-pdf', async (req: Request, res: Response) => {
+  console.log('📊 Cost estimation request for PDF');
+  
+  try {
+    const { url, pageCount = 10, gptModel = 'gpt-4o-mini', generateSummary = true }: {
+      url?: string;
+      pageCount?: number;
+      gptModel?: string;
+      generateSummary?: boolean;
+    } = req.body;
+    
+    console.log('📊 Request params:', { url, pageCount, gptModel, generateSummary });
+    
+    // Estimate character count based on page count
+    // Average academic paper has ~3000-5000 characters per page
+    const avgCharsPerPage = 4000;
+    const estimatedCharacterCount = pageCount * avgCharsPerPage;
+    
+    // Calculate PDF processing time (extraction + summary)
+    // PDF extraction: roughly 0.5-2 seconds per page based on complexity
+    const extractionTime = pageCount * 1.5; // 1.5 seconds per page
+    
+    // Summary cost estimation
+    let summaryCost = 0;
+    let summaryTime = 0;
+    
+    if (generateSummary) {
+      // Estimate tokens: roughly 1 token per 4 characters
+      const inputTokens = Math.ceil(estimatedCharacterCount / 4);
+      const outputTokens = Math.ceil(inputTokens * 0.2); // Summary is typically 20% of input
+      
+      const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
+      summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
+      
+      // Summary generation time: depends on model and text length
+      const summarySecondsPerKChar = gptModel.includes('gpt-4') ? 3 : 2;
+      summaryTime = (estimatedCharacterCount / 1000) * summarySecondsPerKChar;
+    }
+    
+    const totalTime = extractionTime + summaryTime;
+    
+    // Format processing time
+    const processingTime = {
+      transcription: extractionTime,
+      summary: summaryTime,
+      total: totalTime,
+      formatted: formatProcessingTime(totalTime),
+      transcriptionRate: `${(extractionTime / pageCount).toFixed(1)}s/page`,
+      summaryRate: summaryCost > 0 ? `${(summaryTime / pageCount).toFixed(1)}s/page` : '0s',
+      basedOn: 'model_default',
+      confidence: 0.6,
+      isHistoricalEstimate: false
+    };
+    
+    const response = {
+      success: true,
+      contentType: 'pdf',
+      pageCount,
+      estimatedCharacterCount,
+      gptModel,
+      estimatedCosts: {
+        transcription: 0, // PDF parsing is free
+        summary: summaryCost,
+        article: 0,
+        total: summaryCost
+      },
+      estimatedProcessingTime: processingTime,
+      message: 'PDF cost estimation completed'
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error estimating PDF cost:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error during PDF cost estimation'
+    });
   }
 });
 

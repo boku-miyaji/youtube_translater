@@ -9,6 +9,7 @@ export interface PredictionInput {
   gptModel: string
   language: string
   characterCount?: number // For PDF text length
+  pageCount?: number // For PDF page count
 }
 
 export interface PredictionResult {
@@ -44,6 +45,7 @@ export interface HistoryEntry {
     summary?: number
     total?: number
   }
+  pageCount?: number // for PDF
 }
 
 export interface ProcessingTimeStats {
@@ -52,6 +54,7 @@ export interface ProcessingTimeStats {
       averageSecondsPerMinute: number
       averageSecondsPerMB?: number // for PDF
       averageSecondsPerKChar?: number // per 1000 characters
+      averageSecondsPerPage?: number // per page for PDF
       sampleSize: number
       recentSamples: number[]
     }
@@ -321,8 +324,11 @@ export class ProcessingTimePredictor {
 
     if (transcriptionStats && transcriptionStats.sampleSize >= 2) {
       if (input.contentType === 'pdf' && input.characterCount && transcriptionStats.averageSecondsPerKChar) {
-        // PDF: use character-based prediction
+        // PDF: use character-based prediction, with page-based fallback
         transcriptionTime = (input.characterCount / 1000) * transcriptionStats.averageSecondsPerKChar
+      } else if (input.contentType === 'pdf' && input.pageCount && transcriptionStats.averageSecondsPerPage) {
+        // PDF: use page-based prediction if available
+        transcriptionTime = input.pageCount * transcriptionStats.averageSecondsPerPage
       } else if (input.duration && transcriptionStats.averageSecondsPerMinute) {
         // YouTube/Audio/Video: use duration-based prediction
         transcriptionTime = (input.duration / 60) * transcriptionStats.averageSecondsPerMinute
@@ -383,16 +389,22 @@ export class ProcessingTimePredictor {
     const transcriptionRate = transcriptionDefaults[input.transcriptionModel]
     if (transcriptionRate && input.duration) {
       transcriptionTime = (input.duration / 60) * transcriptionRate
+    } else if (input.contentType === 'pdf' && input.pageCount) {
+      // PDF default: ~1.5 seconds per page for extraction (most realistic)
+      transcriptionTime = input.pageCount * 1.5
     } else if (input.contentType === 'pdf' && input.characterCount) {
-      // PDF default: ~1.5 seconds per 1000 characters for extraction (more realistic)
+      // PDF default: ~1.5 seconds per 1000 characters for extraction (fallback)
       transcriptionTime = (input.characterCount / 1000) * 1.5
     }
 
     const summaryCoeff = summaryDefaults[input.gptModel]
     if (summaryCoeff && input.duration) {
       summaryTime = (input.duration / 60) * 30 * summaryCoeff // base 30s/min adjusted by model
+    } else if (input.contentType === 'pdf' && input.pageCount) {
+      // PDF summary: ~12 seconds per page (most realistic)
+      summaryTime = input.pageCount * 12 * (summaryCoeff || 0.8)
     } else if (input.contentType === 'pdf' && input.characterCount) {
-      // PDF summary: ~3 seconds per 1000 characters (more realistic)
+      // PDF summary: ~3 seconds per 1000 characters (fallback)
       summaryTime = (input.characterCount / 1000) * 3 * (summaryCoeff || 0.8)
     }
 
@@ -406,8 +418,10 @@ export class ProcessingTimePredictor {
   private getDefaultTranscriptionTime(input: PredictionInput): number {
     if (input.duration) {
       return (input.duration / 60) * 6 // 6 seconds per minute default
+    } else if (input.pageCount) {
+      return input.pageCount * 1.5 // 1.5 seconds per page for PDF (most realistic)
     } else if (input.characterCount) {
-      return (input.characterCount / 1000) * 1.5 // 1.5 seconds per 1000 chars for PDF (more realistic)
+      return (input.characterCount / 1000) * 1.5 // 1.5 seconds per 1000 chars for PDF (fallback)
     }
     return 30 // global fallback
   }
@@ -415,8 +429,10 @@ export class ProcessingTimePredictor {
   private getDefaultSummaryTime(input: PredictionInput): number {
     if (input.duration) {
       return (input.duration / 60) * 30 // 30 seconds per minute default
+    } else if (input.pageCount) {
+      return input.pageCount * 12 // 12 seconds per page for PDF (most realistic)
     } else if (input.characterCount) {
-      return (input.characterCount / 1000) * 3 // 3 seconds per 1000 chars for PDF (more realistic)
+      return (input.characterCount / 1000) * 3 // 3 seconds per 1000 chars for PDF (fallback)
     }
     return 60 // global fallback
   }
@@ -425,6 +441,9 @@ export class ProcessingTimePredictor {
     if (input.duration && input.duration > 0) {
       const rate = time / (input.duration / 60)
       return `${rate.toFixed(1)}s/min`
+    } else if (input.pageCount && input.pageCount > 0) {
+      const rate = time / input.pageCount
+      return `${rate.toFixed(1)}s/page`
     } else if (input.characterCount && input.characterCount > 0) {
       const rate = time / (input.characterCount / 1000)
       return `${rate.toFixed(2)}s/1k chars`
