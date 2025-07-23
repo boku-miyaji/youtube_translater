@@ -49,6 +49,7 @@ import {
   PDFMetadata,
   PDFContent,
   PDFSection,
+  PDFPageSegment,
   AudioUploadResponse,
   PDFAnalysisResponse,
   FileTypeInfo,
@@ -605,6 +606,50 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
     const fullText = data.text;
     const pageCount = data.numpages;
     
+    // Extract page segments
+    const pageSegments: PDFPageSegment[] = [];
+    
+    // Try to split text by page breaks (form feed character or multiple newlines)
+    // Note: pdf-parse doesn't always preserve page breaks perfectly
+    const pageBreakPattern = /\f|\n{3,}/g;
+    let textSegments = fullText.split(pageBreakPattern);
+    
+    // If no clear page breaks found, split evenly by estimated page size
+    if (textSegments.length < pageCount * 0.5) {
+      const avgCharsPerPage = Math.ceil(fullText.length / pageCount);
+      textSegments = [];
+      for (let i = 0; i < pageCount; i++) {
+        const start = i * avgCharsPerPage;
+        const end = Math.min((i + 1) * avgCharsPerPage, fullText.length);
+        textSegments.push(fullText.slice(start, end));
+      }
+    }
+    
+    // Create page segments
+    let currentCharPos = 0;
+    for (let i = 0; i < Math.min(textSegments.length, pageCount); i++) {
+      const pageText = textSegments[i].trim();
+      if (pageText) {
+        pageSegments.push({
+          page: i + 1,
+          text: pageText,
+          startChar: currentCharPos,
+          endChar: currentCharPos + pageText.length
+        });
+        currentCharPos += pageText.length;
+      }
+    }
+    
+    // If we have fewer segments than pages, create empty segments for remaining pages
+    while (pageSegments.length < pageCount) {
+      pageSegments.push({
+        page: pageSegments.length + 1,
+        text: '',
+        startChar: currentCharPos,
+        endChar: currentCharPos
+      });
+    }
+    
     // Simple section detection based on common academic paper patterns
     const sections: PDFSection[] = [];
     const sectionPatterns = [
@@ -664,7 +709,8 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
       fullText,
       sections,
       pageCount,
-      language
+      language,
+      pageSegments
     };
   } catch (error) {
     throw new Error(`Failed to extract PDF text: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1205,7 +1251,8 @@ async function generateSummary(
   metadata: VideoMetadata | null,
   gptModel: string = 'gpt-4o-mini',
   timestampedSegments: TimestampedSegment[] = [],
-  contentType: 'youtube' | 'pdf' | 'audio' = 'youtube'
+  contentType: 'youtube' | 'pdf' | 'audio' = 'youtube',
+  pageSegments?: PDFPageSegment[]
 ): Promise<Summary | null> {
   console.log('🎯 === generateSummary DEBUG START ===');
   console.log('  - Transcript length:', transcript?.length || 0);
@@ -1343,8 +1390,27 @@ async function generateSummary(
       format = '動画';
     }
     
-    const timestampNote = hasTimestamps ? 
-      `⚠️ 重要: タイムスタンプ情報が利用可能です。要約の各セクションで言及する内容には、該当する時間を必ず含めてください。
+    // Handle timestamps or page references based on content type
+    let timestampNote = '';
+    let transcriptContent = '';
+    
+    if (contentType === 'pdf' && pageSegments && pageSegments.length > 0) {
+      timestampNote = `⚠️ 重要: ページ情報が利用可能です。要約の各セクションで言及する内容には、該当するページ番号を必ず含めてください。
+      
+ページの表記方法:
+- 特定のページを参照する場合: そのページを直接記載 (例: p.15 で説明されています)
+- 範囲を示す場合: 開始ページと終了ページを記載 (例: p.20-23 で詳しく解説されています)
+- 複数の関連箇所がある場合: 各ページを記載 (例: p.12 と p.45 で言及されています)
+
+重要: ページは必ず "p.番号" の形式で記載してください。フロントエンドでクリック可能なリンクとして表示されます。
+
+ページごとの文書内容:
+${pageSegments.map(segment => {
+  return `[p.${segment.page}] ${segment.text.substring(0, 300)}${segment.text.length > 300 ? '...' : ''}`;
+}).join('\n\n')}`;
+      transcriptContent = '';
+    } else if (hasTimestamps) {
+      timestampNote = `⚠️ 重要: タイムスタンプ情報が利用可能です。要約の各セクションで言及する内容には、該当する時間を必ず含めてください。
       
 時間の表記方法:
 - 特定の時点を参照する場合: その時間を直接記載 (例: 2:15 に説明されています)
@@ -1358,12 +1424,14 @@ ${timestampedSegments.map(segment => {
   const startTime = formatTime(segment.start);
   const endTime = formatTime(segment.start + segment.duration);
   return `[${startTime}-${endTime}] ${segment.text}`;
-}).join('\n')}` :
-      (contentType === 'pdf' ? 
-        `ℹ️ 注意: この文書にはタイムスタンプ情報がありません。論文の構造と内容の論理的な流れを意識して要約を作成してください。` :
-        `ℹ️ 注意: この${format}にはタイムスタンプ情報がありません。内容の順序や流れを意識して要約を作成してください。`);
-    
-    const transcriptContent = hasTimestamps ? '' : `${contentType === 'pdf' ? '文書内容' : '文字起こし内容'}:\n${transcript}`;
+}).join('\n')}`;
+      transcriptContent = '';
+    } else {
+      timestampNote = contentType === 'pdf' ? 
+        `ℹ️ 注意: この文書にはページ情報がありません。論文の構造と内容の論理的な流れを意識して要約を作成してください。` :
+        `ℹ️ 注意: この${format}にはタイムスタンプ情報がありません。内容の順序や流れを意識して要約を作成してください。`;
+      transcriptContent = `${contentType === 'pdf' ? '文書内容' : '文字起こし内容'}:\n${transcript}`;
+    }
     
     const systemMessage = promptTemplate
       .replace(/\{\{title\}\}/g, title)
@@ -2763,7 +2831,8 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
           pdfVideoMetadata as any,
           gptModel,
           [], // No timestamped segments for PDF
-          'pdf' // Content type
+          'pdf', // Content type
+          pdfContent.pageSegments // Pass page segments for PDF navigation
         );
         
         summary = summaryResult?.content || summaryResult?.text || '';

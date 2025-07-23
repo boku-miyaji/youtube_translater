@@ -117,6 +117,7 @@ export interface PDFContent {
   sections: PDFSection[];
   pageCount: number;
   language: string;
+  pageSegments?: PDFPageSegment[]; // Page-based segments for navigation
 }
 
 export interface PDFSection {
@@ -125,6 +126,14 @@ export interface PDFSection {
   pageRange: [number, number];
   type: 'abstract' | 'introduction' | 'methodology' | 
         'results' | 'conclusion' | 'references' | 'other';
+}
+
+// PDF page-based segment (similar to TimestampedSegment for videos)
+export interface PDFPageSegment {
+  page: number; // Page number (1-based)
+  text: string; // Text content of the page
+  startChar?: number; // Character position in fullText
+  endChar?: number; // Character position in fullText
 }
 
 export interface VideoListItem {

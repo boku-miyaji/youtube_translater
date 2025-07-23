@@ -12,6 +12,7 @@ interface TranscriptViewerProps {
   transcriptSource?: 'subtitle' | 'whisper'
   analysisType?: 'youtube' | 'video' | 'audio' | 'pdf'
   onSeek?: (time: number) => void
+  onPageJump?: (page: number) => void
   onQuestionClick?: (question: string) => void
   onArticleGenerated?: (cost: number) => void
 }
@@ -25,7 +26,7 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, analysisType, onSeek, onQuestionClick, onArticleGenerated }) => {
+const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, analysisType, onSeek, onPageJump, onQuestionClick, onArticleGenerated }) => {
   const [activeTab, setActiveTab] = useState<TabType>('transcript')
   const [summary, setSummary] = useState(initialSummary || '')
   const [article, setArticle] = useState('')
@@ -267,6 +268,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
               <MarkdownRenderer 
                 content={summary} 
                 onSeek={onSeek} 
+                onPageJump={onPageJump}
                 onQuestionClick={onQuestionClick}
                 className=""
               />
@@ -325,6 +327,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
               <MarkdownRenderer 
                 content={article} 
                 onSeek={onSeek} 
+                onPageJump={onPageJump}
                 onQuestionClick={onQuestionClick}
                 className=""
               />

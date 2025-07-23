@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, forwardRef, useImperativeHandle } from 'react'
 
 interface PDFViewerProps {
   pdfUrl?: string
@@ -16,7 +16,26 @@ interface PDFViewerProps {
   }
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title, pdfContent }) => {
+export interface PDFViewerRef {
+  jumpToPage: (page: number) => void
+}
+
+const PDFViewer = forwardRef<PDFViewerRef, PDFViewerProps>(({ pdfUrl, title, pdfContent }, ref) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  useImperativeHandle(ref, () => ({
+    jumpToPage: (page: number) => {
+      if (iframeRef.current && pdfUrl) {
+        // Use PDF URL fragment to jump to specific page
+        const baseUrl = pdfUrl.split('#')[0] // Remove existing fragment
+        const newUrl = `${baseUrl}#page=${page}`
+        iframeRef.current.src = newUrl
+        console.log(`📄 PDFViewer: Jumping to page ${page}`)
+      } else {
+        console.warn('📄 PDFViewer: Cannot jump to page - no PDF URL or iframe ref')
+      }
+    }
+  }), [pdfUrl])
   // If we have a PDF URL, embed the actual PDF (similar to YouTube player)
   if (pdfUrl) {
     return (
@@ -24,6 +43,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title, pdfContent }) => {
         <div className="card-modern overflow-hidden">
           <div className="aspect-video">
             <iframe
+              ref={iframeRef}
               src={pdfUrl}
               title={title || 'PDF Document'}
               className="w-full h-full"
@@ -87,6 +107,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title, pdfContent }) => {
       </div>
     </div>
   )
-}
+})
+
+PDFViewer.displayName = 'PDFViewer'
 
 export default PDFViewer

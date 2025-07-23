@@ -6,6 +6,7 @@ import type { Components } from 'react-markdown'
 interface MarkdownRendererProps {
   content: string
   onSeek?: (time: number) => void
+  onPageJump?: (page: number) => void
   onQuestionClick?: (question: string) => void
   className?: string
 }
@@ -13,6 +14,7 @@ interface MarkdownRendererProps {
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ 
   content, 
   onSeek, 
+  onPageJump,
   onQuestionClick, 
   className = '' 
 }) => {
@@ -64,6 +66,52 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     return parts.length > 1 ? parts : [text]
   }
 
+  // Helper function to process PDF page references in text content
+  const processPageReferences = (text: string): (string | JSX.Element)[] => {
+    if (!onPageJump || !text) return [text]
+    
+    const parts: (string | JSX.Element)[] = []
+    let lastIndex = 0
+    let keyIndex = 0
+    
+    // Match patterns like "p.15", "p.20-23", "p.12 と p.45"
+    const pageRegex = /\bp\.(\d+)(?:-(\d+))?/g
+    let match
+    
+    while ((match = pageRegex.exec(text)) !== null) {
+      const [fullMatch, startPage, endPage] = match
+      const matchStart = match.index
+      
+      // Add text before page reference
+      if (matchStart > lastIndex) {
+        parts.push(text.substring(lastIndex, matchStart))
+      }
+      
+      const pageNumber = parseInt(startPage)
+      
+      // Add clickable page reference
+      parts.push(
+        <span
+          key={`page-${keyIndex++}`}
+          className="page-link"
+          onClick={() => onPageJump(pageNumber)}
+          title={`クリックでPDFの${pageNumber}ページにジャンプ`}
+        >
+          {fullMatch}
+        </span>
+      )
+      
+      lastIndex = matchStart + fullMatch.length
+    }
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex))
+    }
+    
+    return parts.length > 1 ? parts : [text]
+  }
+
   // Helper function to process questions in text content
   const processQuestions = (text: string, processedContent: React.ReactNode): React.ReactNode => {
     if (!onQuestionClick) return processedContent
@@ -97,30 +145,51 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     )
   }
 
-  // Minimal custom components - only for timestamp and question processing
+  // Helper function to process both timestamps and page references
+  const processContent = (text: string): (string | JSX.Element)[] => {
+    if (!text) return [text]
+    
+    // First process timestamps
+    let parts = processTimestamps(text)
+    
+    // Then process page references in each text part
+    const finalParts: (string | JSX.Element)[] = []
+    for (const part of parts) {
+      if (typeof part === 'string') {
+        const pageProcessed = processPageReferences(part)
+        finalParts.push(...pageProcessed)
+      } else {
+        finalParts.push(part)
+      }
+    }
+    
+    return finalParts
+  }
+
+  // Minimal custom components - for timestamp, page reference, and question processing
   const components: Components = {
-    // Process text nodes for timestamps
+    // Process text nodes for timestamps and page references
     text: ({ children }) => {
       const textValue = children?.toString() || ''
       if (!textValue) return <>{children}</>
       
-      const timestampParts = processTimestamps(textValue)
-      if (timestampParts.length > 1) {
-        return <>{timestampParts}</>
+      const processedParts = processContent(textValue)
+      if (processedParts.length > 1) {
+        return <>{processedParts}</>
       }
       
       return <>{children}</>
     },
 
-    // Process paragraphs for questions
+    // Process paragraphs for timestamps, page references, and questions
     p: ({ children }) => {
       const textContent = children?.toString() || ''
       
-      // Process timestamps in paragraph content first
+      // Process timestamps and page references in paragraph content first
       const processedContent = React.Children.map(children, (child) => {
         if (typeof child === 'string') {
-          const timestampParts = processTimestamps(child)
-          return timestampParts.length > 1 ? timestampParts : child
+          const processedParts = processContent(child)
+          return processedParts.length > 1 ? processedParts : child
         }
         return child
       })
@@ -131,15 +200,15 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       return <p>{withQuestions}</p>
     },
 
-    // Process list items for timestamps and questions
+    // Process list items for timestamps, page references, and questions
     li: ({ children }) => {
       const textContent = children?.toString() || ''
       
-      // Process timestamps in list item content
+      // Process timestamps and page references in list item content
       const processedContent = React.Children.map(children, (child) => {
         if (typeof child === 'string') {
-          const timestampParts = processTimestamps(child)
-          return timestampParts.length > 1 ? timestampParts : child
+          const processedParts = processContent(child)
+          return processedParts.length > 1 ? processedParts : child
         }
         return child
       })
@@ -150,27 +219,51 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       return <li>{withQuestions}</li>
     },
 
-    // Handle inline code that might be timestamps
+    // Handle inline code that might be timestamps or page references
     code: ({ children, inline }) => {
-      if (inline && onSeek) {
+      if (inline) {
         const codeText = children?.toString() || ''
-        const timeMatch = codeText.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
         
-        if (timeMatch) {
-          const [, minutes, seconds, hours] = timeMatch
-          const totalSeconds = hours 
-            ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
-            : parseInt(minutes) * 60 + parseInt(seconds)
+        // Check for timestamp pattern
+        if (onSeek) {
+          const timeMatch = codeText.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
           
-          return (
-            <span
-              className="timestamp-link"
-              onClick={() => onSeek(totalSeconds)}
-              title={`クリックで動画の${codeText}にジャンプ`}
-            >
-              {codeText}
-            </span>
-          )
+          if (timeMatch) {
+            const [, minutes, seconds, hours] = timeMatch
+            const totalSeconds = hours 
+              ? parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds)
+              : parseInt(minutes) * 60 + parseInt(seconds)
+            
+            return (
+              <span
+                className="timestamp-link"
+                onClick={() => onSeek(totalSeconds)}
+                title={`クリックで動画の${codeText}にジャンプ`}
+              >
+                {codeText}
+              </span>
+            )
+          }
+        }
+        
+        // Check for page reference pattern
+        if (onPageJump) {
+          const pageMatch = codeText.match(/^p\.(\d+)(?:-(\d+))?$/)
+          
+          if (pageMatch) {
+            const [, startPage] = pageMatch
+            const pageNumber = parseInt(startPage)
+            
+            return (
+              <span
+                className="page-link"
+                onClick={() => onPageJump(pageNumber)}
+                title={`クリックでPDFの${pageNumber}ページにジャンプ`}
+              >
+                {codeText}
+              </span>
+            )
+          }
         }
       }
       

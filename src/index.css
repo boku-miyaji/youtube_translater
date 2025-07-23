@@ -164,6 +164,11 @@ button:disabled {
   @apply text-indigo-600 hover:text-indigo-800 underline cursor-pointer font-mono text-sm transition-colors;
 }
 
+/* Page reference link styling */
+.prose-tx .page-link {
+  @apply text-emerald-600 hover:text-emerald-800 underline cursor-pointer font-mono text-sm transition-colors;
+}
+
 /* Question button styling */
 .prose-tx .question-button {
   @apply inline-block px-2 py-1 ml-2 rounded transition-all border shadow-sm bg-gray-50 hover:bg-gray-100 cursor-pointer text-sm;

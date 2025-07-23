@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 import TranscriptViewer from '../shared/TranscriptViewer'
-import PDFViewer from '../shared/PDFViewer'
+import PDFViewer, { PDFViewerRef } from '../shared/PDFViewer'
 import ChatInterface from '../shared/ChatInterface'
 import VideoFileUpload from '../shared/VideoFileUpload'
 import AnalysisProgress from '../shared/AnalysisProgress'
@@ -24,6 +24,7 @@ const AnalyzePage: React.FC = () => {
   const [fileError, setFileError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [playerRef, setPlayerRef] = useState<any>(null)
+  const pdfViewerRef = useRef<PDFViewerRef>(null)
   const [prefillQuestion, setPrefillQuestion] = useState<string>('')
   const [videoPreview, setVideoPreview] = useState<{title: string, thumbnail: string} | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -2014,11 +2015,11 @@ const AnalyzePage: React.FC = () => {
                   </video>
                 )}
                 {currentVideo.basic?.pdfUrl && !currentVideo.basic?.videoId && !currentVideo.basic?.videoPath && (
-                  <iframe
-                    src={currentVideo.basic.pdfUrl}
+                  <PDFViewer
+                    ref={pdfViewerRef}
+                    pdfUrl={currentVideo.basic.pdfUrl}
                     title={currentVideo.basic.title || 'PDF Document'}
-                    className="w-full h-full"
-                    allowFullScreen
+                    pdfContent={currentVideo.pdfContent}
                   />
                 )}
               </div>
@@ -2477,6 +2478,15 @@ const AnalyzePage: React.FC = () => {
                 }
                 
                 trySeek()
+              }}
+              onPageJump={(page) => {
+                console.log('📄 AnalyzePage: onPageJump called with page:', page)
+                if (pdfViewerRef.current) {
+                  pdfViewerRef.current.jumpToPage(page)
+                } else {
+                  console.warn('🚨 PDF viewer not available for page jump')
+                  alert(`PDF navigation to page ${page} - PDF viewer not available`)
+                }
               }}
               onQuestionClick={handleQuestionClick}
               onArticleGenerated={handleArticleGenerated}
