@@ -272,6 +272,20 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                 onQuestionClick={onQuestionClick}
                 className=""
               />
+              {/* PDF Page Reference Warning */}
+              {analysisType === 'pdf' && summary && !summary.match(/\bp\.\d+/g) && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start">
+                    <span className="text-yellow-600 mr-2">⚠️</span>
+                    <div className="text-sm text-yellow-800">
+                      <strong>PDF Page Navigation Notice:</strong> This summary doesn't contain page references (p.1, p.2, etc.). 
+                      Page navigation may not be available. This can happen if summary generation was disabled or failed.
+                      <br />
+                      <span className="text-xs mt-1 inline-block">To enable page references, ensure the analysis includes summary generation.</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* Deep dive questions section */}
               {(summary.includes('深掘り質問') || summary.includes('?')) && (
                 <div className="hint-style mt-2 p-2 rounded-lg border">
