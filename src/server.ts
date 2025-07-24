@@ -626,20 +626,55 @@ async function extractPDFText(pdfBuffer: Buffer): Promise<PDFContent> {
       console.log('  - Text segments from page breaks:', textSegments.length);
     }
     
-    // If no clear page breaks found, split evenly by estimated page size
+    // More intelligent page segmentation
     if (textSegments.length < pageCount * 0.5) {
       if (debugEnabled) {
-        console.log('  - Using even split method');
+        console.log('  - Using intelligent split method');
       }
+      
+      // Split by paragraphs first, then group by estimated page size
+      const paragraphs = fullText.split(/\n\s*\n/);
       const avgCharsPerPage = Math.ceil(fullText.length / pageCount);
       textSegments = [];
-      for (let i = 0; i < pageCount; i++) {
-        const start = i * avgCharsPerPage;
-        const end = Math.min((i + 1) * avgCharsPerPage, fullText.length);
-        textSegments.push(fullText.slice(start, end));
+      
+      let currentSegment = '';
+      let currentPage = 1;
+      
+      for (const paragraph of paragraphs) {
+        if (currentSegment.length + paragraph.length > avgCharsPerPage && currentSegment.length > avgCharsPerPage * 0.3) {
+          // Start new page if adding this paragraph would exceed page size and we have substantial content
+          textSegments.push(currentSegment.trim());
+          currentSegment = paragraph;
+          currentPage++;
+        } else {
+          currentSegment += (currentSegment ? '\n\n' : '') + paragraph;
+        }
       }
+      
+      // Add the last segment
+      if (currentSegment.trim()) {
+        textSegments.push(currentSegment.trim());
+      }
+      
+      // If we still have too few segments, split the longest ones
+      while (textSegments.length < pageCount && textSegments.some(seg => seg.length > avgCharsPerPage * 1.5)) {
+        const longestIndex = textSegments.findIndex(seg => seg.length > avgCharsPerPage * 1.5);
+        if (longestIndex >= 0) {
+          const longSegment = textSegments[longestIndex];
+          const midPoint = Math.floor(longSegment.length / 2);
+          // Find a good break point near the middle
+          let breakPoint = longSegment.lastIndexOf('\n', midPoint);
+          if (breakPoint === -1 || Math.abs(breakPoint - midPoint) > avgCharsPerPage * 0.3) {
+            breakPoint = midPoint;
+          }
+          
+          textSegments[longestIndex] = longSegment.substring(0, breakPoint).trim();
+          textSegments.splice(longestIndex + 1, 0, longSegment.substring(breakPoint).trim());
+        }
+      }
+      
       if (debugEnabled) {
-        console.log('  - Text segments after even split:', textSegments.length);
+        console.log('  - Text segments after intelligent split:', textSegments.length);
       }
     } else {
       if (debugEnabled) {
@@ -1452,19 +1487,28 @@ async function generateSummary(
       console.log('  - Non-empty segments:', pageSegments.filter(seg => seg.text.length > 0).length);
       
       timestampNote = `⚠️ 重要: ページ情報が利用可能です。要約の各セクションで言及する内容には、該当するページ番号を必ず含めてください。
-      
+
+⚠️ CRITICAL: ALL sections of your summary MUST include page references. Do not skip this requirement.
+
 ページの表記方法:
 - 特定のページを参照する場合: そのページを直接記載 (例: p.15 で説明されています)
 - 範囲を示す場合: 開始ページと終了ページを記載 (例: p.20-23 で詳しく解説されています)
 - 複数の関連箇所がある場合: 各ページを記載 (例: p.12 と p.45 で言及されています)
 
 重要: ページは必ず "p.番号" の形式で記載してください。フロントエンドでクリック可能なリンクとして表示されます。
+各セクション（概要、主要ポイント、詳細解説、キーワード、実践的価値、研究手法、結果・知見、限界と課題）で最低2-3個のページ参照を含めることは必須要件です。
 
 ページごとの文書内容:
 ${pageSegments.map(segment => {
-  return `[p.${segment.page}] ${segment.text.substring(0, 300)}${segment.text.length > 300 ? '...' : ''}`;
+  return `[p.${segment.page}] ${segment.text.substring(0, 400)}${segment.text.length > 400 ? '...' : ''}`;
 }).join('\n\n')}`;
       transcriptContent = '';
+      
+      // Also add a reminder to the system message
+      console.log('📄 === AI MODEL PROMPT INCLUDES PAGE SEGMENTS ===');
+      console.log('  - Total segments for prompt:', pageSegments.length);
+      console.log('  - Non-empty segments:', pageSegments.filter(seg => seg.text.length > 10).length);
+      console.log('  - Segments by page:', pageSegments.map(seg => `p.${seg.page}:${seg.text.length}chars`));
     } else if (hasTimestamps) {
       timestampNote = `⚠️ 重要: タイムスタンプ情報が利用可能です。要約の各セクションで言及する内容には、該当する時間を必ず含めてください。
       
@@ -1495,7 +1539,7 @@ ${timestampedSegments.map(segment => {
       transcriptContent = `${contentType === 'pdf' ? '文書内容' : '文字起こし内容'}:\n${transcript}`;
     }
     
-    const systemMessage = promptTemplate
+    let systemMessage = promptTemplate
       .replace(/\{\{title\}\}/g, title)
       .replace(/\{\{duration\}\}/g, duration)
       .replace(/\{\{channel\}\}/g, channel)
@@ -1505,6 +1549,21 @@ ${timestampedSegments.map(segment => {
       .replace(/\{\{format\}\}/g, format)
       .replace(/\{\{timestampNote\}\}/g, timestampNote)
       .replace(/\{\{transcriptContent\}\}/g, transcriptContent);
+
+    // For PDF content, add a strong enforcement message
+    if (contentType === 'pdf' && pageSegments && pageSegments.length > 0) {
+      systemMessage += `
+
+🚨 MANDATORY REQUIREMENT FOR PDF SUMMARY:
+Your response MUST include page references in EVERY section using the exact format "p.X" where X is the page number.
+Examples: "p.1で説明されています", "p.5-7の内容によると", "p.12とp.20で述べられています"
+
+REQUIRED: Each section (概要, 主要ポイント, 詳細解説, キーワード, 実践的価値, etc.) must contain at least 2-3 page references.
+If you do not include page references, your response will be rejected.
+
+Available pages: ${pageSegments.map(seg => seg.page).join(', ')}
+Total pages: ${pageCount}`;
+    }
 
     const maxTokens = gptModel === 'gpt-3.5-turbo' ? 1500 : 2000;
 
@@ -1526,27 +1585,32 @@ ${timestampedSegments.map(segment => {
                           transcriptContent.includes('研究');
       
       if (isPDFContent) {
+        // Generate mock response with page references
+        const availablePages = pageSegments && pageSegments.length > 0 ? 
+          pageSegments.map(seg => seg.page) : 
+          Array.from({length: parseInt(pageCount) || 5}, (_, i) => i + 1);
+        
         response = {
           choices: [{
             message: {
               content: `## 📋 文書概要
-この文書は、PDFから抽出されたテキストの要約です。[モックモード: 実際のOpenAI APIは使用されていません]
+この文書は、p.1-${pageCount}にわたるPDFから抽出されたテキストの要約です。[モックモード] p.1で文書の目的が説明され、p.2-3で背景理論が述べられています。
 
 ## 🎯 主要ポイント
-- PDFの内容が正常に抽出されています
-- テキスト解析により主要な概念が識別されました
-- 文書の構造が適切に認識されています
+- p.${availablePages[0] || 1}でPDFの内容が正常に抽出されていることが確認されています
+- p.${availablePages[1] || 2}とp.${availablePages[2] || 3}でテキスト解析により主要な概念が識別されました
+- p.${availablePages[Math.floor(availablePages.length/2)] || 4}で文書の構造が適切に認識されています
 
 ## 💡 詳細解説
-抽出されたテキスト: "${transcriptContent.substring(0, 100)}..."
+p.${availablePages[0] || 1}から抽出されたテキストによると: "${transcriptContent.substring(0, 100)}..."
 
-このPDFには重要な情報が含まれています。実際の要約を生成するには、有効なOpenAI APIキーが必要です。
+p.${availablePages[Math.floor(availablePages.length/3)] || 2}でこのPDFには重要な情報が含まれていることが述べられています。p.${availablePages[Math.floor(availablePages.length*2/3)] || 3}では実際の要約生成に有効なOpenAI APIキーが必要であることが説明されています。
 
 ## 🔑 キーワード・用語
-PDFから抽出された主要な用語が表示されます。
+p.${availablePages[1] || 2}でPDFから抽出された主要な用語が定義されています。p.${availablePages[availablePages.length-1] || pageCount}では専門用語の解説が行われています。
 
 ## 📈 実践的価値
-この文書の内容は、関連分野の研究や実務に活用できます。`
+p.${availablePages[Math.floor(availablePages.length/2)] || 3}でこの文書の内容は、関連分野の研究や実務に活用できることが示されています。p.${availablePages[availablePages.length-2] || pageCount-1}とp.${availablePages[availablePages.length-1] || pageCount}で具体的な応用例が提示されています。`
             }
           }]
         };
