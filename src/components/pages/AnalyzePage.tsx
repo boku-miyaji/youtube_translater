@@ -9,10 +9,12 @@ import AnalysisProgress from '../shared/AnalysisProgress'
 import { VideoFile, AudioFile, PDFFile, InputType } from '../../types'
 import { formatProcessingTime } from '../../utils/formatTime'
 import { ProcessingTimePredictor, PredictionInput, PredictionResult, createTimePredictor } from '../../utils/timePredictor'
+import { detectInputTypeFromUrl } from '../../utils/inputTypeDetection'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
   const [inputType, setInputType] = useState<InputType>(InputType.YOUTUBE_URL)
+  const [isManualInputTypeSelection, setIsManualInputTypeSelection] = useState(false)
   const [url, setUrl] = useState('')
   const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
   const [audioFile, setAudioFile] = useState<AudioFile | null>(null)
@@ -276,7 +278,17 @@ const AnalyzePage: React.FC = () => {
     }
     
     if (value.trim()) {
-      if (validateYouTubeUrl(value.trim())) {
+      // Auto-detect input type if not manually selected
+      if (!isManualInputTypeSelection) {
+        const detectedType = detectInputTypeFromUrl(value.trim())
+        if (detectedType !== inputType) {
+          console.log(`🔍 Auto-detected input type: ${detectedType}`)
+          setInputType(detectedType)
+        }
+      }
+      
+      // Handle based on current input type
+      if (inputType === InputType.YOUTUBE_URL && validateYouTubeUrl(value.trim())) {
         console.log('✅ Valid YouTube URL detected, generating preview')
         // Generate instant preview for valid URLs
         generateVideoPreview(value.trim())
@@ -287,10 +299,20 @@ const AnalyzePage: React.FC = () => {
           console.log('🔄 Starting cost estimation for URL:', value.trim())
           estimateCostForUrl(value.trim())
         }, 200) // Reduced delay to 200ms for faster response
-      } else {
+      } else if (inputType === InputType.PDF_URL && validatePDFUrl(value.trim())) {
+        console.log('✅ Valid PDF URL detected')
+        // Could add PDF preview logic here if needed
+      } else if (inputType === InputType.YOUTUBE_URL) {
         console.log('❌ Invalid YouTube URL')
         setUrlError('Please enter a valid YouTube URL')
+      } else if (inputType === InputType.PDF_URL) {
+        console.log('❌ Invalid PDF URL')
+        setUrlError('Please enter a valid PDF URL')
       }
+    } else {
+      // Reset to default when input is cleared
+      setIsManualInputTypeSelection(false)
+      setInputType(InputType.YOUTUBE_URL)
     }
   }
 
@@ -298,8 +320,18 @@ const AnalyzePage: React.FC = () => {
   const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text')
     console.log('📋 Paste event detected with text:', pastedText)
-    if (pastedText && validateYouTubeUrl(pastedText)) {
-      console.log('✅ Valid pasted URL, will trigger preview and cost estimation')
+    
+    // Auto-detect input type on paste if not manually selected
+    if (!isManualInputTypeSelection && pastedText) {
+      const detectedType = detectInputTypeFromUrl(pastedText)
+      if (detectedType !== inputType) {
+        console.log(`🔍 Auto-detected input type on paste: ${detectedType}`)
+        setInputType(detectedType)
+      }
+    }
+    
+    if (pastedText && inputType === InputType.YOUTUBE_URL && validateYouTubeUrl(pastedText)) {
+      console.log('✅ Valid pasted YouTube URL, will trigger preview and cost estimation')
       setTimeout(() => {
         generateVideoPreview(pastedText)
         // Also estimate cost for pasted URLs
@@ -308,6 +340,9 @@ const AnalyzePage: React.FC = () => {
           estimateCostForUrl(pastedText)
         }, 200) // Consistent 200ms delay
       }, 100)
+    } else if (pastedText && inputType === InputType.PDF_URL && validatePDFUrl(pastedText)) {
+      console.log('✅ Valid pasted PDF URL')
+      // Could add PDF preview logic here if needed
     }
   }
 
@@ -452,6 +487,7 @@ const AnalyzePage: React.FC = () => {
   // Handle input type change
   const handleInputTypeChange = (type: InputType) => {
     setInputType(type)
+    setIsManualInputTypeSelection(true) // Mark as manual selection
     // Clear previous selections and errors
     setUrl('')
     setVideoFile(null)
@@ -1440,7 +1476,7 @@ const AnalyzePage: React.FC = () => {
               🎥 Analyze Video
             </h1>
             <p className="mt-3 text-body text-app-secondary max-w-2xl">
-              Transform YouTube videos and local video files into insights with AI-powered transcription, summaries, and interactive chat.
+              Transform YouTube videos, PDFs, and local files into insights with AI-powered analysis. Just paste a URL and I'll automatically detect the content type.
             </p>
           </div>
           
@@ -1585,9 +1621,16 @@ const AnalyzePage: React.FC = () => {
                 {/* Input Type Selection */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-app-primary mb-3">
-                      📥 Input Type
-                    </label>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-app-primary">
+                        📥 Input Type
+                      </label>
+                      {!isManualInputTypeSelection && url && (
+                        <span className="text-xs text-blue-600 flex items-center gap-1">
+                          🔍 Auto-detected
+                        </span>
+                      )}
+                    </div>
                     <div className="grid grid-cols-5 gap-2 p-1 bg-white rounded-lg border border-gray-300">
                       <button
                         type="button"
@@ -1784,14 +1827,8 @@ const AnalyzePage: React.FC = () => {
                         id="pdfUrl"
                         ref={inputRef}
                         value={url}
-                        onChange={(e) => {
-                          setUrl(e.target.value)
-                          if (e.target.value && !validatePDFUrl(e.target.value)) {
-                            setUrlError('Please enter a valid PDF URL (HTTPS only)')
-                          } else {
-                            setUrlError('')
-                          }
-                        }}
+                        onChange={(e) => handleUrlChange(e.target.value)}
+                        onPaste={handleUrlPaste}
                         placeholder="https://arxiv.org/pdf/... or other academic PDF URL"
                         className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
                           urlError 
