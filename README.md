@@ -86,12 +86,13 @@ PORT=3000
 
 4. **サーバーの起動**
 ```bash
-# 開発モード
-npm run dev
+# 開発モード（サーバーとクライアント両方を起動）
+npm run dev:client  # Viteクライアント開発サーバー（別ターミナル）
+npm run dev         # Express APIサーバー
 
 # 本番モード
-npm run build
-npm start
+npm run build:all   # クライアントとサーバーをビルド
+npm start          # 本番サーバー起動
 ```
 
 5. **ブラウザでアクセス**
@@ -181,7 +182,7 @@ youtube_translater/
 
 ### TypeScript対応
 ```bash
-npm run dev:ts  # TypeScript版の実行
+npm run dev  # TypeScript版サーバーの実行
 ```
 
 ### 設定のカスタマイズ
