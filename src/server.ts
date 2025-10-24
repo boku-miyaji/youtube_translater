@@ -464,37 +464,47 @@ function calculateProcessingTime(
   }
   
   // Calculate summary time
-  if (stats.summaryStats.sampleSize > 0) {
-    // Use historical data for GPT model if available
-    const modelStats = stats.summaryStats.modelStats[gptModel];
-    if (modelStats && modelStats.sampleSize >= 2) {
-      summaryTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
-      confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
-      console.log(`📊 Using historical data for summary time: ${summaryTime}s (${modelStats.sampleSize} samples)`);
+  // IMPORTANT: PDF uses page-based normalization, video/audio use minute-based normalization
+  if (contentType === 'pdf') {
+    // For PDF: durationMinutes represents page count, use page-based calculation (seconds per page)
+    const estimatedPageCount = durationMinutes;
+
+    if (stats.contentTypeStats.pdf && stats.contentTypeStats.pdf.sampleSize >= 2) {
+      // Use historical PDF summary data (already normalized by page count)
+      summaryTime = Math.ceil(estimatedPageCount * stats.contentTypeStats.pdf.summaryAverage);
+      confidenceLevel = Math.max(confidenceLevel, Math.min(0.8, stats.contentTypeStats.pdf.sampleSize / 10));
+      console.log(`📊 Using historical PDF summary data: ${summaryTime}s (${stats.contentTypeStats.pdf.summaryAverage.toFixed(1)}s/page for ${estimatedPageCount} pages)`);
+      isHistoricalEstimate = true;
     } else {
-      // Use overall summary average
-      summaryTime = Math.ceil(durationMinutes * stats.summaryStats.averageSecondsPerMinute);
-      confidenceLevel = Math.max(confidenceLevel, stats.summaryStats.confidenceLevel);
-      console.log(`📊 Using overall summary average: ${summaryTime}s (${stats.summaryStats.sampleSize} samples)`);
+      // Default: PDF summary generation coefficient (seconds per page)
+      const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.8;
+      // For PDF, summarySpeed represents seconds per page
+      const secondsPerPage = summarySpeed * 60; // Convert coefficient to seconds per page
+      summaryTime = Math.ceil(estimatedPageCount * secondsPerPage);
+      console.log(`📊 Using default PDF summary coefficient: ${summaryTime}s (${secondsPerPage.toFixed(1)}s/page for ${estimatedPageCount} pages)`);
     }
-    isHistoricalEstimate = true;
   } else {
-    // Fall back to default speed coefficients
-    const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.5;
-    summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
-    console.log(`📊 Using default summary coefficients: ${summaryTime}s`);
-  }
-  
-  // Apply content type adjustments if we have data
-  if (stats.contentTypeStats[contentType] && stats.contentTypeStats[contentType].sampleSize >= 2) {
-    const contentTypeStats = stats.contentTypeStats[contentType];
-    const transcriptionAdjustment = contentTypeStats.transcriptionAverage / stats.transcriptionStats.averageSecondsPerMinute;
-    const summaryAdjustment = contentTypeStats.summaryAverage / stats.summaryStats.averageSecondsPerMinute;
-    
-    transcriptionTime = Math.ceil(transcriptionTime * transcriptionAdjustment);
-    summaryTime = Math.ceil(summaryTime * summaryAdjustment);
-    
-    console.log(`📊 Applied content type adjustments for ${contentType}: transcription x${transcriptionAdjustment.toFixed(2)}, summary x${summaryAdjustment.toFixed(2)}`);
+    // For video/audio: Use minute-based calculation (seconds per minute)
+    if (stats.summaryStats.sampleSize > 0) {
+      // Use historical data for GPT model if available
+      const modelStats = stats.summaryStats.modelStats[gptModel];
+      if (modelStats && modelStats.sampleSize >= 2) {
+        summaryTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
+        confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
+        console.log(`📊 Using historical data for summary time: ${summaryTime}s (${modelStats.averageSecondsPerMinute.toFixed(1)}s/min for ${durationMinutes} minutes)`);
+      } else {
+        // Use overall summary average
+        summaryTime = Math.ceil(durationMinutes * stats.summaryStats.averageSecondsPerMinute);
+        confidenceLevel = Math.max(confidenceLevel, stats.summaryStats.confidenceLevel);
+        console.log(`📊 Using overall summary average: ${summaryTime}s (${stats.summaryStats.averageSecondsPerMinute.toFixed(1)}s/min for ${durationMinutes} minutes)`);
+      }
+      isHistoricalEstimate = true;
+    } else {
+      // Fall back to default speed coefficients
+      const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.8;
+      summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
+      console.log(`📊 Using default summary coefficients: ${summaryTime}s (${summarySpeed}min/min for ${durationMinutes} minutes)`);
+    }
   }
   
   // Calculate rates for display
