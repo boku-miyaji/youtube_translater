@@ -1,0 +1,11 @@
+issue: 23
+title: 'Fix cost and time calculation issues'
+description: |
+  料金計算と時間計算修正。
+  料金：chatした時にかかった料金も表示
+  時間：pdfの計算時間が全く正しくない。
+type: 'Bug'
+state: Design
+design: 'tasks/design/23_Bug.md'
+createdAt: '2025-10-24T06:50:10Z'
+updatedAt: '2025-10-24T07:15:00Z'
