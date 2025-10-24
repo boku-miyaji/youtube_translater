@@ -9,12 +9,14 @@ import AnalysisProgress from '../shared/AnalysisProgress'
 import { VideoFile, AudioFile, PDFFile, InputType } from '../../types'
 import { formatProcessingTime } from '../../utils/formatTime'
 import { ProcessingTimePredictor, PredictionInput, PredictionResult, createTimePredictor } from '../../utils/timePredictor'
-import { detectInputTypeFromUrl } from '../../utils/inputTypeDetection'
+import { detectInputTypeFromUrl, detectInputTypeFromUrlWithConfidence, DetectionResult } from '../../utils/inputTypeDetection'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
+  const [inputMode, setInputMode] = useState<'url' | 'file'>('url')
   const [inputType, setInputType] = useState<InputType>(InputType.YOUTUBE_URL)
   const [isManualInputTypeSelection, setIsManualInputTypeSelection] = useState(false)
+  const [detectedType, setDetectedType] = useState<DetectionResult | null>(null)
   const [url, setUrl] = useState('')
   const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
   const [audioFile, setAudioFile] = useState<AudioFile | null>(null)
@@ -269,21 +271,24 @@ const AnalyzePage: React.FC = () => {
     setVideoPreview(null)
     setCostEstimation(null)
     setLoadingCostEstimation(false)
-    
+
     // Clear previous timeout
     if (costEstimationTimeoutRef.current) {
       console.log('🔄 Clearing previous cost estimation timeout')
       clearTimeout(costEstimationTimeoutRef.current)
       costEstimationTimeoutRef.current = null
     }
-    
+
     if (value.trim()) {
-      // Auto-detect input type if not manually selected
+      // Auto-detect input type with confidence
+      const detection = detectInputTypeFromUrlWithConfidence(value.trim())
+      setDetectedType(detection)
+
+      // Auto-update input type if not manually selected
       if (!isManualInputTypeSelection) {
-        const detectedType = detectInputTypeFromUrl(value.trim())
-        if (detectedType !== inputType) {
-          console.log(`🔍 Auto-detected input type: ${detectedType}`)
-          setInputType(detectedType)
+        if (detection.type !== inputType) {
+          console.log(`🔍 Auto-detected input type: ${detection.type} (${detection.displayName}, confidence: ${detection.confidence})`)
+          setInputType(detection.type)
         }
       }
       
@@ -482,6 +487,32 @@ const AnalyzePage: React.FC = () => {
     setUploadProgress(0)
     // Estimate cost for the selected file
     estimateCostForFile(file)
+  }
+
+  // Handle input mode change (URL vs File)
+  const handleInputModeChange = (mode: 'url' | 'file') => {
+    setInputMode(mode)
+    // Clear previous selections and errors
+    setUrl('')
+    setVideoFile(null)
+    setAudioFile(null)
+    setPdfFile(null)
+    setUrlError('')
+    setFileError('')
+    setVideoPreview(null)
+    setUploadProgress(0)
+    setCostEstimation(null)
+    setLoadingCostEstimation(false)
+    setEstimatedProcessingTime(null)
+    setDetectedType(null)
+    setIsManualInputTypeSelection(false)
+
+    // Set default input type based on mode
+    if (mode === 'url') {
+      setInputType(InputType.YOUTUBE_URL)
+    } else {
+      setInputType(InputType.VIDEO_FILE)
+    }
   }
 
   // Handle input type change
@@ -1618,93 +1649,55 @@ const AnalyzePage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Input Type Selection */}
+                {/* Input Mode Selection - URL or File Upload */}
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <label className="block text-sm font-medium text-app-primary">
-                        📥 Input Type
+                        📥 Input Mode
                       </label>
-                      {!isManualInputTypeSelection && url && (
-                        <span className="text-xs text-blue-600 flex items-center gap-1">
-                          🔍 Auto-detected
+                      {detectedType && inputMode === 'url' && (
+                        <span className={`text-xs flex items-center gap-1 ${
+                          detectedType.confidence === 'high' ? 'text-green-600' :
+                          detectedType.confidence === 'medium' ? 'text-yellow-600' :
+                          'text-gray-600'
+                        }`}>
+                          🔍 Detected: {detectedType.displayName}
+                          {detectedType.confidence === 'high' && ' ✓'}
                         </span>
                       )}
                     </div>
-                    <div className="grid grid-cols-5 gap-2 p-1 bg-white rounded-lg border border-gray-300">
+                    <div className="grid grid-cols-2 gap-3 p-1 bg-white rounded-lg border border-gray-300">
                       <button
                         type="button"
-                        onClick={() => handleInputTypeChange(InputType.YOUTUBE_URL)}
-                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === InputType.YOUTUBE_URL
-                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
+                        onClick={() => handleInputModeChange('url')}
+                        className={`px-4 py-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputMode === 'url'
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
                             : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                         }`}
-                        title="YouTube URL"
+                        title="Enter any URL (YouTube, PDF, audio, video)"
                       >
-                        <span className="flex flex-col items-center gap-1">
-                          <span className="text-lg">🔗</span>
-                          <span className="text-xs">YouTube</span>
+                        <span className="flex flex-col items-center gap-2">
+                          <span className="text-2xl">🔗</span>
+                          <span className="text-sm font-semibold">URL Input</span>
+                          <span className="text-xs opacity-80">YouTube, PDF, Audio, Video</span>
                         </span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleInputTypeChange(InputType.VIDEO_FILE)}
-                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === InputType.VIDEO_FILE
-                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
+                        onClick={() => handleInputModeChange('file')}
+                        className={`px-4 py-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputMode === 'file'
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
                             : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                         }`}
-                        title="Video File (MP4, MOV)"
+                        title="Upload video, audio, or PDF file"
                       >
-                        <span className="flex flex-col items-center gap-1">
-                          <span className="text-lg">🎬</span>
-                          <span className="text-xs">Video</span>
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleInputTypeChange(InputType.AUDIO_FILE)}
-                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === InputType.AUDIO_FILE
-                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                        }`}
-                        title="Audio File (MP3, WAV, M4A, etc.)"
-                      >
-                        <span className="flex flex-col items-center gap-1">
-                          <span className="text-lg">🎵</span>
-                          <span className="text-xs">Audio</span>
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleInputTypeChange(InputType.PDF_URL)}
-                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === InputType.PDF_URL
-                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                        }`}
-                        title="PDF URL"
-                      >
-                        <span className="flex flex-col items-center gap-1">
-                          <span className="text-lg">🔗</span>
-                          <span className="text-xs">PDF URL</span>
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleInputTypeChange(InputType.PDF_FILE)}
-                        className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === InputType.PDF_FILE
-                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                        }`}
-                        title="PDF File"
-                      >
-                        <span className="flex flex-col items-center gap-1">
-                          <span className="text-lg">📄</span>
-                          <span className="text-xs">PDF File</span>
+                        <span className="flex flex-col items-center gap-2">
+                          <span className="text-2xl">📁</span>
+                          <span className="text-sm font-semibold">File Upload</span>
+                          <span className="text-xs opacity-80">Video, Audio, PDF</span>
                         </span>
                       </button>
                     </div>
@@ -1712,13 +1705,18 @@ const AnalyzePage: React.FC = () => {
                 </div>
 
                 {/* Conditional Input Section */}
-                {inputType === InputType.YOUTUBE_URL ? (
-                  /* YouTube URL Input with Preview */
+                {inputMode === 'url' ? (
+                  /* URL Input - Auto-detects YouTube, PDF, Audio, Video */
                   <div className="space-y-4">
                     <div className="relative">
                       <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
                         <span className="flex items-center gap-2">
-                          🔗 YouTube URL
+                          🔗 Enter URL
+                          {detectedType && (
+                            <span className="text-xs font-normal opacity-75">
+                              ({detectedType.displayName})
+                            </span>
+                          )}
                         </span>
                       </label>
                       <input
@@ -1728,17 +1726,19 @@ const AnalyzePage: React.FC = () => {
                         value={url}
                         onChange={(e) => handleUrlChange(e.target.value)}
                         onPaste={handleUrlPaste}
-                        placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
+                        placeholder="Enter any URL: YouTube, PDF, audio, video..."
                         className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
-                          urlError 
-                            ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
+                          urlError
+                            ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400'
+                            : detectedType && detectedType.confidence === 'high'
+                            ? 'border-green-300 bg-green-50'
                             : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
                         }`}
                         autoComplete="off"
                         data-testid="url-input"
-                        required={inputType === InputType.YOUTUBE_URL}
+                        required={inputMode === 'url'}
                       />
-                      
+
                       {urlError && (
                         <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
                           ⚠️ {urlError}
@@ -1750,8 +1750,8 @@ const AnalyzePage: React.FC = () => {
                     {videoPreview && !urlError && (
                       <div className="url-preview-card">
                         <div className="flex items-center gap-4">
-                          <img 
-                            src={videoPreview.thumbnail} 
+                          <img
+                            src={videoPreview.thumbnail}
                             alt="Video thumbnail"
                             className="w-20 h-15 object-cover rounded-lg shadow-sm"
                             onError={(e) => {
@@ -1773,18 +1773,30 @@ const AnalyzePage: React.FC = () => {
                     {/* Cost Estimation Display for URL */}
                     {renderCostEstimation()}
                   </div>
-                ) : inputType === InputType.VIDEO_FILE ? (
-                  /* Video File Upload */
+                ) : (
+                  /* File Upload - Auto-detects Video, Audio, PDF */
                   <div className="space-y-4">
                     <label className="block text-sm font-medium text-app-primary mb-2">
                       <span className="flex items-center gap-2">
-                        🎬 Video File Upload
+                        📁 Upload File
+                        {(videoFile || audioFile || pdfFile) && (
+                          <span className="text-xs font-normal opacity-75">
+                            ({videoFile ? 'Video' : audioFile ? 'Audio' : 'PDF'})
+                          </span>
+                        )}
                       </span>
                     </label>
                     <VideoFileUpload
                       onFileSelected={handleFileSelected}
                       maxSize={500 * 1024 * 1024} // 500MB
-                      acceptedFormats={['video/mp4', 'video/quicktime']}
+                      acceptedFormats={[
+                        // Video formats
+                        'video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska',
+                        // Audio formats
+                        'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/flac',
+                        // PDF format
+                        'application/pdf'
+                      ]}
                       isUploading={loading}
                       uploadProgress={uploadProgress}
                       error={fileError}
@@ -1793,83 +1805,7 @@ const AnalyzePage: React.FC = () => {
                     {/* Cost Estimation Display for File */}
                     {renderCostEstimation()}
                   </div>
-                ) : inputType === InputType.AUDIO_FILE ? (
-                  /* Audio File Upload */
-                  <div className="space-y-4">
-                    <label className="block text-sm font-medium text-app-primary mb-2">
-                      <span className="flex items-center gap-2">
-                        🎵 Audio File Upload
-                      </span>
-                    </label>
-                    <VideoFileUpload
-                      onFileSelected={handleFileSelected}
-                      maxSize={500 * 1024 * 1024} // 500MB
-                      acceptedFormats={['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/flac']}
-                      isUploading={loading}
-                      uploadProgress={uploadProgress}
-                      error={fileError}
-                    />
-
-                    {/* Cost Estimation Display for Audio */}
-                    {renderCostEstimation()}
-                  </div>
-                ) : inputType === InputType.PDF_URL ? (
-                  /* PDF URL Input */
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <label htmlFor="pdfUrl" className="block text-sm font-medium text-app-primary mb-2">
-                        <span className="flex items-center gap-2">
-                          🔗 PDF URL
-                        </span>
-                      </label>
-                      <input
-                        type="url"
-                        id="pdfUrl"
-                        ref={inputRef}
-                        value={url}
-                        onChange={(e) => handleUrlChange(e.target.value)}
-                        onPaste={handleUrlPaste}
-                        placeholder="https://arxiv.org/pdf/... or other academic PDF URL"
-                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
-                          urlError 
-                            ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
-                            : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
-                        }`}
-                        autoComplete="off"
-                        required={inputType === InputType.PDF_URL}
-                      />
-                      
-                      {urlError && (
-                        <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
-                          ⚠️ {urlError}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Cost Estimation Display for PDF URL */}
-                    {renderCostEstimation()}
-                  </div>
-                ) : inputType === InputType.PDF_FILE ? (
-                  /* PDF File Upload */
-                  <div className="space-y-4">
-                    <label className="block text-sm font-medium text-app-primary mb-2">
-                      <span className="flex items-center gap-2">
-                        📄 PDF File Upload
-                      </span>
-                    </label>
-                    <VideoFileUpload
-                      onFileSelected={handleFileSelected}
-                      maxSize={50 * 1024 * 1024} // 50MB
-                      acceptedFormats={['application/pdf']}
-                      isUploading={loading}
-                      uploadProgress={uploadProgress}
-                      error={fileError}
-                    />
-
-                    {/* Cost Estimation Display for PDF */}
-                    {renderCostEstimation()}
-                  </div>
-                ) : null}
+                )}
 
                 {/* Settings Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

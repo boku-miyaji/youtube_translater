@@ -1,42 +1,100 @@
 import { InputType } from '../types'
 
 /**
+ * Detection result with confidence level
+ */
+export interface DetectionResult {
+  type: InputType
+  confidence: 'high' | 'medium' | 'low'
+  displayName: string
+}
+
+/**
+ * URL pattern definitions for different content types
+ */
+const URL_PATTERNS = {
+  youtube: [
+    /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//,
+    /^(www\.)?(youtube\.com|youtu\.be)\//,
+    /youtube\.com\/watch\?v=/,
+    /youtu\.be\//,
+    /youtube\.com\/embed\//
+  ],
+  pdf: [
+    /\.pdf(\?|#|$)/i,
+    /\/pdf\//i,
+    /arxiv\.org\/pdf\//,
+    /\/download\/.*\.pdf/i
+  ],
+  audio: [
+    /\.(mp3|wav|ogg|m4a|aac|flac|wma|opus|webm)(\?|#|$)/i
+  ],
+  video: [
+    /\.(mp4|avi|mov|webm|mkv|wmv|flv|m4v|mpg|mpeg)(\?|#|$)/i
+  ]
+}
+
+/**
  * Detects the input type based on the provided URL
  * @param url The URL to analyze
  * @returns The detected input type
  */
 export function detectInputTypeFromUrl(url: string): InputType {
+  const result = detectInputTypeFromUrlWithConfidence(url)
+  return result.type
+}
+
+/**
+ * Detects the input type with confidence level based on the provided URL
+ * @param url The URL to analyze
+ * @returns Detection result with type, confidence, and display name
+ */
+export function detectInputTypeFromUrlWithConfidence(url: string): DetectionResult {
   const trimmedUrl = url.trim().toLowerCase()
-  
-  // YouTube URL patterns
-  const youtubePatterns = [
-    /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//,
-    /^(www\.)?(youtube\.com|youtu\.be)\//,
-    /youtube\.com\/watch\?v=/,
-    /youtu\.be\//
-  ]
-  
-  // PDF URL patterns
-  const pdfPatterns = [
-    /\.pdf(\?|#|$)/i,
-    /\/pdf\//i,
-    /arxiv\.org\/pdf\//,
-    /\/download\/.*\.pdf/i
-  ]
-  
-  // Check YouTube patterns
-  if (youtubePatterns.some(pattern => pattern.test(trimmedUrl))) {
-    return InputType.YOUTUBE_URL
+
+  // Check YouTube patterns (highest priority for video platforms)
+  if (URL_PATTERNS.youtube.some(pattern => pattern.test(trimmedUrl))) {
+    return {
+      type: InputType.YOUTUBE_URL,
+      confidence: 'high',
+      displayName: 'YouTube Video'
+    }
   }
-  
+
   // Check PDF patterns
-  if (pdfPatterns.some(pattern => pattern.test(trimmedUrl))) {
-    return InputType.PDF_URL
+  if (URL_PATTERNS.pdf.some(pattern => pattern.test(trimmedUrl))) {
+    return {
+      type: InputType.PDF_URL,
+      confidence: 'high',
+      displayName: 'PDF Document'
+    }
   }
-  
+
+  // Check audio file patterns
+  if (URL_PATTERNS.audio.some(pattern => pattern.test(trimmedUrl))) {
+    return {
+      type: InputType.YOUTUBE_URL, // Backend will handle audio URL processing
+      confidence: 'high',
+      displayName: 'Audio File'
+    }
+  }
+
+  // Check video file patterns
+  if (URL_PATTERNS.video.some(pattern => pattern.test(trimmedUrl))) {
+    return {
+      type: InputType.YOUTUBE_URL, // Backend will handle video URL processing
+      confidence: 'high',
+      displayName: 'Video File'
+    }
+  }
+
   // Default to YouTube URL if no specific pattern matches
   // This maintains backward compatibility
-  return InputType.YOUTUBE_URL
+  return {
+    type: InputType.YOUTUBE_URL,
+    confidence: 'low',
+    displayName: 'URL'
+  }
 }
 
 /**
