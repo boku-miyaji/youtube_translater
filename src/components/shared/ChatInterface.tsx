@@ -294,7 +294,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     }
   }
 
-  // Generate smart deep dive questions based on video content
+  // Generate smart deep dive questions based on content (video, PDF, audio)
   const generateSmartQuestions = () => {
     // Prioritize summary over transcript for better question generation
     const primaryContent = hasValidSummary ? safeSummary : ''
@@ -573,7 +573,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         {messages.length === 0 ? (
           <div className="space-y-4">
             <p className="text-gray-500 text-center">
-              {!hasAnyContentForUI ? "Upload a video first to start chatting..." : "Start a conversation about the video..."}
+              {!hasAnyContentForUI
+                ? (contentType === 'pdf' ? "PDFをアップロードしてチャットを開始..." : `${getContentLabel().source}をアップロードしてチャットを開始...`)
+                : (contentType === 'pdf' ? "文書について質問してください..." : `${getContentLabel().source}について質問してください...`)}
             </p>
             
             {/* Sample Deep Dive Questions - only show when we have transcript/summary */}
@@ -642,7 +644,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={!hasAnyContentForUI ? "Upload a video first to start chatting..." : "Ask about the video..."}
+          placeholder={!hasAnyContentForUI
+            ? (contentType === 'pdf' ? "PDFをアップロードしてください..." : `${getContentLabel().source}をアップロードしてください...`)
+            : (contentType === 'pdf' ? "文書について質問..." : `${getContentLabel().source}について質問...`)}
           className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500 text-base px-4 py-2"
           disabled={loading || !hasAnyContentForUI}
         />
