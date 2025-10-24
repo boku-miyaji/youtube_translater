@@ -1168,12 +1168,18 @@ const AnalyzePage: React.FC = () => {
 
     if (isPDF) {
       // For PDF, show per-page cost
-      const costPerPage = durationMinutes > 0 ? costs.total / durationMinutes : 0;
+      const costPerPageSummary = durationMinutes > 0 ? costs.summary / durationMinutes : 0;
+      const costPerPageTotal = durationMinutes > 0 ? costs.total / durationMinutes : 0;
       costContent.push(
         `文字起こし: $${costs.transcription.toFixed(4)}`,
         `要約生成: $${costs.summary.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1ページあたり: 約$${costPerPageSummary.toFixed(6)}` : "",
         `合計: $${costs.total.toFixed(4)}`,
-        durationMinutes > 0 ? `  → 1ページあたり: 約$${costPerPage.toFixed(6)}` : ""
+        durationMinutes > 0 ? `  → 1ページあたり: 約$${costPerPageTotal.toFixed(6)}` : "",
+        "",
+        durationMinutes > 0 ? `このPDF (${durationMinutes}ページ) の場合:` : "",
+        durationMinutes > 0 ? `${durationMinutes}ページ × $${costPerPageSummary.toFixed(6)}/ページ = $${costs.summary.toFixed(4)} (要約)` : "",
+        durationMinutes > 0 ? `合計: $${costs.total.toFixed(4)}` : ""
       );
     } else {
       // For video/audio, show per-minute cost
@@ -1211,6 +1217,11 @@ const AnalyzePage: React.FC = () => {
         `要約生成: ${formatProcessingTime(summaryTime)}`,
         pagesCount > 0 ? `  → 1ページあたり: ${summaryPerPage.toFixed(1)}秒` : "",
         `合計: ${formatProcessingTime(total)}`,
+        "",
+        pagesCount > 0 ? `このPDF (${pagesCount}ページ) の場合:` : "",
+        pagesCount > 0 ? `${pagesCount}ページ × ${transcriptionPerPage.toFixed(1)}秒/ページ = ${formatProcessingTime(transcriptionTime)} (テキスト抽出)` : "",
+        pagesCount > 0 ? `${pagesCount}ページ × ${summaryPerPage.toFixed(1)}秒/ページ = ${formatProcessingTime(summaryTime)} (要約)` : "",
+        pagesCount > 0 ? `合計: ${formatProcessingTime(total)}` : "",
         "",
         `テキスト抽出: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`
       );
