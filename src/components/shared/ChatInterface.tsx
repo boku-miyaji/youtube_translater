@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -584,7 +585,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                {message.role === 'assistant' ? (
+                  <MarkdownRenderer content={message.content} className="text-base" />
+                ) : (
+                  <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                )}
                 <p className={`text-xs mt-2 ${
                   message.role === 'user' ? 'text-white opacity-75' : 'text-gray-500'
                 }`}>
