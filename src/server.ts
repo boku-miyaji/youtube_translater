@@ -4579,57 +4579,61 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
 // Cost estimation for PDF
 app.post('/api/estimate-cost-pdf', async (req: Request, res: Response) => {
   console.log('📊 Cost estimation request for PDF');
-  
+
   try {
-    const { url, pageCount = 10, gptModel = 'gpt-4o-mini', generateSummary = true }: {
+    const { url, pageCount: requestedPageCount, gptModel = 'gpt-4o-mini', generateSummary = true }: {
       url?: string;
       pageCount?: number;
       gptModel?: string;
       generateSummary?: boolean;
     } = req.body;
-    
-    console.log('📊 Request params:', { url, pageCount, gptModel, generateSummary });
-    
-    // Estimate character count based on page count
-    // Average academic paper has ~3000-5000 characters per page
-    const avgCharsPerPage = 4000;
-    const estimatedCharacterCount = pageCount * avgCharsPerPage;
-    
-    // Calculate PDF processing time (extraction + summary)
-    // PDF extraction: roughly 0.5-2 seconds per page based on complexity
-    const extractionTime = pageCount * 1.5; // 1.5 seconds per page
-    
-    // Summary cost estimation
+
+    console.log('📊 Request params:', { url, pageCount: requestedPageCount, gptModel, generateSummary });
+
+    // Get actual page count if URL is provided
+    let actualPageCount = requestedPageCount || 10;
+    let estimatedCharacterCount = 0;
+
+    if (url) {
+      try {
+        console.log('📥 Downloading PDF from URL to get page count:', url);
+        const pdfBuffer = await downloadPDF(url);
+        console.log('📊 Extracting PDF metadata...');
+        const pdfContent = await extractPDFText(pdfBuffer);
+        actualPageCount = pdfContent.pageCount;
+        estimatedCharacterCount = pdfContent.fullText.length;
+        console.log(`📊 PDF has ${actualPageCount} pages and ${estimatedCharacterCount} characters`);
+      } catch (error) {
+        console.warn('⚠️ Failed to download/parse PDF, using default page count:', error);
+        // Fall back to default/requested page count
+        actualPageCount = requestedPageCount || 10;
+      }
+    }
+
+    // Estimate character count based on page count if not already calculated
+    if (!estimatedCharacterCount) {
+      // Average academic paper has ~3000-5000 characters per page
+      const avgCharsPerPage = 4000;
+      estimatedCharacterCount = actualPageCount * avgCharsPerPage;
+    }
+
+    const pageCount = actualPageCount;
+
+    // Calculate processing time using the same logic as YouTube videos
+    // For PDF, durationMinutes represents page count
+    const processingTime = calculateProcessingTime('pdf-parse', gptModel, pageCount, 'pdf');
+
+    // Calculate cost estimation
     let summaryCost = 0;
-    let summaryTime = 0;
-    
+
     if (generateSummary) {
       // Estimate tokens: roughly 1 token per 4 characters
       const inputTokens = Math.ceil(estimatedCharacterCount / 4);
       const outputTokens = Math.ceil(inputTokens * 0.2); // Summary is typically 20% of input
-      
+
       const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
       summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
-      
-      // Summary generation time: depends on model and text length
-      const summarySecondsPerKChar = gptModel.includes('gpt-4') ? 3 : 2;
-      summaryTime = (estimatedCharacterCount / 1000) * summarySecondsPerKChar;
     }
-    
-    const totalTime = extractionTime + summaryTime;
-    
-    // Format processing time
-    const processingTime = {
-      transcription: extractionTime,
-      summary: summaryTime,
-      total: totalTime,
-      formatted: formatProcessingTime(totalTime),
-      transcriptionRate: `${(extractionTime / pageCount).toFixed(1)}s/page`,
-      summaryRate: summaryCost > 0 ? `${(summaryTime / pageCount).toFixed(1)}s/page` : '0s',
-      basedOn: 'model_default',
-      confidence: 0.6,
-      isHistoricalEstimate: false
-    };
     
     const response = {
       success: true,

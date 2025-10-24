@@ -309,8 +309,13 @@ const AnalyzePage: React.FC = () => {
           estimateCostForUrl(value.trim())
         }, 200) // Reduced delay to 200ms for faster response
       } else if (inputType === InputType.PDF_URL && validatePDFUrl(value.trim())) {
-        console.log('✅ Valid PDF URL detected')
-        // Could add PDF preview logic here if needed
+        console.log('✅ Valid PDF URL detected, starting cost estimation')
+        // Estimate cost for valid PDF URLs with a delay using ref for cleanup
+        console.log('⏰ Setting timeout for PDF cost estimation in 200ms')
+        costEstimationTimeoutRef.current = setTimeout(() => {
+          console.log('🔄 Starting PDF cost estimation for URL:', value.trim())
+          estimateCostForPDFUrl(value.trim())
+        }, 200) // Consistent delay with YouTube
       } else if (inputType === InputType.YOUTUBE_URL) {
         console.log('❌ Invalid YouTube URL')
         setUrlError('Please enter a valid YouTube URL')
@@ -350,8 +355,14 @@ const AnalyzePage: React.FC = () => {
         }, 200) // Consistent 200ms delay
       }, 100)
     } else if (pastedText && inputType === InputType.PDF_URL && validatePDFUrl(pastedText)) {
-      console.log('✅ Valid pasted PDF URL')
-      // Could add PDF preview logic here if needed
+      console.log('✅ Valid pasted PDF URL, will trigger cost estimation')
+      setTimeout(() => {
+        // Also estimate cost for pasted PDF URLs
+        setTimeout(() => {
+          console.log('🔄 Starting PDF cost estimation for pasted URL:', pastedText)
+          estimateCostForPDFUrl(pastedText)
+        }, 200) // Consistent 200ms delay
+      }, 100)
     }
   }
 
@@ -419,6 +430,71 @@ const AnalyzePage: React.FC = () => {
     } finally {
       setLoadingCostEstimation(false)
       console.log('✅ Cost estimation completed')
+    }
+  }
+
+  // Estimate cost for PDF URL
+  const estimateCostForPDFUrl = async (url: string) => {
+    console.log('💰 estimateCostForPDFUrl called with:', url)
+
+    if (!validatePDFUrl(url.trim())) {
+      console.log('❌ Invalid PDF URL, skipping cost estimation')
+      return
+    }
+
+    console.log('✅ Valid PDF URL, starting cost estimation...')
+    setLoadingCostEstimation(true)
+    setCostEstimation(null)
+
+    try {
+      console.log('📡 Making API call to /api/estimate-cost-pdf')
+      const response = await fetch('/api/estimate-cost-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: url.trim(),
+          gptModel: model,
+          generateSummary: true
+        }),
+      })
+
+      console.log('📡 API response status:', response.status)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('💰 PDF cost estimation result:', data)
+        setCostEstimation(data)
+        if (data.estimatedProcessingTime) {
+          console.log('💡 Setting estimatedProcessingTime:', data.estimatedProcessingTime)
+          setEstimatedProcessingTime(data.estimatedProcessingTime)
+        } else {
+          console.log('⚠️ No estimatedProcessingTime in response')
+        }
+      } else {
+        let errorDetails = ''
+        try {
+          const errorData = await response.clone().json()
+          errorDetails = JSON.stringify(errorData, null, 2)
+          console.error('❌ Failed to estimate PDF cost (JSON):', response.status, errorData)
+        } catch {
+          const errorText = await response.text()
+          errorDetails = errorText
+          console.error('❌ Failed to estimate PDF cost (Text):', response.status, errorText)
+        }
+        // Set error state with details for debugging
+        setCostEstimation({
+          success: false,
+          error: `API Error ${response.status}: ${errorDetails}`,
+          debug: true
+        })
+      }
+    } catch (error) {
+      console.error('❌ Error estimating PDF cost:', error)
+    } finally {
+      setLoadingCostEstimation(false)
+      console.log('✅ PDF cost estimation completed')
     }
   }
 
