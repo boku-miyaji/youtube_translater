@@ -1035,20 +1035,14 @@ const AnalyzePage: React.FC = () => {
       rationale.sections.push({
         title: "📊 データソース",
         content: [
-          `過去の実績データから推定しています`,
-          `サンプル数: ${processingTime.sampleSize || '不明'}件`,
-          `信頼度: ${processingTime.confidence ? Math.round(processingTime.confidence * 100) : '?'}%`,
-          isHistorical ? "✓ 精度の高い予測が可能です" : ""
-        ].filter(Boolean)
+          `過去の実績データ (サンプル数: ${processingTime.sampleSize || '不明'}件, 信頼度: ${processingTime.confidence ? Math.round(processingTime.confidence * 100) : '?'}%)`
+        ]
       });
     } else {
       rationale.sections.push({
         title: "📊 データソース",
         content: [
-          "デフォルト係数を使用しています",
-          "履歴データがないため、標準的な処理速度で推定",
-          "実際の処理時間は変動する可能性があります",
-          "処理を重ねることで精度が向上します"
+          "デフォルト係数を使用 (履歴データなし)"
         ]
       });
     }
@@ -1098,14 +1092,12 @@ const AnalyzePage: React.FC = () => {
 
     if (isPDF) {
       // For PDF, show per-page cost
+      const costPerPage = durationMinutes > 0 ? costs.total / durationMinutes : 0;
       costContent.push(
         `文字起こし: $${costs.transcription.toFixed(4)}`,
         `要約生成: $${costs.summary.toFixed(4)}`,
         `合計: $${costs.total.toFixed(4)}`,
-        "",
-        durationMinutes > 0 ? `このPDF (${durationMinutes}ページ) の場合:` : "このPDFの場合:",
-        durationMinutes > 0 ? `1ページあたり: 約$${(costs.total / durationMinutes).toFixed(6)}` : "",
-        "ページ数が多いほどコストが増加します"
+        durationMinutes > 0 ? `  → 1ページあたり: 約$${costPerPage.toFixed(6)}` : ""
       );
     } else {
       // For video/audio, show per-minute cost
@@ -1115,11 +1107,7 @@ const AnalyzePage: React.FC = () => {
         `要約生成: $${costs.summary.toFixed(4)}`,
         durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteSummary.toFixed(6)}` : "",
         `合計: $${costs.total.toFixed(4)}`,
-        durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteTotal.toFixed(6)}` : "",
-        "",
-        durationMinutes > 0 ? `この動画 (${durationMinutes}分) の場合:` : "この動画の場合:",
-        durationMinutes > 0 ? `${durationMinutes}分 × $${costPerMinuteTotal.toFixed(6)}/分 = $${costs.total.toFixed(4)}` : "",
-        "動画が長いほどコストが増加します"
+        durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteTotal.toFixed(6)}` : ""
       );
     }
 
@@ -1148,13 +1136,7 @@ const AnalyzePage: React.FC = () => {
         pagesCount > 0 ? `  → 1ページあたり: ${summaryPerPage.toFixed(1)}秒` : "",
         `合計: ${formatProcessingTime(total)}`,
         "",
-        pagesCount > 0 ? `このPDF (${pagesCount}ページ) の場合:` : "",
-        pagesCount > 0 ? `${pagesCount}ページ × ${transcriptionPerPage.toFixed(1)}秒/ページ = ${formatProcessingTime(transcriptionTime)} (テキスト抽出)` : "",
-        pagesCount > 0 ? `${pagesCount}ページ × ${summaryPerPage.toFixed(1)}秒/ページ = ${formatProcessingTime(summaryTime)} (要約)` : "",
-        pagesCount > 0 ? `合計: ${formatProcessingTime(total)}` : "",
-        "",
-        `テキスト抽出: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`,
-        "PDFからのテキスト抽出は高速です"
+        `テキスト抽出: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`
       );
     } else {
       // For video: show per-minute breakdown
@@ -1169,13 +1151,7 @@ const AnalyzePage: React.FC = () => {
         minutes > 0 ? `  → 1分あたり: ${summaryPerMinute.toFixed(1)}秒` : "",
         `合計: ${formatProcessingTime(total)}`,
         "",
-        minutes > 0 ? `この動画 (${minutes}分) の場合:` : "",
-        minutes > 0 ? `${minutes}分 × ${transcriptionPerMinute.toFixed(1)}秒/分 = ${formatProcessingTime(transcriptionTime)} (文字起こし)` : "",
-        minutes > 0 ? `${minutes}分 × ${summaryPerMinute.toFixed(1)}秒/分 = ${formatProcessingTime(summaryTime)} (要約)` : "",
-        minutes > 0 ? `合計: ${formatProcessingTime(total)}` : "",
-        "",
-        `文字起こし: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`,
-        "文字起こしが処理時間の大部分を占めます"
+        `文字起こし: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`
       );
     }
 
@@ -1188,16 +1164,14 @@ const AnalyzePage: React.FC = () => {
     rationale.sections.push({
       title: "📝 影響要因",
       content: isPDF ? [
-        "• ページ数: ページが多いほど時間がかかります",
-        "• テキスト量: 1ページあたりの文字数",
-        "• 要約モデル: GPT-4oはGPT-4o-miniより遅いですが高品質",
-        "• サーバー負荷: 混雑時は遅くなる可能性があります"
+        "• ページ数とテキスト量",
+        "• 要約モデル (GPT-4o > GPT-4o-mini: 品質優先)",
+        "• サーバー負荷状況"
       ] : [
-        "• 動画の長さ: 長いほど時間がかかります",
-        "• 音声品質: 音質が悪いと文字起こしに時間がかかる場合があります",
-        "• 文字起こしモデル: GPT-4oはWhisperより高速です",
-        "• 要約モデル: GPT-4oはGPT-4o-miniより遅いですが高品質",
-        "• サーバー負荷: 混雑時は遅くなる可能性があります"
+        "• 動画の長さと音声品質",
+        "• 文字起こしモデル (GPT-4o > Whisper: 高速)",
+        "• 要約モデル (GPT-4o > GPT-4o-mini: 品質優先)",
+        "• サーバー負荷状況"
       ]
     });
 
