@@ -434,8 +434,8 @@ function calculateProcessingTime(
       console.log(`📊 Using historical PDF extraction data: ${transcriptionTime}s for ${estimatedPageCount} pages`);
       isHistoricalEstimate = true;
     } else {
-      // Default: PDF text extraction is very fast (0.5-2 seconds per page)
-      const secondsPerPage = 1.5; // Conservative estimate
+      // Default: PDF text extraction is very fast (typically 0.1-0.5 seconds per page)
+      const secondsPerPage = 0.5; // Realistic default based on actual performance
       transcriptionTime = Math.ceil(estimatedPageCount * secondsPerPage);
       console.log(`📊 Using default PDF extraction time: ${transcriptionTime}s (${secondsPerPage}s/page for ${estimatedPageCount} pages)`);
     }
@@ -476,12 +476,11 @@ function calculateProcessingTime(
       console.log(`📊 Using historical PDF summary data: ${summaryTime}s (${stats.contentTypeStats.pdf.summaryAverage.toFixed(1)}s/page for ${estimatedPageCount} pages)`);
       isHistoricalEstimate = true;
     } else {
-      // Default: PDF summary generation coefficient (seconds per page)
-      const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.8;
-      // For PDF, summarySpeed represents seconds per page
-      const secondsPerPage = summarySpeed * 60; // Convert coefficient to seconds per page
+      // Default: PDF summary generation (typically 1-2 seconds per page with GPT-4o-mini)
+      // Note: This is MUCH faster than video summarization because we're working with pre-extracted text
+      const secondsPerPage = gptModel.includes('gpt-4o-mini') ? 1.5 : 3.0; // Faster for gpt-4o-mini
       summaryTime = Math.ceil(estimatedPageCount * secondsPerPage);
-      console.log(`📊 Using default PDF summary coefficient: ${summaryTime}s (${secondsPerPage.toFixed(1)}s/page for ${estimatedPageCount} pages)`);
+      console.log(`📊 Using default PDF summary time: ${summaryTime}s (${secondsPerPage.toFixed(1)}s/page for ${estimatedPageCount} pages)`);
     }
   } else {
     // For video/audio: Use minute-based calculation (seconds per minute)
