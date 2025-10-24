@@ -420,26 +420,47 @@ function calculateProcessingTime(
   let isHistoricalEstimate = false;
   let confidenceLevel = 0.1; // Default low confidence
   
-  // Calculate transcription time
-  if (stats.transcriptionStats.sampleSize > 0) {
-    // Use historical data for transcription model if available
-    const modelStats = stats.transcriptionStats.modelStats[transcriptionModel];
-    if (modelStats && modelStats.sampleSize >= 2) {
-      transcriptionTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
-      confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
-      console.log(`📊 Using historical data for transcription time: ${transcriptionTime}s (${modelStats.sampleSize} samples)`);
+  // Calculate transcription/extraction time
+  // IMPORTANT: PDF text extraction is fundamentally different from audio transcription
+  if (contentType === 'pdf') {
+    // PDF text extraction is page-based, not duration-based
+    // durationMinutes for PDF represents estimated page count (e.g., 10 pages = 10 "minutes")
+    const estimatedPageCount = durationMinutes;
+
+    if (stats.contentTypeStats.pdf && stats.contentTypeStats.pdf.sampleSize >= 2) {
+      // Use historical PDF extraction data
+      transcriptionTime = Math.ceil(estimatedPageCount * stats.contentTypeStats.pdf.transcriptionAverage);
+      confidenceLevel = Math.max(confidenceLevel, Math.min(0.8, stats.contentTypeStats.pdf.sampleSize / 10));
+      console.log(`📊 Using historical PDF extraction data: ${transcriptionTime}s for ${estimatedPageCount} pages`);
+      isHistoricalEstimate = true;
     } else {
-      // Use overall transcription average
-      transcriptionTime = Math.ceil(durationMinutes * stats.transcriptionStats.averageSecondsPerMinute);
-      confidenceLevel = Math.max(confidenceLevel, stats.transcriptionStats.confidenceLevel);
-      console.log(`📊 Using overall transcription average: ${transcriptionTime}s (${stats.transcriptionStats.sampleSize} samples)`);
+      // Default: PDF text extraction is very fast (0.5-2 seconds per page)
+      const secondsPerPage = 1.5; // Conservative estimate
+      transcriptionTime = Math.ceil(estimatedPageCount * secondsPerPage);
+      console.log(`📊 Using default PDF extraction time: ${transcriptionTime}s (${secondsPerPage}s/page for ${estimatedPageCount} pages)`);
     }
-    isHistoricalEstimate = true;
   } else {
-    // Fall back to default speed coefficients
-    const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
-    transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
-    console.log(`📊 Using default transcription coefficients: ${transcriptionTime}s`);
+    // For video/audio: use Whisper transcription speeds
+    if (stats.transcriptionStats.sampleSize > 0) {
+      // Use historical data for transcription model if available
+      const modelStats = stats.transcriptionStats.modelStats[transcriptionModel];
+      if (modelStats && modelStats.sampleSize >= 2) {
+        transcriptionTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
+        confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
+        console.log(`📊 Using historical data for transcription time: ${transcriptionTime}s (${modelStats.sampleSize} samples)`);
+      } else {
+        // Use overall transcription average
+        transcriptionTime = Math.ceil(durationMinutes * stats.transcriptionStats.averageSecondsPerMinute);
+        confidenceLevel = Math.max(confidenceLevel, stats.transcriptionStats.confidenceLevel);
+        console.log(`📊 Using overall transcription average: ${transcriptionTime}s (${stats.transcriptionStats.sampleSize} samples)`);
+      }
+      isHistoricalEstimate = true;
+    } else {
+      // Fall back to default speed coefficients
+      const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 5;
+      transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
+      console.log(`📊 Using default transcription coefficients: ${transcriptionTime}s`);
+    }
   }
   
   // Calculate summary time
@@ -477,11 +498,23 @@ function calculateProcessingTime(
   }
   
   // Calculate rates for display
-  const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
-  const summarySecondsPerVideoMinute = summaryTime / durationMinutes;
-  const transcriptionRate = `動画1分あたり${transcriptionSecondsPerVideoMinute.toFixed(1)}秒`;
-  const summaryRate = `動画1分あたり${summarySecondsPerVideoMinute.toFixed(1)}秒`;
-  
+  let transcriptionRate: string;
+  let summaryRate: string;
+
+  if (contentType === 'pdf') {
+    // For PDF: display per-page rates
+    const extractionSecondsPerPage = transcriptionTime / durationMinutes; // durationMinutes = page count
+    const summarySecondsPerPage = summaryTime / durationMinutes;
+    transcriptionRate = `${extractionSecondsPerPage.toFixed(1)}秒/ページ`;
+    summaryRate = `${summarySecondsPerPage.toFixed(1)}秒/ページ`;
+  } else {
+    // For video/audio: display per-minute rates
+    const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
+    const summarySecondsPerVideoMinute = summaryTime / durationMinutes;
+    transcriptionRate = `動画1分あたり${transcriptionSecondsPerVideoMinute.toFixed(1)}秒`;
+    summaryRate = `動画1分あたり${summarySecondsPerVideoMinute.toFixed(1)}秒`;
+  }
+
   const totalTime = transcriptionTime + summaryTime;
   
   return {
