@@ -1070,15 +1070,43 @@ const AnalyzePage: React.FC = () => {
     });
 
     // Section 3: Cost Breakdown
-    rationale.sections.push({
-      title: "💰 コスト内訳",
-      content: [
+    const durationMinutes = processingTime.durationMinutes || 0;
+    const costPerMinuteTranscription = durationMinutes > 0 ? costs.transcription / durationMinutes : 0;
+    const costPerMinuteSummary = durationMinutes > 0 ? costs.summary / durationMinutes : 0;
+    const costPerMinuteTotal = durationMinutes > 0 ? costs.total / durationMinutes : 0;
+
+    const costContent = [];
+
+    if (isPDF) {
+      // For PDF, show per-page cost
+      costContent.push(
         `文字起こし: $${costs.transcription.toFixed(4)}`,
         `要約生成: $${costs.summary.toFixed(4)}`,
         `合計: $${costs.total.toFixed(4)}`,
         "",
-        "コストは使用したトークン数に基づいて計算されます"
-      ]
+        durationMinutes > 0 ? `このPDF (${durationMinutes}ページ) の場合:` : "このPDFの場合:",
+        durationMinutes > 0 ? `1ページあたり: 約$${(costs.total / durationMinutes).toFixed(6)}` : "",
+        "ページ数が多いほどコストが増加します"
+      );
+    } else {
+      // For video/audio, show per-minute cost
+      costContent.push(
+        `文字起こし: $${costs.transcription.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteTranscription.toFixed(6)}` : "",
+        `要約生成: $${costs.summary.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteSummary.toFixed(6)}` : "",
+        `合計: $${costs.total.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteTotal.toFixed(6)}` : "",
+        "",
+        durationMinutes > 0 ? `この動画 (${durationMinutes}分) の場合:` : "この動画の場合:",
+        durationMinutes > 0 ? `${durationMinutes}分 × $${costPerMinuteTotal.toFixed(6)}/分 = $${costs.total.toFixed(4)}` : "",
+        "動画が長いほどコストが増加します"
+      );
+    }
+
+    rationale.sections.push({
+      title: "💰 コスト内訳",
+      content: costContent.filter(Boolean)
     });
 
     // Section 4: Processing Breakdown
