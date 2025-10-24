@@ -157,8 +157,11 @@ const AnalyzePage: React.FC = () => {
       let predictionInput: PredictionInput
 
       if (inputType === InputType.YOUTUBE_URL) {
-        // For YouTube, we need to estimate duration or use a default
-        const estimatedDuration = 300 // Default 5 minutes - could be improved with YouTube API
+        // IMPORTANT: For YouTube URLs entered by user, we don't have the actual duration yet
+        // We use a conservative estimate that will be replaced with accurate time once analysis starts
+        // The backend will fetch real duration using ytdl.getInfo()
+        const estimatedDuration = 600 // Conservative: assume 10 minutes (was 5, increased for safety)
+        console.warn(`⚠️ YouTube URL: Using estimated duration of ${estimatedDuration}s. Actual duration will be fetched by backend.`);
         predictionInput = {
           contentType: 'youtube',
           duration: estimatedDuration,
@@ -1093,11 +1096,20 @@ const AnalyzePage: React.FC = () => {
               <div className="flex items-start gap-2">
                 <span className="text-blue-600 text-lg">⏱️</span>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-blue-800 mb-2">
-                    想定処理時間（概算）
-                    {processingTime.isHistoricalEstimate && (
-                      <span className="ml-2 text-xs font-normal text-green-700 bg-green-100 px-2 py-1 rounded">
-                        過去の実績から算出
+                  <div className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2 flex-wrap">
+                    <span>想定処理時間（概算）</span>
+                    {processingTime.isHistoricalEstimate ? (
+                      <span className="text-xs font-normal text-green-700 bg-green-100 px-2 py-1 rounded">
+                        ✓ 過去の実績から算出
+                      </span>
+                    ) : (
+                      <span className="text-xs font-normal text-orange-700 bg-orange-100 px-2 py-1 rounded">
+                        ⚠️ デフォルト値 (参考程度)
+                      </span>
+                    )}
+                    {inputType === InputType.YOUTUBE_URL && (
+                      <span className="text-xs font-normal text-yellow-700 bg-yellow-100 px-2 py-1 rounded">
+                        ℹ️ 動画の長さを仮定
                       </span>
                     )}
                   </div>

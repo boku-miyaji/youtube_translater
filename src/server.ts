@@ -214,18 +214,21 @@ const pricing: Pricing = {
 };
 
 // Processing speed for each model (video minutes per real-time minute)
+// IMPORTANT: These coefficients are conservative estimates to avoid under-estimation
+// Real-world performance includes API latency, network delays, and server load
+// Better to over-estimate than under-estimate for user experience
 const processingSpeed = {
   transcription: {
-    'whisper-1': 10, // Whisper processes ~10 minutes of video per minute
-    'gpt-4o-transcribe': 8, // GPT-4o processes ~8 minutes of video per minute
-    'gpt-4o-mini-transcribe': 12 // GPT-4o Mini processes ~12 minutes of video per minute
+    'whisper-1': 5, // Conservative: ~5 minutes of video per minute (was 10, too optimistic)
+    'gpt-4o-transcribe': 4, // Conservative: ~4 minutes per minute (was 8)
+    'gpt-4o-mini-transcribe': 6 // Conservative: ~6 minutes per minute (was 12)
   },
   summary: {
-    'gpt-4o-mini': 0.5, // Processing time coefficient (lower = slower)
-    'gpt-4o': 0.4,
-    'gpt-4-turbo': 0.3,
-    'gpt-4': 0.25,
-    'gpt-3.5-turbo': 0.6
+    'gpt-4o-mini': 0.8, // Conservative: 0.8 min per video min (was 0.5, too fast)
+    'gpt-4o': 0.7, // Conservative: slightly faster than mini (was 0.4)
+    'gpt-4-turbo': 0.6, // (was 0.3)
+    'gpt-4': 0.5, // (was 0.25)
+    'gpt-3.5-turbo': 1.0 // Conservative: 1:1 ratio (was 0.6)
   }
 };
 
