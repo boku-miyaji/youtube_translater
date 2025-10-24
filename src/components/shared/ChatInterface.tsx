@@ -578,13 +578,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-lg px-4 py-3 rounded-lg ${
+                className={`max-w-4xl px-4 py-3 rounded-lg ${
                   message.role === 'user'
                     ? 'bg-gray-700 text-white'
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <p className="text-base leading-relaxed">{message.content}</p>
+                <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
                 <p className={`text-xs mt-2 ${
                   message.role === 'user' ? 'text-white opacity-75' : 'text-gray-500'
                 }`}>
@@ -596,7 +596,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         )}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-900 max-w-lg px-4 py-3 rounded-lg">
+            <div className="bg-gray-100 text-gray-900 max-w-4xl px-4 py-3 rounded-lg">
               <div className="flex items-center space-x-2">
                 <div className="loading" />
                 <span className="text-base">Thinking...</span>
