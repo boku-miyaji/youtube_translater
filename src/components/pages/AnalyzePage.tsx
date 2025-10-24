@@ -1219,12 +1219,12 @@ const AnalyzePage: React.FC = () => {
                   </div>
                   <div className="text-xs text-blue-700 space-y-1">
                     <div className="flex justify-between">
-                      <span>{getFirstStageSpeedLabel()}:</span>
-                      <span className="font-mono">{processingTime.transcriptionRate || `${formatProcessingTime(processingTime.transcription)}`}</span>
+                      <span>{getFirstStageSpeedLabel().replace('速度', '時間')}:</span>
+                      <span className="font-mono">{formatProcessingTime(processingTime.transcription)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>要約生成速度:</span>
-                      <span className="font-mono">{processingTime.summaryRate || `${formatProcessingTime(processingTime.summary)}`}</span>
+                      <span>要約生成時間:</span>
+                      <span className="font-mono">{formatProcessingTime(processingTime.summary)}</span>
                     </div>
                     <div className="border-t border-blue-200 mt-1 pt-1"></div>
                     <div className="flex justify-between font-medium">
@@ -1277,6 +1277,7 @@ const AnalyzePage: React.FC = () => {
           {processingTime && (
             <div className="mt-2">
               <button
+                type="button"
                 onClick={() => setShowEstimationRationale(!showEstimationRationale)}
                 className="w-full p-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
               >
