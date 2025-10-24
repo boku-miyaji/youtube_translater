@@ -7,6 +7,11 @@ interface AnalysisProgressProps {
     summary: number
     total: number
     formatted: string
+    isHistoricalEstimate?: boolean
+    confidenceLevel?: number
+    transcriptionRate?: string
+    summaryRate?: string
+    durationMinutes?: number
   }
 }
 
@@ -128,6 +133,12 @@ const AnalysisProgress: React.FC<AnalysisProgressProps> = ({ isAnalyzing, estima
             <div className="text-xs text-gray-600 mt-1">
               推定合計時間: {estimatedTime.formatted}
             </div>
+            {estimatedTime.confidenceLevel !== undefined && (
+              <div className="text-xs text-gray-500 mt-1">
+                {estimatedTime.isHistoricalEstimate ? '実績データ' : 'デフォルト'} 
+                (信頼度: {Math.round(estimatedTime.confidenceLevel * 100)}%)
+              </div>
+            )}
           </div>
         </div>
         

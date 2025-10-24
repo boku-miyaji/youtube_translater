@@ -2,17 +2,25 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store/appStore'
 import TranscriptViewer from '../shared/TranscriptViewer'
+import PDFViewer, { PDFViewerRef } from '../shared/PDFViewer'
 import ChatInterface from '../shared/ChatInterface'
 import VideoFileUpload from '../shared/VideoFileUpload'
 import AnalysisProgress from '../shared/AnalysisProgress'
-import { VideoFile } from '../../types'
+import { VideoFile, AudioFile, PDFFile, InputType } from '../../types'
 import { formatProcessingTime } from '../../utils/formatTime'
+import { ProcessingTimePredictor, PredictionInput, PredictionResult, createTimePredictor } from '../../utils/timePredictor'
+import { detectInputTypeFromUrl, detectInputTypeFromUrlWithConfidence, detectInputTypeFromFile, DetectionResult } from '../../utils/inputTypeDetection'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
-  const [inputType, setInputType] = useState<'url' | 'file'>('url')
+  const [inputMode, setInputMode] = useState<'url' | 'file'>('url')
+  const [inputType, setInputType] = useState<InputType>(InputType.YOUTUBE_URL)
+  const [isManualInputTypeSelection, setIsManualInputTypeSelection] = useState(false)
+  const [detectedType, setDetectedType] = useState<DetectionResult | null>(null)
   const [url, setUrl] = useState('')
   const [videoFile, setVideoFile] = useState<VideoFile | null>(null)
+  const [audioFile, setAudioFile] = useState<AudioFile | null>(null)
+  const [pdfFile, setPdfFile] = useState<PDFFile | null>(null)
   const [language, setLanguage] = useState('original')
   const [model, setModel] = useState('gpt-4o-mini')
   const [transcriptionModel, setTranscriptionModel] = useState<'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1'>('gpt-4o-transcribe')
@@ -20,6 +28,7 @@ const AnalyzePage: React.FC = () => {
   const [fileError, setFileError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [playerRef, setPlayerRef] = useState<any>(null)
+  const pdfViewerRef = useRef<PDFViewerRef>(null)
   const [prefillQuestion, setPrefillQuestion] = useState<string>('')
   const [videoPreview, setVideoPreview] = useState<{title: string, thumbnail: string} | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -28,6 +37,8 @@ const AnalyzePage: React.FC = () => {
   const [costEstimation, setCostEstimation] = useState<any>(null)
   const [loadingCostEstimation, setLoadingCostEstimation] = useState(false)
   const [estimatedProcessingTime, setEstimatedProcessingTime] = useState<any>(null)
+  const [historicalData, setHistoricalData] = useState<any[]>([])
+  const [timePredictor, setTimePredictor] = useState<ProcessingTimePredictor | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const costEstimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isFirstModelChange = useRef(true)
@@ -35,7 +46,7 @@ const AnalyzePage: React.FC = () => {
   useEffect(() => {
     if (location.state?.url) {
       setUrl(location.state.url)
-      setInputType('url')
+      setInputType(InputType.YOUTUBE_URL)
       // Auto-submit if autoAnalyze flag is set
       if (location.state.autoAnalyze) {
         // Small delay to allow state to settle
@@ -48,10 +59,163 @@ const AnalyzePage: React.FC = () => {
       }
     } else if (location.state?.videoFile && location.state?.inputType === 'file') {
       // Handle file passed from Dashboard
-      setInputType('file')
+      setInputType(InputType.VIDEO_FILE)
       setVideoFile(location.state.videoFile)
     }
   }, [location.state])
+
+  // Load historical data for time prediction on component mount
+  useEffect(() => {
+    const loadHistoricalData = async () => {
+      try {
+        const response = await fetch('/api/history')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.history) {
+            console.log('📊 Loaded historical data for time prediction:', data.history.length, 'entries')
+            setHistoricalData(data.history)
+            
+            // Initialize time predictor
+            const predictor = createTimePredictor(data.history)
+            setTimePredictor(predictor)
+            
+            // Log statistics for debugging
+            const statsSummary = predictor.getStatsSummary()
+            console.log('🎯 Time prediction stats:', statsSummary)
+          }
+        } else {
+          console.warn('Failed to load historical data for time prediction')
+        }
+      } catch (error) {
+        console.error('Error loading historical data:', error)
+      }
+    }
+
+    loadHistoricalData()
+  }, [])
+
+  // Auto-update time prediction when input changes
+  useEffect(() => {
+    if (!timePredictor) return
+
+    const updateTimePrediction = () => {
+      let shouldPredict = false
+      let inputValue = ''
+
+      // Check if we have valid inputs for prediction
+      if (inputType === InputType.YOUTUBE_URL && url.trim() && validateYouTubeUrl(url.trim())) {
+        shouldPredict = true
+        inputValue = url.trim()
+      } else if (inputType === InputType.PDF_URL && url.trim() && validatePDFUrl(url.trim())) {
+        shouldPredict = true
+        inputValue = url.trim()
+      } else if (inputType === InputType.VIDEO_FILE && videoFile) {
+        shouldPredict = true
+        inputValue = 'video-file'
+      } else if (inputType === InputType.AUDIO_FILE && audioFile) {
+        shouldPredict = true
+        inputValue = 'audio-file'
+      }
+
+      if (shouldPredict) {
+        const prediction = generateImprovedTimePrediction(inputType, inputValue, language, transcriptionModel, model)
+        if (prediction && prediction.confidence > 0.2) {
+          const updatedProcessingTime = {
+            transcription: prediction.transcription,
+            summary: prediction.summary,
+            total: prediction.total,
+            formatted: prediction.formatted,
+            confidence: prediction.confidence,
+            basedOn: prediction.basedOn,
+            sampleSize: prediction.sampleSize,
+            transcriptionRate: prediction.transcriptionRate,
+            summaryRate: prediction.summaryRate
+          }
+          setEstimatedProcessingTime(updatedProcessingTime)
+          console.log('🔄 Auto-updated time prediction:', {
+            inputType,
+            confidence: prediction.confidence,
+            basedOn: prediction.basedOn
+          })
+        }
+      }
+    }
+
+    // Debounce the update to avoid too many calls
+    const timeoutId = setTimeout(updateTimePrediction, 500)
+    return () => clearTimeout(timeoutId)
+  }, [inputType, url, language, transcriptionModel, model, videoFile, audioFile, timePredictor])
+
+  // Generate improved time prediction using historical data
+  const generateImprovedTimePrediction = (inputType: InputType, url: string, language: string, transcriptionModel: string, model: string): PredictionResult | null => {
+    if (!timePredictor) {
+      console.warn('Time predictor not initialized yet')
+      return null
+    }
+
+    try {
+      let predictionInput: PredictionInput
+
+      if (inputType === InputType.YOUTUBE_URL) {
+        // For YouTube, we need to estimate duration or use a default
+        const estimatedDuration = 300 // Default 5 minutes - could be improved with YouTube API
+        predictionInput = {
+          contentType: 'youtube',
+          duration: estimatedDuration,
+          transcriptionModel,
+          gptModel: model,
+          language
+        }
+      } else if (inputType === InputType.PDF_URL) {
+        // For PDF, use realistic page-based estimation
+        const estimatedPageCount = 10 // Default page count for academic paper
+        const avgCharsPerPage = 4000 // Average characters per page
+        const estimatedCharacterCount = estimatedPageCount * avgCharsPerPage
+        predictionInput = {
+          contentType: 'pdf',
+          characterCount: estimatedCharacterCount,
+          pageCount: estimatedPageCount,
+          transcriptionModel: 'extraction', // PDF doesn't need transcription model
+          gptModel: model,
+          language
+        }
+      } else if (inputType === InputType.AUDIO_FILE && audioFile) {
+        predictionInput = {
+          contentType: 'audio',
+          duration: audioFile.duration || 300, // Use actual duration if available
+          transcriptionModel,
+          gptModel: model,
+          language
+        }
+      } else if (inputType === InputType.VIDEO_FILE && videoFile) {
+        predictionInput = {
+          contentType: 'video',
+          duration: videoFile.duration || 300, // Use actual duration if available
+          transcriptionModel,
+          gptModel: model,
+          language
+        }
+      } else {
+        console.warn('Unsupported input type for time prediction:', inputType)
+        return null
+      }
+
+      const prediction = timePredictor.predictProcessingTime(predictionInput)
+      
+      console.log('🎯 Generated improved time prediction:', {
+        inputType,
+        prediction,
+        confidence: prediction.confidence,
+        basedOn: prediction.basedOn,
+        sampleSize: prediction.sampleSize
+      })
+
+      return prediction
+    } catch (error) {
+      console.error('Error generating time prediction:', error)
+      return null
+    }
+  }
 
   // YouTube URL validation function
   const validateYouTubeUrl = (url: string): boolean => {
@@ -61,6 +225,23 @@ const AnalyzePage: React.FC = () => {
       /^(https?:\/\/)?(www\.)?youtu\.be\/[\w-]+/
     ]
     return patterns.some(pattern => pattern.test(url))
+  }
+
+  // PDF URL validation function
+  const validatePDFUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url)
+      // Check if HTTPS
+      if (parsed.protocol !== 'https:') return false
+      
+      // Check if URL ends with .pdf or common academic domains
+      const isPDFExtension = parsed.pathname.toLowerCase().endsWith('.pdf')
+      const isAcademicDomain = /arxiv\.org|\.edu|doi\.org/.test(parsed.hostname)
+      
+      return isPDFExtension || isAcademicDomain
+    } catch {
+      return false
+    }
   }
 
   // Extract YouTube video ID
@@ -90,16 +271,29 @@ const AnalyzePage: React.FC = () => {
     setVideoPreview(null)
     setCostEstimation(null)
     setLoadingCostEstimation(false)
-    
+
     // Clear previous timeout
     if (costEstimationTimeoutRef.current) {
       console.log('🔄 Clearing previous cost estimation timeout')
       clearTimeout(costEstimationTimeoutRef.current)
       costEstimationTimeoutRef.current = null
     }
-    
+
     if (value.trim()) {
-      if (validateYouTubeUrl(value.trim())) {
+      // Auto-detect input type with confidence
+      const detection = detectInputTypeFromUrlWithConfidence(value.trim())
+      setDetectedType(detection)
+
+      // Auto-update input type if not manually selected
+      if (!isManualInputTypeSelection) {
+        if (detection.type !== inputType) {
+          console.log(`🔍 Auto-detected input type: ${detection.type} (${detection.displayName}, confidence: ${detection.confidence})`)
+          setInputType(detection.type)
+        }
+      }
+      
+      // Handle based on current input type
+      if (inputType === InputType.YOUTUBE_URL && validateYouTubeUrl(value.trim())) {
         console.log('✅ Valid YouTube URL detected, generating preview')
         // Generate instant preview for valid URLs
         generateVideoPreview(value.trim())
@@ -110,10 +304,20 @@ const AnalyzePage: React.FC = () => {
           console.log('🔄 Starting cost estimation for URL:', value.trim())
           estimateCostForUrl(value.trim())
         }, 200) // Reduced delay to 200ms for faster response
-      } else {
+      } else if (inputType === InputType.PDF_URL && validatePDFUrl(value.trim())) {
+        console.log('✅ Valid PDF URL detected')
+        // Could add PDF preview logic here if needed
+      } else if (inputType === InputType.YOUTUBE_URL) {
         console.log('❌ Invalid YouTube URL')
         setUrlError('Please enter a valid YouTube URL')
+      } else if (inputType === InputType.PDF_URL) {
+        console.log('❌ Invalid PDF URL')
+        setUrlError('Please enter a valid PDF URL')
       }
+    } else {
+      // Reset to default when input is cleared
+      setIsManualInputTypeSelection(false)
+      setInputType(InputType.YOUTUBE_URL)
     }
   }
 
@@ -121,8 +325,18 @@ const AnalyzePage: React.FC = () => {
   const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = e.clipboardData.getData('text')
     console.log('📋 Paste event detected with text:', pastedText)
-    if (pastedText && validateYouTubeUrl(pastedText)) {
-      console.log('✅ Valid pasted URL, will trigger preview and cost estimation')
+    
+    // Auto-detect input type on paste if not manually selected
+    if (!isManualInputTypeSelection && pastedText) {
+      const detectedType = detectInputTypeFromUrl(pastedText)
+      if (detectedType !== inputType) {
+        console.log(`🔍 Auto-detected input type on paste: ${detectedType}`)
+        setInputType(detectedType)
+      }
+    }
+    
+    if (pastedText && inputType === InputType.YOUTUBE_URL && validateYouTubeUrl(pastedText)) {
+      console.log('✅ Valid pasted YouTube URL, will trigger preview and cost estimation')
       setTimeout(() => {
         generateVideoPreview(pastedText)
         // Also estimate cost for pasted URLs
@@ -131,6 +345,9 @@ const AnalyzePage: React.FC = () => {
           estimateCostForUrl(pastedText)
         }, 200) // Consistent 200ms delay
       }, 100)
+    } else if (pastedText && inputType === InputType.PDF_URL && validatePDFUrl(pastedText)) {
+      console.log('✅ Valid pasted PDF URL')
+      // Could add PDF preview logic here if needed
     }
   }
 
@@ -238,21 +455,91 @@ const AnalyzePage: React.FC = () => {
     }
   }
 
-  // Handle video file selection
+  // Handle file selection based on input type
   const handleFileSelected = (file: VideoFile) => {
-    setVideoFile(file)
+    // Auto-detect file type from MIME type
+    const detectedFileType = detectInputTypeFromFile(file.file)
+
+    console.log(`🔍 Auto-detected file type: ${detectedFileType} for file: ${file.name} (MIME: ${file.type})`)
+
+    // Update inputType if in file mode and not manually selected
+    if (inputMode === 'file' && !isManualInputTypeSelection) {
+      setInputType(detectedFileType)
+    }
+
+    // Determine file type and set appropriate state based on detected type
+    if (detectedFileType === InputType.VIDEO_FILE) {
+      setVideoFile(file)
+      setAudioFile(null)
+      setPdfFile(null)
+    } else if (detectedFileType === InputType.AUDIO_FILE) {
+      // Convert VideoFile to AudioFile
+      const audioFile: AudioFile = {
+        file: file.file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified,
+        format: file.type.split('/')[1] // e.g., 'audio/mp3' -> 'mp3'
+      }
+      setAudioFile(audioFile)
+      setVideoFile(null)
+      setPdfFile(null)
+    } else if (detectedFileType === InputType.PDF_FILE) {
+      // Convert VideoFile to PDFFile
+      const pdfFile: PDFFile = {
+        file: file.file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      }
+      setPdfFile(pdfFile)
+      setVideoFile(null)
+      setAudioFile(null)
+    }
+
     setFileError('')
     setUploadProgress(0)
     // Estimate cost for the selected file
     estimateCostForFile(file)
   }
 
-  // Handle input type change
-  const handleInputTypeChange = (type: 'url' | 'file') => {
-    setInputType(type)
+  // Handle input mode change (URL vs File)
+  const handleInputModeChange = (mode: 'url' | 'file') => {
+    setInputMode(mode)
     // Clear previous selections and errors
     setUrl('')
     setVideoFile(null)
+    setAudioFile(null)
+    setPdfFile(null)
+    setUrlError('')
+    setFileError('')
+    setVideoPreview(null)
+    setUploadProgress(0)
+    setCostEstimation(null)
+    setLoadingCostEstimation(false)
+    setEstimatedProcessingTime(null)
+    setDetectedType(null)
+    setIsManualInputTypeSelection(false)
+
+    // Set default input type based on mode
+    if (mode === 'url') {
+      setInputType(InputType.YOUTUBE_URL)
+    } else {
+      setInputType(InputType.VIDEO_FILE)
+    }
+  }
+
+  // Handle input type change
+  const handleInputTypeChange = (type: InputType) => {
+    setInputType(type)
+    setIsManualInputTypeSelection(true) // Mark as manual selection
+    // Clear previous selections and errors
+    setUrl('')
+    setVideoFile(null)
+    setAudioFile(null)
+    setPdfFile(null)
     setUrlError('')
     setFileError('')
     setVideoPreview(null)
@@ -266,34 +553,76 @@ const AnalyzePage: React.FC = () => {
     e.preventDefault()
     
     // Validate input based on type
-    if (inputType === 'url') {
+    if (inputType === InputType.YOUTUBE_URL) {
       if (!url.trim()) return
       if (!validateYouTubeUrl(url.trim())) {
         setUrlError('Please enter a valid YouTube URL')
         return
       }
-    } else if (inputType === 'file') {
+    } else if (inputType === InputType.VIDEO_FILE) {
       if (!videoFile) {
         setFileError('Please select a video file')
         return
       }
+    } else if (inputType === InputType.AUDIO_FILE) {
+      if (!audioFile) {
+        setFileError('Please select an audio file')
+        return
+      }
+    } else if (inputType === InputType.PDF_URL) {
+      if (!url.trim()) return
+      if (!validatePDFUrl(url.trim())) {
+        setUrlError('Please enter a valid PDF URL')
+        return
+      }
+    } else if (inputType === InputType.PDF_FILE) {
+      if (!pdfFile) {
+        setFileError('Please select a PDF file')
+        return
+      }
     }
 
-    // Get estimated processing time from state or cost estimation
+    // Get estimated processing time - try improved prediction first
     let processingTime = estimatedProcessingTime || costEstimation?.estimatedProcessingTime
     
-    // If no processing time is available, set a default based on typical durations
-    if (!processingTime) {
-      console.log('⚠️ No processing time available, setting default')
-      // Default: assume 5 minutes video, with typical processing speeds
+    // Generate improved prediction using historical data
+    const improvedPrediction = generateImprovedTimePrediction(inputType, url.trim(), language, transcriptionModel, model)
+    
+    if (improvedPrediction && improvedPrediction.confidence > 0.3) {
+      // Use improved prediction if confidence is reasonable
+      processingTime = {
+        transcription: improvedPrediction.transcription,
+        summary: improvedPrediction.summary,
+        total: improvedPrediction.total,
+        formatted: improvedPrediction.formatted,
+        confidence: improvedPrediction.confidence,
+        basedOn: improvedPrediction.basedOn,
+        sampleSize: improvedPrediction.sampleSize,
+        transcriptionRate: improvedPrediction.transcriptionRate,
+        summaryRate: improvedPrediction.summaryRate
+      }
+      setEstimatedProcessingTime(processingTime)
+      console.log('🎯 Using improved time prediction:', {
+        confidence: improvedPrediction.confidence,
+        basedOn: improvedPrediction.basedOn,
+        sampleSize: improvedPrediction.sampleSize,
+        prediction: processingTime
+      })
+    } else if (!processingTime) {
+      // Fall back to defaults only if no other prediction is available
+      console.log('⚠️ No processing time available, setting default fallback')
       const defaultTime = {
         transcription: 30, // 30 seconds for transcription
         summary: 60,       // 60 seconds for summary
         total: 90,         // 90 seconds total
-        formatted: '1 min 30 sec'
+        formatted: '1 min 30 sec',
+        confidence: 0.1,
+        basedOn: 'global_default' as const,
+        sampleSize: 0
       }
       processingTime = defaultTime
       setEstimatedProcessingTime(defaultTime)
+      console.log('📉 Using default fallback prediction')
     }
     
     // Debug log for estimated processing time
@@ -320,7 +649,7 @@ const AnalyzePage: React.FC = () => {
       let response: Response
       let data: any
 
-      if (inputType === 'url') {
+      if (inputType === InputType.YOUTUBE_URL) {
         // Handle YouTube URL processing
         console.log('Sending request to /api/upload-youtube with:', { url: url.trim(), language, model })
         response = await fetch('/api/upload-youtube', {
@@ -343,8 +672,8 @@ const AnalyzePage: React.FC = () => {
         }
 
         data = await response.json()
-      } else {
-        // Handle file upload processing
+      } else if (inputType === InputType.VIDEO_FILE) {
+        // Handle video file upload processing
         const formData = new FormData()
         formData.append('file', videoFile!.file)
         formData.append('language', language)
@@ -359,7 +688,7 @@ const AnalyzePage: React.FC = () => {
           language, 
           model 
         })
-
+        
         response = await fetch('/api/upload-video-file', {
           method: 'POST',
           body: formData,
@@ -372,17 +701,142 @@ const AnalyzePage: React.FC = () => {
         }
 
         data = await response.json()
+      } else if (inputType === InputType.AUDIO_FILE) {
+        // Handle audio file upload processing
+        const formData = new FormData()
+        formData.append('file', audioFile!.file)
+        formData.append('language', language)
+        formData.append('gptModel', model)
+        formData.append('transcriptionModel', transcriptionModel)
+        formData.append('generateSummary', 'true')
+
+        console.log('Sending request to /api/upload-audio-file with:', { 
+          filename: audioFile!.name, 
+          size: audioFile!.size,
+          language, 
+          model 
+        })
+        
+        response = await fetch('/api/upload-audio-file', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Audio file processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process audio file: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
+      } else if (inputType === InputType.PDF_URL) {
+        // Handle PDF URL processing with retry logic for network errors
+        console.log('Sending request to /api/analyze-pdf with:', { url: url.trim(), language, model })
+        
+        let retryCount = 0;
+        const maxRetries = 2;
+        
+        while (retryCount <= maxRetries) {
+          try {
+            response = await fetch('/api/analyze-pdf', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url: url.trim(),
+                language,
+                gptModel: model,
+                generateSummary: true,
+                extractStructure: true,
+              }),
+            })
+
+            if (!response.ok) {
+              const errorText = await response.text()
+              console.error('PDF URL processing failed:', response.status, response.statusText, errorText)
+              throw new Error(`Failed to process PDF URL: ${response.status} ${response.statusText}`)
+            }
+
+            data = await response.json()
+            break; // Success, exit retry loop
+            
+          } catch (networkError: any) {
+            console.error(`PDF processing attempt ${retryCount + 1} failed:`, networkError);
+            
+            // Check if it's a network error that might benefit from retry
+            const errorMessage = networkError.message || networkError.toString();
+            const isNetworkError = errorMessage.includes('ERR_CONTENT_LENGTH_MISMATCH') ||
+                                   errorMessage.includes('ERR_NETWORK') ||
+                                   errorMessage.includes('Failed to fetch') ||
+                                   errorMessage.includes('network');
+            
+            if (isNetworkError && retryCount < maxRetries) {
+              retryCount++;
+              console.log(`Retrying PDF processing (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Wait before retry
+              continue;
+            } else {
+              // Either not a network error or exhausted retries
+              throw networkError;
+            }
+          }
+        }
+      } else if (inputType === InputType.PDF_FILE) {
+        // Handle PDF file upload processing
+        const formData = new FormData()
+        formData.append('file', pdfFile!.file)
+        formData.append('language', language)
+        formData.append('gptModel', model)
+        formData.append('generateSummary', 'true')
+        formData.append('extractStructure', 'true')
+
+        console.log('Sending request to /api/analyze-pdf with:', { 
+          filename: pdfFile!.name, 
+          size: pdfFile!.size,
+          language, 
+          model 
+        })
+
+        response = await fetch('/api/analyze-pdf', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('PDF file processing failed:', response.status, response.statusText, errorText)
+          throw new Error(`Failed to process PDF file: ${response.status} ${response.statusText}`)
+        }
+
+        data = await response.json()
+      } else {
+        throw new Error('Invalid input type')
       }
       
       console.log('🕒 AnalyzePage: Server response analysis time:', data.analysisTime)
       console.log('🕒 AnalyzePage: Metadata analysis time:', data.metadata?.analysisTime)
+      
+      // Detailed analysis time inspection
+      if (data.analysisTime) {
+        console.log('🔍 === SERVER ANALYSIS TIME INSPECTION ===');
+        console.log('📊 data.analysisTime keys:', Object.keys(data.analysisTime));
+        console.log('📅 data.analysisTime.startTime:', data.analysisTime.startTime);
+        console.log('📅 data.analysisTime.endTime:', data.analysisTime.endTime);
+        console.log('📅 data.analysisTime.duration:', data.analysisTime.duration);
+        console.log('📅 data.analysisTime.extraction:', data.analysisTime.extraction);
+        console.log('📅 data.analysisTime.total:', data.analysisTime.total);
+        console.log('🔍 =========================================');
+      } else {
+        console.log('❌ data.analysisTime is missing or null');
+      }
       
       // Convert server response to VideoMetadata format
       const videoMetadata = {
         basic: {
           title: data.title,
           // Only set videoId for YouTube videos, not for uploaded files
-          videoId: (inputType === 'url' && data.metadata?.basic?.videoId) ? data.metadata.basic.videoId : undefined,
+          videoId: (inputType === InputType.YOUTUBE_URL && data.metadata?.basic?.videoId) ? data.metadata.basic.videoId : undefined,
           duration: data.metadata?.basic?.duration || 0,
           channel: data.metadata?.basic?.channel,
           viewCount: data.metadata?.basic?.viewCount,
@@ -392,7 +846,11 @@ const AnalyzePage: React.FC = () => {
           category: data.metadata?.basic?.category,
           description: data.metadata?.basic?.description,
           // Set videoPath for uploaded files
-          videoPath: (inputType === 'file' || data.source === 'file') ? (data.metadata?.basic?.videoPath || data.videoPath) : undefined
+          videoPath: (inputType === InputType.VIDEO_FILE || data.source === 'file') ? (data.metadata?.basic?.videoPath || data.videoPath) : undefined,
+          // Set audioPath for audio files
+          audioPath: (inputType === InputType.AUDIO_FILE) ? (data.metadata?.basic?.audioPath || data.audioPath) : undefined,
+          // Set pdfUrl for PDF files from URL input
+          pdfUrl: (inputType === InputType.PDF_URL) ? url.trim() : undefined
         },
         chapters: data.metadata?.chapters || [],
         captions: data.metadata?.captions || [],
@@ -404,34 +862,96 @@ const AnalyzePage: React.FC = () => {
         transcript: data.transcript,
         summary: data.summary,
         timestampedSegments: data.timestampedSegments || [],
-        transcriptSource: data.method as 'subtitle' | 'whisper',
+        transcriptSource: (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 'pdf' : (data.method as 'subtitle' | 'whisper'),
         costs: data.costs || {
           transcription: 0,
           summary: 0,
           article: 0,
           total: 0
         },
-        analysisTime: data.analysisTime,
+        analysisTime: (() => {
+          console.log('🔧 Setting analysisTime in videoMetadata');
+          console.log('🔧 Source data.analysisTime:', data.analysisTime);
+          
+          // Ensure we have the required fields for PDF analysis
+          if ((inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) && data.analysisTime) {
+            const analysisTime = { ...data.analysisTime };
+            console.log('🔧 Created analysisTime copy for PDF:', analysisTime);
+            return analysisTime;
+          }
+          
+          return data.analysisTime;
+        })(),
+        // Add analysis type from server response or infer from input type
+        analysisType: data.analysisType || (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE ? 'pdf' : undefined),
         // Add file-specific metadata
         source: inputType,
         fileId: data.fileId,
         originalFilename: data.originalName,
         fileSize: data.size,
-        uploadedAt: data.uploadedAt
+        uploadedAt: data.uploadedAt,
+        // PDF-specific content for page navigation
+        pdfContent: data.pdfContent
+      }
+      
+      // Debug PDF content received from server
+      if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+        console.log('📄 === PDF CONTENT DEBUG ===');
+        console.log('  - data.pdfContent exists:', !!data.pdfContent);
+        console.log('  - data.pdfContent.pageSegments length:', data.pdfContent?.pageSegments?.length || 0);
+        console.log('  - videoMetadata.pdfContent exists:', !!videoMetadata.pdfContent);
+        console.log('  - videoMetadata.pdfContent.pageSegments length:', videoMetadata.pdfContent?.pageSegments?.length || 0);
+        if (data.pdfContent?.pageSegments && data.pdfContent.pageSegments.length > 0) {
+          console.log('  - First page segment:', data.pdfContent.pageSegments[0]);
+        }
       }
       
       console.log('🕒 AnalyzePage: Final videoMetadata analysis time:', videoMetadata.analysisTime)
+      console.log('🕒 AnalyzePage: Final videoMetadata analysisType:', videoMetadata.analysisType)
+      console.log('🕒 AnalyzePage: Final videoMetadata source:', videoMetadata.source)
+      console.log('🕒 AnalyzePage: inputType:', inputType)
+      
+      // Special debugging for PDF analysis
+      if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+        console.log('📄 ===== PDF ANALYSIS DEBUG =====');
+        console.log('📄 Server analysisTime:', data.analysisTime);
+        console.log('📄 VideoMetadata analysisTime:', videoMetadata.analysisTime);
+        
+        if (videoMetadata.analysisTime) {
+          console.log('📄 VideoMetadata analysisTime keys:', Object.keys(videoMetadata.analysisTime));
+          console.log('📄 VideoMetadata startTime:', videoMetadata.analysisTime.startTime);
+          console.log('📄 VideoMetadata startTime type:', typeof videoMetadata.analysisTime.startTime);
+          console.log('📄 VideoMetadata endTime:', videoMetadata.analysisTime.endTime);
+          console.log('📄 VideoMetadata endTime type:', typeof videoMetadata.analysisTime.endTime);
+          console.log('📄 VideoMetadata duration:', videoMetadata.analysisTime.duration);
+          console.log('📄 VideoMetadata extraction:', videoMetadata.analysisTime.extraction);
+          console.log('📄 VideoMetadata total:', videoMetadata.analysisTime.total);
+        } else {
+          console.log('❌ VideoMetadata analysisTime is null/undefined');
+        }
+        console.log('📄 ===============================');
+      }
       
       setCurrentVideo(videoMetadata)
       // Auto-collapse form after successful analysis
       setFormCollapsed(true)
     } catch (error) {
       console.error('Error processing video:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      if (inputType === 'file') {
-        setFileError(`Failed to process video file: ${errorMessage}`)
+      let errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      // Provide user-friendly error messages for common network issues
+      if (errorMessage.includes('ERR_CONTENT_LENGTH_MISMATCH')) {
+        errorMessage = 'PDF processing failed due to network issues. The file may be too large or there was a connection problem. Please try again with a smaller PDF.'
+      } else if (errorMessage.includes('ERR_NETWORK') || errorMessage.includes('Failed to fetch')) {
+        errorMessage = 'Network connection error. Please check your internet connection and try again.'
+      }
+      
+      if (inputType === InputType.VIDEO_FILE || inputType === InputType.AUDIO_FILE || inputType === InputType.PDF_FILE) {
+        setFileError(`Failed to process file: ${errorMessage}`)
+      } else if (inputType === InputType.PDF_URL) {
+        setUrlError(`Failed to process PDF: ${errorMessage}`)
       } else {
-        alert(`Failed to process video: ${errorMessage}`)
+        alert(`Failed to process: ${errorMessage}`)
       }
     } finally {
       setLoading(false)
@@ -517,8 +1037,16 @@ const AnalyzePage: React.FC = () => {
                   </div>
                   <div className="border-t border-green-200 mt-1 pt-1"></div>
                   <div className="flex justify-between">
-                    <span>文字起こし費用:</span>
-                    <span className="font-mono">${costs.transcription.toFixed(4)}</span>
+                    <span>
+                      {(inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 
+                        'PDF解析費用:' : '文字起こし費用:'
+                      }
+                    </span>
+                    <span className="font-mono">
+                      {(inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 
+                        '無料' : `$${costs.transcription.toFixed(4)}`
+                      }
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>要約生成費用:</span>
@@ -552,7 +1080,7 @@ const AnalyzePage: React.FC = () => {
                   </div>
                   <div className="text-xs text-blue-700 space-y-1">
                     <div className="flex justify-between">
-                      <span>文字起こし速度:</span>
+                      <span>{getFirstStageSpeedLabel()}:</span>
                       <span className="font-mono">{processingTime.transcriptionRate || `${formatProcessingTime(processingTime.transcription)}`}</span>
                     </div>
                     <div className="flex justify-between">
@@ -564,9 +1092,42 @@ const AnalyzePage: React.FC = () => {
                       <span>合計処理時間:</span>
                       <span className="font-mono">{processingTime.formatted}</span>
                     </div>
+                    {processingTime.basedOn && (
+                      <div className="border-t border-blue-200 mt-1 pt-1">
+                        <div className="flex justify-between text-xs">
+                          <span>予測根拠:</span>
+                          <span className={`font-mono ${
+                            processingTime.basedOn === 'historical' ? 'text-green-600' :
+                            processingTime.basedOn === 'model_default' ? 'text-blue-600' :
+                            'text-gray-500'
+                          }`}>
+                            {processingTime.basedOn === 'historical' ? `履歴データ (${processingTime.sampleSize || 0}件)` :
+                             processingTime.basedOn === 'model_default' ? 'モデル標準値' :
+                             'デフォルト値'}
+                          </span>
+                        </div>
+                        {processingTime.confidence && (
+                          <div className="flex justify-between text-xs">
+                            <span>予測信頼度:</span>
+                            <span className={`font-mono ${
+                              processingTime.confidence >= 0.7 ? 'text-green-600' :
+                              processingTime.confidence >= 0.4 ? 'text-yellow-600' :
+                              'text-red-500'
+                            }`}>
+                              {Math.round(processingTime.confidence * 100)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs text-blue-600 mt-1">
-                    ※動画1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）
+                    {renderProcessingTimeNote()}
+                    {processingTime.basedOn === 'historical' && (
+                      <div className="text-green-600 mt-1">
+                        ✓ 過去の実績データから予測 - 精度が向上しています
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -602,6 +1163,125 @@ const AnalyzePage: React.FC = () => {
     return null
   }
 
+  // Render processing time note based on content type
+  const renderProcessingTimeNote = () => {
+    // Determine content type from current input type or current video analysis type
+    let contentType = 'youtube'; // default
+    
+    if (currentVideo?.analysisType) {
+      contentType = currentVideo.analysisType;
+    } else if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+      contentType = 'pdf';
+    } else if (inputType === InputType.AUDIO_FILE) {
+      contentType = 'audio';
+    } else if (inputType === InputType.VIDEO_FILE) {
+      contentType = 'youtube'; // treat video files as youtube-like
+    }
+
+    switch (contentType) {
+      case 'pdf':
+        return '※文書ページあたりの処理時間を表示（実際の時間はサーバー負荷により変動）';
+      case 'audio':
+        return '※音声1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）';
+      case 'youtube':
+      default:
+        return '※動画1分あたりの処理時間を表示（実際の時間はサーバー負荷により変動）';
+    }
+  }
+
+  // Get first stage title based on content type
+  const getFirstStageTitle = () => {
+    const contentType = currentVideo?.analysisType || 'youtube';
+    switch (contentType) {
+      case 'pdf':
+        return '📄 文書解析';
+      case 'audio':
+        return '🎵 文字起こし';
+      case 'youtube':
+      default:
+        return '📝 文字起こし';
+    }
+  }
+
+  // Get first stage method based on content type
+  const getFirstStageMethod = () => {
+    if (isPdfContent(currentVideo)) {
+      return 'PDF Parser';
+    } else if (currentVideo?.analysisType === 'audio') {
+      return 'Whisper AI';
+    } else {
+      // YouTube or other video content
+      return currentVideo?.transcriptSource === 'subtitle' ? 'YouTube字幕' : 'Whisper AI';
+    }
+  }
+
+  // Get first stage processing time based on content type
+  const getFirstStageProcessingTime = () => {
+    if (!currentVideo?.analysisTime) {
+      console.log('❌ getFirstStageProcessingTime: No analysisTime data');
+      return null;
+    }
+    
+    const isPdf = isPdfContent(currentVideo);
+    console.log(`📊 getFirstStageProcessingTime: isPdf=${isPdf}, analysisTime=`, currentVideo.analysisTime);
+    
+    if (isPdf) {
+      const analysisTime = currentVideo.analysisTime;
+      
+      // Priority 1: extraction field (specific for PDF text extraction)
+      if (analysisTime.extraction !== undefined && typeof analysisTime.extraction === 'number' && analysisTime.extraction >= 0) {
+        console.log(`✅ PDF using extraction time: ${analysisTime.extraction}`);
+        return analysisTime.extraction;
+      }
+      
+      // Priority 2: transcription field (in case extraction is named differently)
+      if (analysisTime.transcription !== undefined && typeof analysisTime.transcription === 'number' && analysisTime.transcription >= 0) {
+        console.log(`✅ PDF using transcription time: ${analysisTime.transcription}`);
+        return analysisTime.transcription;
+      }
+      
+      // Priority 3: For completed PDF analysis, provide fallback to prevent "計測中..." display
+      // If we have a summary time, it means analysis completed - use minimal extraction time
+      if (analysisTime.summary !== undefined && typeof analysisTime.summary === 'number' && analysisTime.summary >= 0) {
+        console.log('⚠️ PDF: Using fallback extraction time (0.1s) as analysis is completed with summary');
+        return 0.1; // Minimal fallback to indicate completion
+      }
+      
+      // If no timing data is available, return null (will show "計測中...")
+      console.log('❌ PDF: No valid extraction timing data found. Available fields:', Object.keys(analysisTime));
+      console.log('❌ PDF: extraction =', analysisTime.extraction, ', transcription =', analysisTime.transcription, ', summary =', analysisTime.summary);
+      return null;
+    } else {
+      // For audio/video content
+      return currentVideo.analysisTime.transcription || null;
+    }
+  }
+
+  // Get first stage speed label based on content type
+  const getFirstStageSpeedLabel = () => {
+    // Determine content type from current input type or current video analysis type
+    let contentType = 'youtube'; // default
+    
+    if (currentVideo?.analysisType) {
+      contentType = currentVideo.analysisType;
+    } else if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+      contentType = 'pdf';
+    } else if (inputType === InputType.AUDIO_FILE) {
+      contentType = 'audio';
+    } else if (inputType === InputType.VIDEO_FILE) {
+      contentType = 'youtube'; // treat video files as youtube-like
+    }
+
+    switch (contentType) {
+      case 'pdf':
+        return '文書解析速度';
+      case 'audio':
+        return '文字起こし速度';
+      case 'youtube':
+      default:
+        return '文字起こし速度';
+    }
+  }
 
   // Debug cost estimation state changes
   useEffect(() => {
@@ -641,6 +1321,166 @@ const AnalyzePage: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model, transcriptionModel]) // Depend on both model changes to avoid infinite loops
+
+  // Helper function to safely format date
+  const formatSafeDate = (timestamp: string | undefined | null, fallback: string = '不明'): string => {
+    console.log(`📅 formatSafeDate called with:`, {
+      timestamp,
+      type: typeof timestamp,
+      isNull: timestamp === null,
+      isUndefined: timestamp === undefined,
+      isEmpty: timestamp === '',
+      currentVideoAnalysisTime: currentVideo?.analysisTime
+    });
+    
+    try {
+      // Basic validation
+      if (!timestamp || timestamp === '' || timestamp === null || timestamp === undefined) {
+        console.log('❌ formatSafeDate: Invalid or empty timestamp');
+        return fallback;
+      }
+      
+      // Convert to string and validate
+      const timeStr = String(timestamp).trim();
+      if (timeStr === '' || timeStr === 'null' || timeStr === 'undefined') {
+        console.log('❌ formatSafeDate: Invalid timestamp string:', timeStr);
+        return fallback;
+      }
+      
+      // Create date object
+      const date = new Date(timeStr);
+      if (isNaN(date.getTime())) {
+        console.log('❌ formatSafeDate: Cannot parse date:', timeStr);
+        return fallback;
+      }
+      
+      // Format date
+      const formatted = date.toLocaleString('ja-JP', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      console.log(`✅ formatSafeDate: Successfully formatted "${timeStr}" → "${formatted}"`);
+      return formatted;
+    } catch (error) {
+      console.log('❌ formatSafeDate: Exception occurred:', error);
+      return fallback;
+    }
+  }
+
+  // Helper function to safely format duration
+  const formatSafeDuration = (duration: number | undefined | null, forceCalculatePdfTotal: boolean = false): string => {
+    console.log(`⏱️ formatSafeDuration: input=${duration}, isPdf=${isPdfContent(currentVideo)}, forceCalculate=${forceCalculatePdfTotal}`);
+    
+    let effectiveDuration = duration;
+    
+    // Special handling for PDF total duration calculation
+    if (forceCalculatePdfTotal && isPdfContent(currentVideo) && currentVideo?.analysisTime) {
+      const analysisTime = currentVideo.analysisTime;
+      const extraction = analysisTime.extraction;
+      const summary = analysisTime.summary;
+      
+      console.log(`⏱️ PDF force calculation - extraction: ${extraction}, summary: ${summary}`);
+      
+      if (extraction && typeof extraction === 'number' && extraction >= 0 &&
+          summary && typeof summary === 'number' && summary >= 0) {
+        effectiveDuration = extraction + summary;
+        console.log(`⏱️ PDF force calculated total: ${extraction} + ${summary} = ${effectiveDuration}`);
+      }
+    }
+    
+    // If input duration is invalid and we have a current video with analysis time
+    if ((!effectiveDuration || isNaN(effectiveDuration) || effectiveDuration <= 0) && currentVideo?.analysisTime) {
+      const analysisTime = currentVideo.analysisTime;
+      
+      if (isPdfContent(currentVideo)) {
+        // For PDFs, try multiple fallback sources
+        // Priority 1: total field (most comprehensive)
+        if (analysisTime.total && typeof analysisTime.total === 'number' && analysisTime.total >= 0) {
+          console.log(`⏱️ PDF using total: ${analysisTime.total}`);
+          effectiveDuration = analysisTime.total;
+        }
+        // Priority 2: extraction field
+        else if (analysisTime.extraction && typeof analysisTime.extraction === 'number' && analysisTime.extraction >= 0) {
+          console.log(`⏱️ PDF using extraction: ${analysisTime.extraction}`);
+          effectiveDuration = analysisTime.extraction;
+        }
+        // Priority 3: duration field
+        else if (analysisTime.duration && typeof analysisTime.duration === 'number' && analysisTime.duration >= 0) {
+          console.log(`⏱️ PDF using duration: ${analysisTime.duration}`);
+          effectiveDuration = analysisTime.duration;
+        }
+      } else {
+        // For video/audio content
+        if (analysisTime.total && typeof analysisTime.total === 'number' && analysisTime.total > 0) {
+          console.log(`⏱️ Video/Audio using total: ${analysisTime.total}`);
+          effectiveDuration = analysisTime.total;
+        }
+      }
+    }
+    
+    if (!effectiveDuration || isNaN(effectiveDuration) || effectiveDuration <= 0) {
+      console.log('❌ formatSafeDuration: No valid duration available after all fallbacks');
+      return '計測中...';
+    }
+    
+    console.log(`✅ formatSafeDuration: Using duration ${effectiveDuration} seconds`);
+    
+    // For sub-second durations, show with one decimal place
+    if (effectiveDuration < 1) {
+      const roundedDuration = Math.round(effectiveDuration * 10) / 10;
+      return `${roundedDuration}秒`;
+    }
+    // For durations less than 60 seconds, round to nearest integer
+    else if (effectiveDuration < 60) {
+      const safeDuration = Math.round(effectiveDuration);
+      return `${safeDuration}秒`;
+    } 
+    // For longer durations, use minutes and seconds
+    else {
+      const safeDuration = Math.round(effectiveDuration);
+      const minutes = Math.floor(safeDuration / 60);
+      const seconds = safeDuration % 60;
+      return `${minutes}分${seconds}秒`;
+    }
+  }
+
+  // Helper function to detect if video is PDF based on URL and method
+  const isPdfContent = (video: any): boolean => {
+    // Check by input type first (most reliable for current session)
+    if (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) {
+      console.log('📄 PDF detected by inputType');
+      return true;
+    }
+    
+    // Check by analysis type
+    if (video?.analysisType === 'pdf') {
+      console.log('📄 PDF detected by analysisType');
+      return true;
+    }
+    
+    // Check by URL
+    if (video?.url && video.url.includes('.pdf')) {
+      console.log('📄 PDF detected by URL');
+      return true;
+    }
+    
+    // Check by filename
+    if (video?.originalFilename && video.originalFilename.toLowerCase().endsWith('.pdf')) {
+      console.log('📄 PDF detected by filename');
+      return true;
+    }
+    
+    // Legacy check by method (non-YouTube subtitle)
+    if (video?.method === 'subtitle' && !video?.url?.includes('youtube.com') && !video?.url?.includes('youtu.be')) {
+      console.log('📄 PDF detected by method');
+      return true;
+    }
+    
+    return false;
+  }
 
   // Debug current video data
   useEffect(() => {
@@ -683,7 +1523,7 @@ const AnalyzePage: React.FC = () => {
               🎥 Analyze Video
             </h1>
             <p className="mt-3 text-body text-app-secondary max-w-2xl">
-              Transform YouTube videos and local video files into insights with AI-powered transcription, summaries, and interactive chat.
+              Transform YouTube videos, PDFs, and local files into insights with AI-powered analysis. Just paste a URL and I'll automatically detect the content type.
             </p>
           </div>
           
@@ -763,7 +1603,7 @@ const AnalyzePage: React.FC = () => {
                 )}
 
                 {/* Cost Estimation Display in Collapsed State */}
-                {inputType === 'url' && renderCostEstimation()}
+                {inputType === InputType.YOUTUBE_URL && renderCostEstimation()}
 
                 <div className="flex items-center justify-between gap-3">
                   <button
@@ -825,37 +1665,55 @@ const AnalyzePage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Input Type Selection */}
+                {/* Input Mode Selection - URL or File Upload */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-app-primary mb-3">
-                      📥 Input Type
-                    </label>
-                    <div className="flex rounded-lg border border-gray-300 p-1 bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-app-primary">
+                        📥 Input Mode
+                      </label>
+                      {detectedType && inputMode === 'url' && (
+                        <span className={`text-xs flex items-center gap-1 ${
+                          detectedType.confidence === 'high' ? 'text-green-600' :
+                          detectedType.confidence === 'medium' ? 'text-yellow-600' :
+                          'text-gray-600'
+                        }`}>
+                          🔍 Detected: {detectedType.displayName}
+                          {detectedType.confidence === 'high' && ' ✓'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 p-1 bg-white rounded-lg border border-gray-300">
                       <button
                         type="button"
-                        onClick={() => handleInputTypeChange('url')}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === 'url'
-                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
-                            : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                        onClick={() => handleInputModeChange('url')}
+                        className={`px-4 py-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputMode === 'url'
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                         }`}
+                        title="Enter any URL (YouTube, PDF, audio, video)"
                       >
-                        <span className="flex items-center justify-center gap-2">
-                          🔗 YouTube URL
+                        <span className="flex flex-col items-center gap-2">
+                          <span className="text-2xl">🔗</span>
+                          <span className="text-sm font-semibold">URL Input</span>
+                          <span className="text-xs opacity-80">YouTube, PDF, Audio, Video</span>
                         </span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleInputTypeChange('file')}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          inputType === 'file'
-                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600'
-                            : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                        onClick={() => handleInputModeChange('file')}
+                        className={`px-4 py-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                          inputMode === 'file'
+                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                         }`}
+                        title="Upload video, audio, or PDF file"
                       >
-                        <span className="flex items-center justify-center gap-2">
-                          📁 Video File
+                        <span className="flex flex-col items-center gap-2">
+                          <span className="text-2xl">📁</span>
+                          <span className="text-sm font-semibold">File Upload</span>
+                          <span className="text-xs opacity-80">Video, Audio, PDF</span>
                         </span>
                       </button>
                     </div>
@@ -863,13 +1721,18 @@ const AnalyzePage: React.FC = () => {
                 </div>
 
                 {/* Conditional Input Section */}
-                {inputType === 'url' ? (
-                  /* URL Input with Preview */
+                {inputMode === 'url' ? (
+                  /* URL Input - Auto-detects YouTube, PDF, Audio, Video */
                   <div className="space-y-4">
                     <div className="relative">
                       <label htmlFor="url" className="block text-sm font-medium text-app-primary mb-2">
                         <span className="flex items-center gap-2">
-                          🔗 YouTube URL
+                          🔗 Enter URL
+                          {detectedType && (
+                            <span className="text-xs font-normal opacity-75">
+                              ({detectedType.displayName})
+                            </span>
+                          )}
                         </span>
                       </label>
                       <input
@@ -879,17 +1742,19 @@ const AnalyzePage: React.FC = () => {
                         value={url}
                         onChange={(e) => handleUrlChange(e.target.value)}
                         onPaste={handleUrlPaste}
-                        placeholder="https://www.youtube.com/watch?v=... または動画タイトルを入力"
+                        placeholder="Enter any URL: YouTube, PDF, audio, video..."
                         className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus-ring text-body ${
-                          urlError 
-                            ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400' 
+                          urlError
+                            ? 'border-red-300 bg-red-50 text-red-900 placeholder-red-400'
+                            : detectedType && detectedType.confidence === 'high'
+                            ? 'border-green-300 bg-green-50'
                             : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 bg-white'
                         }`}
                         autoComplete="off"
                         data-testid="url-input"
-                        required={inputType === 'url'}
+                        required={inputMode === 'url'}
                       />
-                      
+
                       {urlError && (
                         <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
                           ⚠️ {urlError}
@@ -901,8 +1766,8 @@ const AnalyzePage: React.FC = () => {
                     {videoPreview && !urlError && (
                       <div className="url-preview-card">
                         <div className="flex items-center gap-4">
-                          <img 
-                            src={videoPreview.thumbnail} 
+                          <img
+                            src={videoPreview.thumbnail}
                             alt="Video thumbnail"
                             className="w-20 h-15 object-cover rounded-lg shadow-sm"
                             onError={(e) => {
@@ -925,17 +1790,29 @@ const AnalyzePage: React.FC = () => {
                     {renderCostEstimation()}
                   </div>
                 ) : (
-                  /* Video File Upload */
+                  /* File Upload - Auto-detects Video, Audio, PDF */
                   <div className="space-y-4">
                     <label className="block text-sm font-medium text-app-primary mb-2">
                       <span className="flex items-center gap-2">
-                        📁 Video File Upload
+                        📁 Upload File
+                        {(videoFile || audioFile || pdfFile) && (
+                          <span className="text-xs font-normal opacity-75">
+                            ({videoFile ? 'Video' : audioFile ? 'Audio' : 'PDF'})
+                          </span>
+                        )}
                       </span>
                     </label>
                     <VideoFileUpload
                       onFileSelected={handleFileSelected}
                       maxSize={500 * 1024 * 1024} // 500MB
-                      acceptedFormats={['video/mp4', 'video/quicktime']}
+                      acceptedFormats={[
+                        // Video formats
+                        'video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska',
+                        // Audio formats
+                        'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/flac',
+                        // PDF format
+                        'application/pdf'
+                      ]}
                       isUploading={loading}
                       uploadProgress={uploadProgress}
                       error={fileError}
@@ -951,7 +1828,9 @@ const AnalyzePage: React.FC = () => {
                   <div className="lg:col-span-1">
                     <label htmlFor="language" className="block text-app-primary mb-2">
                       <div className="text-sm font-medium">🌐 Language</div>
-                      <div className="text-xs text-gray-500">文字起こし言語</div>
+                      <div className="text-xs text-gray-500">
+                        {inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE ? 'PDF言語' : '文字起こし言語'}
+                      </div>
                     </label>
                     <select
                       id="language"
@@ -965,24 +1844,27 @@ const AnalyzePage: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="lg:col-span-1">
-                    <label htmlFor="transcriptionModel" className="block text-app-primary mb-2">
-                      <div className="text-sm font-medium">🎵 Transcription</div>
-                      <div className="text-xs text-gray-500">文字起こしモデル</div>
-                    </label>
-                    <select
-                      id="transcriptionModel"
-                      value={transcriptionModel}
-                      onChange={(e) => setTranscriptionModel(e.target.value as 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1')}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
-                    >
-                      <option value="gpt-4o-transcribe">GPT-4o Transcribe - $6/1M tokens</option>
-                      <option value="gpt-4o-mini-transcribe">GPT-4o Mini - $3/1M tokens</option>
-                      <option value="whisper-1">Whisper-1 - $6/minute</option>
-                    </select>
-                  </div>
+                  {/* Only show transcription model for video/audio files */}
+                  {(inputType === InputType.YOUTUBE_URL || inputType === InputType.VIDEO_FILE || inputType === InputType.AUDIO_FILE) && (
+                    <div className="lg:col-span-1">
+                      <label htmlFor="transcriptionModel" className="block text-app-primary mb-2">
+                        <div className="text-sm font-medium">🎵 Transcription</div>
+                        <div className="text-xs text-gray-500">文字起こしモデル</div>
+                      </label>
+                      <select
+                        id="transcriptionModel"
+                        value={transcriptionModel}
+                        onChange={(e) => setTranscriptionModel(e.target.value as 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe' | 'whisper-1')}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus-ring text-body bg-white"
+                      >
+                        <option value="gpt-4o-transcribe">GPT-4o Transcribe - $6/1M tokens</option>
+                        <option value="gpt-4o-mini-transcribe">GPT-4o Mini - $3/1M tokens</option>
+                        <option value="whisper-1">Whisper-1 - $6/minute</option>
+                      </select>
+                    </div>
+                  )}
 
-                  <div className="lg:col-span-1">
+                  <div className={inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE ? "lg:col-span-2" : "lg:col-span-1"}>
                     <label htmlFor="model" className="block text-app-primary mb-2">
                       <div className="text-sm font-medium">🤖 Summary AI</div>
                       <div className="text-xs text-gray-500">要約生成モデル</div>
@@ -1008,8 +1890,11 @@ const AnalyzePage: React.FC = () => {
                     type="submit"
                     disabled={
                       loading || 
-                      (inputType === 'url' && (!url.trim() || !!urlError)) ||
-                      (inputType === 'file' && (!videoFile || !!fileError))
+                      (inputType === InputType.YOUTUBE_URL && (!url.trim() || !!urlError)) ||
+                      (inputType === InputType.VIDEO_FILE && (!videoFile || !!fileError)) ||
+                      (inputType === InputType.AUDIO_FILE && (!audioFile || !!fileError)) ||
+                      (inputType === InputType.PDF_URL && (!url.trim() || !!urlError)) ||
+                      (inputType === InputType.PDF_FILE && (!pdfFile || !!fileError))
                     }
                     className="btn-modern btn-success w-full text-white font-semibold shadow-elevation-hover"
                     data-testid="analyze-button"
@@ -1018,12 +1903,21 @@ const AnalyzePage: React.FC = () => {
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         <span className="text-tabular">
-                          {inputType === 'file' ? 'Processing...' : 'Analyzing...'}
+                          {inputType === InputType.VIDEO_FILE || inputType === InputType.AUDIO_FILE || inputType === InputType.PDF_FILE ? 'Processing...' : 'Analyzing...'}
                         </span>
                       </div>
                     ) : (
                       <span className="flex items-center justify-center gap-2">
-                        ⚡ {inputType === 'file' ? 'Process Video' : 'Analyze Video'}
+                        ⚡ {(() => {
+                          switch(inputType) {
+                            case InputType.YOUTUBE_URL: return 'Analyze Video'
+                            case InputType.VIDEO_FILE: return 'Process Video'
+                            case InputType.AUDIO_FILE: return 'Process Audio'
+                            case InputType.PDF_URL: return 'Analyze PDF'
+                            case InputType.PDF_FILE: return 'Process PDF'
+                            default: return 'Analyze'
+                          }
+                        })()}
                       </span>
                     )}
                   </button>
@@ -1123,6 +2017,14 @@ const AnalyzePage: React.FC = () => {
                     Your browser does not support the video tag.
                   </video>
                 )}
+                {currentVideo.basic?.pdfUrl && !currentVideo.basic?.videoId && !currentVideo.basic?.videoPath && (
+                  <PDFViewer
+                    ref={pdfViewerRef}
+                    pdfUrl={currentVideo.basic.pdfUrl}
+                    title={currentVideo.basic.title || 'PDF Document'}
+                    pdfContent={currentVideo.pdfContent}
+                  />
+                )}
               </div>
               
               {/* Video metadata outside aspect ratio container */}
@@ -1168,7 +2070,7 @@ const AnalyzePage: React.FC = () => {
 
                 {currentVideo.basic?.uploadDate && (
                   <p className="text-xs text-gray-500">
-                    Uploaded: {new Date(currentVideo.basic.uploadDate).toLocaleDateString()}
+                    Uploaded: {formatSafeDate(currentVideo.basic.uploadDate, 'Unknown Date')}
                   </p>
                 )}
 
@@ -1250,33 +2152,41 @@ const AnalyzePage: React.FC = () => {
                               💰 分析コスト（実績）
                             </h4>
                             <div className="space-y-2">
-                              {/* 文字起こしコスト詳細 */}
+                              {/* 第一段階処理コスト詳細 */}
                               <div className="bg-gray-50 p-2 rounded border border-gray-200">
-                                <div className="text-xs font-semibold text-gray-700 mb-1">📝 文字起こし</div>
+                                <div className="text-xs font-semibold text-gray-700 mb-1">{getFirstStageTitle()}</div>
                                 <div className="space-y-1 text-xs">
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">方法:</span>
                                     <span className="text-gray-800">
-                                      {currentVideo.transcriptSource === 'subtitle' ? 'YouTube字幕' : 'Whisper AI'}
+                                      {getFirstStageMethod()}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">コスト:</span>
                                     <span className="font-semibold text-black">
-                                      {currentVideo.costs.transcription > 0 ? 
-                                        `$${currentVideo.costs.transcription.toFixed(4)}` : 
-                                        '無料'
+                                      {(() => {
+                                        if (isPdfContent(currentVideo)) {
+                                          // For PDFs, show PDF parsing cost (which is currently free)
+                                          return 'PDF解析: 無料';
+                                        } else {
+                                          // For audio/video, show transcription cost
+                                          return currentVideo.costs.transcription > 0 ? 
+                                            `$${currentVideo.costs.transcription.toFixed(4)}` : 
+                                            '無料';
+                                        }
+                                      })()}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">処理時間:</span>
+                                    <span className="text-gray-800">
+                                      {getFirstStageProcessingTime() ? 
+                                        formatSafeDuration(getFirstStageProcessingTime()) : 
+                                        '計測中...'
                                       }
                                     </span>
                                   </div>
-                                  {currentVideo.analysisTime?.transcription && (
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">処理時間:</span>
-                                      <span className="text-gray-800">
-                                        {Math.round(currentVideo.analysisTime.transcription)}秒
-                                      </span>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                               
@@ -1294,7 +2204,7 @@ const AnalyzePage: React.FC = () => {
                                     <div className="flex justify-between">
                                       <span className="text-gray-600">処理時間:</span>
                                       <span className="text-gray-800">
-                                        {Math.round(currentVideo.analysisTime.summary)}秒
+                                        {formatSafeDuration(currentVideo.analysisTime.summary)}
                                       </span>
                                     </div>
                                   )}
@@ -1337,32 +2247,148 @@ const AnalyzePage: React.FC = () => {
                             <div className="flex justify-between items-center">
                               <span className="text-gray-800 font-medium">開始:</span>
                               <span className="font-semibold text-black">
-                                {new Date(currentVideo.analysisTime.startTime).toLocaleString('ja-JP', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {(() => {
+                                  console.log('🔍 === ANALYSIS TIME DEBUG (START) ===');
+                                  console.log('📊 Full currentVideo.analysisTime object:', currentVideo.analysisTime);
+                                  console.log('📊 Object keys:', Object.keys(currentVideo.analysisTime || {}));
+                                  
+                                  // Try multiple ways to get start time
+                                  let startTime = currentVideo.analysisTime.startTime;
+                                  console.log('📅 Direct startTime field value:', startTime);
+                                  
+                                  // If startTime is not valid, try to use current date as fallback
+                                  if (!startTime || startTime === null || startTime === undefined || startTime === '') {
+                                    console.log('❌ startTime is invalid, trying fallbacks...');
+                                    
+                                    // Fallback 1: Check if it's available in a different field name
+                                    const possibleStartFields = ['start', 'startedAt', 'analysisStart', 'createdAt'];
+                                    for (const field of possibleStartFields) {
+                                      if (currentVideo.analysisTime[field] && typeof currentVideo.analysisTime[field] === 'string') {
+                                        console.log(`📅 Found startTime in field "${field}":`, currentVideo.analysisTime[field]);
+                                        startTime = currentVideo.analysisTime[field];
+                                        break;
+                                      }
+                                    }
+                                    
+                                    // Fallback 2: Use current date/time if still not found
+                                    if (!startTime) {
+                                      console.log('📅 Using current time as startTime fallback');
+                                      startTime = new Date().toISOString();
+                                    }
+                                  }
+                                  
+                                  console.log('📅 Final startTime value:', startTime);
+                                  console.log('📅 startTime type:', typeof startTime);
+                                  console.log('🔍 =====================================');
+                                  
+                                  return formatSafeDate(startTime);
+                                })()}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-gray-800 font-medium">終了:</span>
                               <span className="font-semibold text-black">
-                                {new Date(currentVideo.analysisTime.endTime).toLocaleString('ja-JP', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {(() => {
+                                  console.log('🔍 === ANALYSIS TIME DEBUG (END) ===');
+                                  
+                                  // Try multiple ways to get end time
+                                  let endTime = currentVideo.analysisTime.endTime;
+                                  console.log('📅 Direct endTime field value:', endTime);
+                                  
+                                  // If endTime is not valid, try fallbacks
+                                  if (!endTime || endTime === null || endTime === undefined || endTime === '') {
+                                    console.log('❌ endTime is invalid, trying fallbacks...');
+                                    
+                                    // Fallback 1: Check if it's available in a different field name
+                                    const possibleEndFields = ['end', 'endedAt', 'analysisEnd', 'completedAt', 'finishedAt'];
+                                    for (const field of possibleEndFields) {
+                                      if (currentVideo.analysisTime[field] && typeof currentVideo.analysisTime[field] === 'string') {
+                                        console.log(`📅 Found endTime in field "${field}":`, currentVideo.analysisTime[field]);
+                                        endTime = currentVideo.analysisTime[field];
+                                        break;
+                                      }
+                                    }
+                                    
+                                    // Fallback 2: Calculate from startTime + duration
+                                    if (!endTime && currentVideo.analysisTime.startTime && currentVideo.analysisTime.duration) {
+                                      try {
+                                        const startDate = new Date(currentVideo.analysisTime.startTime);
+                                        const durationMs = currentVideo.analysisTime.duration * 1000;
+                                        const endDate = new Date(startDate.getTime() + durationMs);
+                                        endTime = endDate.toISOString();
+                                        console.log('📅 Calculated endTime from startTime + duration:', endTime);
+                                      } catch (error) {
+                                        console.log('❌ Failed to calculate endTime:', error);
+                                      }
+                                    }
+                                    
+                                    // Fallback 3: Use current date/time if still not found
+                                    if (!endTime) {
+                                      console.log('📅 Using current time as endTime fallback');
+                                      endTime = new Date().toISOString();
+                                    }
+                                  }
+                                  
+                                  console.log('📅 Final endTime value:', endTime);
+                                  console.log('📅 endTime type:', typeof endTime);
+                                  console.log('🔍 ===================================');
+                                  
+                                  return formatSafeDate(endTime);
+                                })()}
                               </span>
                             </div>
                             <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
                               <span className="text-black font-semibold">所要時間:</span>
                               <span className="font-bold text-black text-base">
-                                {currentVideo.analysisTime.duration < 60 ? 
-                                  `${currentVideo.analysisTime.duration}秒` : 
-                                  `${Math.floor(currentVideo.analysisTime.duration / 60)}分${currentVideo.analysisTime.duration % 60}秒`
-                                }
+                                {(() => {
+                                  console.log('⏱️ === TOTAL DURATION CALCULATION DEBUG ===');
+                                  console.log('⏱️ Full analysisTime object:', currentVideo.analysisTime);
+                                  console.log('⏱️ analysisTime keys:', Object.keys(currentVideo.analysisTime || {}));
+                                  console.log('⏱️ isPdfContent result:', isPdfContent(currentVideo));
+                                  
+                                  let totalDuration;
+                                  
+                                  // For PDF analysis, prioritize the 'total' field from server
+                                  if (isPdfContent(currentVideo)) {
+                                    const serverTotal = currentVideo.analysisTime.total;
+                                    const extraction = currentVideo.analysisTime.extraction;
+                                    const summary = currentVideo.analysisTime.summary;
+                                    const duration = currentVideo.analysisTime.duration;
+                                    
+                                    console.log('⏱️ PDF server total field:', serverTotal, 'type:', typeof serverTotal);
+                                    console.log('⏱️ PDF extraction time:', extraction, 'type:', typeof extraction);
+                                    console.log('⏱️ PDF summary time:', summary, 'type:', typeof summary);
+                                    console.log('⏱️ PDF duration field:', duration, 'type:', typeof duration);
+                                    
+                                    // First priority: use server-calculated total
+                                    if (serverTotal && typeof serverTotal === 'number' && serverTotal > 0) {
+                                      totalDuration = serverTotal;
+                                      console.log(`⏱️ PDF using server total: ${totalDuration}`);
+                                    }
+                                    // Fallback: calculate extraction + summary if both are available
+                                    else if (extraction && typeof extraction === 'number' && extraction >= 0 &&
+                                        summary && typeof summary === 'number' && summary >= 0) {
+                                      totalDuration = extraction + summary;
+                                      console.log(`⏱️ PDF calculated total: ${extraction} + ${summary} = ${totalDuration}`);
+                                    }
+                                    // If timing data is incomplete, don't show misleading total time
+                                    else {
+                                      console.log('❌ PDF: Incomplete timing data - cannot calculate accurate total');
+                                      console.log('❌ PDF: serverTotal:', serverTotal, ', extraction:', extraction, ', summary:', summary);
+                                      // Show "計測中..." (measuring...) or similar instead of misleading data
+                                      totalDuration = null;
+                                    }
+                                  } else {
+                                    // For non-PDF content, use duration field as before
+                                    totalDuration = currentVideo.analysisTime.duration;
+                                    console.log('⏱️ Non-PDF using duration field:', totalDuration);
+                                  }
+                                  
+                                  console.log('⏱️ Final total duration:', totalDuration);
+                                  console.log('⏱️ ==========================================');
+                                  
+                                  return formatSafeDuration(totalDuration);
+                                })()}
                               </span>
                             </div>
                           </div>
@@ -1413,6 +2439,7 @@ const AnalyzePage: React.FC = () => {
               timestampedSegments={currentVideo.timestampedSegments}
               summary={currentVideo.summary}
               transcriptSource={currentVideo.transcriptSource}
+              analysisType={currentVideo.analysisType}
               onSeek={(time) => {
                 console.log('🎥 AnalyzePage: onSeek called with time:', time)
                 console.log('🎥 AnalyzePage: playerRef available:', !!playerRef)
@@ -1455,6 +2482,17 @@ const AnalyzePage: React.FC = () => {
                 
                 trySeek()
               }}
+              onPageJump={(page) => {
+                console.log('📄 AnalyzePage: onPageJump called with page:', page)
+                console.log('📄 AnalyzePage: pdfViewerRef.current available:', !!pdfViewerRef.current)
+                console.log('📄 AnalyzePage: currentVideo.basic?.pdfUrl:', currentVideo.basic?.pdfUrl)
+                if (pdfViewerRef.current) {
+                  pdfViewerRef.current.jumpToPage(page)
+                } else {
+                  console.warn('🚨 PDF viewer not available for page jump')
+                  alert(`PDF navigation to page ${page} - PDF viewer not available`)
+                }
+              }}
               onQuestionClick={handleQuestionClick}
               onArticleGenerated={handleArticleGenerated}
             />
@@ -1478,13 +2516,14 @@ const AnalyzePage: React.FC = () => {
                   preview: typeof currentVideo.summary === 'string' ? currentVideo.summary.substring(0, 100) + '...' : JSON.stringify(currentVideo.summary).substring(0, 100) + '...'
                 } : 'MISSING')
                 
-                return <ChatInterface 
-                  videoId={currentVideo.basic?.videoId} 
+                return <ChatInterface
+                  videoId={currentVideo.basic?.videoId}
                   prefillQuestion={prefillQuestion}
                   videoTitle={currentVideo.basic?.title}
                   transcript={currentVideo.transcript}
                   summary={currentVideo.summary}
                   gptModel={currentVideo.gptModel}
+                  contentType={currentVideo.analysisType || 'youtube'}
                 />
               })()}
             </div>

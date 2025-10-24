@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useCosts } from '../../hooks/useCosts'
 import { useHistory } from '../../hooks/useHistory'
 import CostChart from '../shared/CostChart'
@@ -10,13 +10,24 @@ import BarChart from '../shared/BarChart'
 const AnalysisPage: React.FC = () => {
   const { data: costs, isLoading, error } = useCosts()
   const { data: history } = useHistory()
+  const [selectedContentType, setSelectedContentType] = useState<'all' | 'youtube' | 'audio' | 'pdf'>('all')
+
+  // Helper function to safely create Date objects
+  const safeCreateDate = (timestamp: string | number | Date): Date | null => {
+    try {
+      const date = new Date(timestamp)
+      return isNaN(date.getTime()) ? null : date
+    } catch {
+      return null
+    }
+  }
 
   const totalCost = costs ? costs.reduce((sum, cost) => sum + (cost.totalCost || 0), 0) : 0
   const thisMonthCosts = costs ? costs.filter(cost => {
     const thisMonth = new Date().getMonth()
     const thisYear = new Date().getFullYear()
-    const costDate = new Date(cost.timestamp)
-    return costDate.getMonth() === thisMonth && costDate.getFullYear() === thisYear
+    const costDate = safeCreateDate(cost.timestamp)
+    return costDate && costDate.getMonth() === thisMonth && costDate.getFullYear() === thisYear
   }) : []
   const thisMonthTotal = thisMonthCosts.reduce((sum, cost) => sum + (cost.totalCost || 0), 0)
 
@@ -30,6 +41,95 @@ const AnalysisPage: React.FC = () => {
     acc[model].totalCost += cost.totalCost || 0
     return acc
   }, {}) : {}
+
+  // Helper function to determine content type from history entry
+  const getContentType = (historyEntry: any): 'youtube' | 'audio' | 'pdf' => {
+    // Check if it's PDF based on multiple criteria
+    if (historyEntry.analysisTime?.extraction !== undefined || 
+        (historyEntry.url && /\.pdf$/i.test(historyEntry.url)) ||
+        (historyEntry.originalFilename && /\.pdf$/i.test(historyEntry.originalFilename)) ||
+        historyEntry.analysisType === 'pdf') {
+      return 'pdf'
+    }
+    // Check if it's audio based on file extension or metadata
+    if (historyEntry.originalFilename && 
+        /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(historyEntry.originalFilename)) {
+      return 'audio'
+    }
+    // Check method for audio files uploaded
+    if (historyEntry.method === 'whisper' && !historyEntry.url) {
+      return 'audio'
+    }
+    // Default to youtube (includes both YouTube URLs and video files)
+    return 'youtube'
+  }
+
+  // Helper function to get first stage processing name
+  const getFirstStageName = (contentType: 'youtube' | 'audio' | 'pdf'): string => {
+    switch (contentType) {
+      case 'pdf':
+        return '文書解析'
+      case 'audio':
+      case 'youtube':
+      default:
+        return '文字起こし'
+    }
+  }
+
+  // Helper function to get first stage processing time
+  const getFirstStageTime = (historyEntry: any, contentType: 'youtube' | 'audio' | 'pdf'): number | null => {
+    if (!historyEntry.analysisTime) return null
+    
+    switch (contentType) {
+      case 'pdf':
+        return historyEntry.analysisTime?.extraction || null
+      case 'audio':
+      case 'youtube':
+      default:
+        return historyEntry.analysisTime?.transcription || null
+    }
+  }
+
+  // Helper function to normalize processing time based on content type
+  const normalizeProcessingTime = (processingTime: number, historyEntry: any, contentType: 'youtube' | 'audio' | 'pdf'): number => {
+    // Validate processing time
+    if (!processingTime || isNaN(processingTime) || processingTime <= 0) {
+      return 0
+    }
+    
+    switch (contentType) {
+      case 'pdf':
+        // For PDF, normalize by page count if available, otherwise return absolute time
+        const pageCount = historyEntry.metadata?.pdfMetadata?.pageCount || historyEntry.pdfMetadata?.pageCount
+        return pageCount && pageCount > 0 ? processingTime / pageCount : processingTime
+      case 'audio':
+      case 'youtube':
+      default:
+        // For audio/video, normalize by duration in minutes
+        const duration = historyEntry.metadata?.basic?.duration
+        return duration && duration > 0 ? processingTime / (duration / 60) : processingTime
+    }
+  }
+
+  // Helper function to get normalization unit
+  const getNormalizationUnit = (contentType: 'youtube' | 'audio' | 'pdf'): string => {
+    switch (contentType) {
+      case 'pdf':
+        return 'ページあたり'
+      case 'audio':
+        return '音声1分あたり'
+      case 'youtube':
+      default:
+        return '動画1分あたり'
+    }
+  }
+
+  // Filter history based on selected content type
+  const getFilteredHistory = () => {
+    if (!history) return []
+    if (selectedContentType === 'all') return history
+    return history.filter(h => getContentType(h) === selectedContentType)
+  }
 
   return (
     <div className="space-y-8">
@@ -127,9 +227,10 @@ const AnalysisPage: React.FC = () => {
                   {(() => {
                     const totalCost = costs.reduce((sum, cost) => sum + cost.totalCost, 0)
                     const avgCost = costs.length > 0 ? totalCost / costs.length : 0
-                    const todayCosts = costs.filter(c => 
-                      new Date(c.timestamp).toDateString() === new Date().toDateString()
-                    )
+                    const todayCosts = costs.filter(c => {
+                      const costDate = safeCreateDate(c.timestamp)
+                      return costDate && costDate.toDateString() === new Date().toDateString()
+                    })
                     const todayTotal = todayCosts.reduce((sum, cost) => sum + cost.totalCost, 0)
                     
                     return (
@@ -308,19 +409,24 @@ const AnalysisPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-6">
             {(() => {
               // Sort costs by date
-              const sortedCosts = [...costs].sort((a, b) => 
-                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-              )
+              const sortedCosts = [...costs]
+                .filter(cost => safeCreateDate(cost.timestamp)) // Filter out invalid timestamps
+                .sort((a, b) => {
+                  const dateA = safeCreateDate(a.timestamp)
+                  const dateB = safeCreateDate(b.timestamp)
+                  return (dateA?.getTime() || 0) - (dateB?.getTime() || 0)
+                })
               
               // Calculate cumulative costs
               let cumulative = 0
               const cumulativeData = sortedCosts.map(cost => {
                 cumulative += cost.totalCost
+                const costDate = safeCreateDate(cost.timestamp)
                 return {
-                  date: new Date(cost.timestamp).toLocaleDateString('ja-JP', { 
+                  date: costDate ? costDate.toLocaleDateString('ja-JP', { 
                     month: 'short', 
                     day: 'numeric' 
-                  }),
+                  }) : 'Invalid Date',
                   value: Math.round(cumulative * 10000) / 10000
                 }
               })
@@ -370,9 +476,10 @@ const AnalysisPage: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">今週の処理:</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {history.filter(h => 
-                        new Date(h.timestamp) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                      ).length}本
+                      {history.filter(h => {
+                        const historyDate = safeCreateDate(h.timestamp)
+                        return historyDate && historyDate > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                      }).length}本
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -396,97 +503,140 @@ const AnalysisPage: React.FC = () => {
           {history && history.length > 0 && (
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                  ⏱️ 処理時間分析
-                  <span className="text-xs text-gray-500">（動画1分あたりの処理時間）</span>
-                </h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-medium text-gray-900">⏱️ 処理時間分析</h3>
+                    <span className="text-xs text-gray-500">
+                      {selectedContentType === 'all' ? '（全コンテンツタイプ）' : `（${getNormalizationUnit(selectedContentType as any)}の処理時間）`}
+                    </span>
+                  </div>
+                  
+                  {/* Content Type Filter Tabs */}
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                    {[
+                      { key: 'all', label: '全て', icon: '📊' },
+                      { key: 'youtube', label: '動画', icon: '🎥' },
+                      { key: 'audio', label: '音声', icon: '🎵' },
+                      { key: 'pdf', label: 'PDF', icon: '📄' }
+                    ].map(tab => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setSelectedContentType(tab.key as any)}
+                        className={`px-3 py-1 text-xs font-medium transition-colors ${
+                          selectedContentType === tab.key
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {tab.icon} {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               <div className="px-6 py-4">
                 <div className="space-y-4">
                   {(() => {
-                    // Calculate processing time per minute of video
-                    const processingTimePerMinute = history
-                      .filter(h => h.analysisTime?.duration && h.metadata?.basic?.duration)
-                      .map(h => {
-                        const processingTime = h.analysisTime!.duration
-                        const videoDuration = h.metadata!.basic!.duration
-                        return processingTime / (videoDuration / 60) // seconds per minute of video
+                    const filteredHistory = getFilteredHistory()
+                    
+                    if (filteredHistory.length === 0) {
+                      return (
+                        <p className="text-center text-gray-500 py-4">
+                          {selectedContentType === 'all' ? '処理時間データがありません' : `${getNormalizationUnit(selectedContentType as any).replace('あたり', '')}の処理時間データがありません`}
+                        </p>
+                      )
+                    }
+
+                    // Calculate processing time statistics with appropriate normalization
+                    const processingTimeData = filteredHistory
+                      .filter(h => {
+                        // Ensure analysisTime exists and has valid data
+                        if (!h.analysisTime) return false
+                        const time = h.analysisTime.duration || h.analysisTime.total
+                        return time && !isNaN(time) && time > 0
                       })
-                    
-                    const avgTimePerMinute = processingTimePerMinute.length > 0 ? 
-                      processingTimePerMinute.reduce((a, b) => a + b, 0) / processingTimePerMinute.length : 0
-                    const minTimePerMinute = processingTimePerMinute.length > 0 ? Math.min(...processingTimePerMinute) : 0
-                    const maxTimePerMinute = processingTimePerMinute.length > 0 ? Math.max(...processingTimePerMinute) : 0
-                    
-                    // Calculate transcription time per minute of video
-                    const transcriptionTimePerMinute = history
-                      .filter(h => h.analysisTime?.transcription && h.metadata?.basic?.duration)
                       .map(h => {
-                        const transcriptionTime = h.analysisTime!.transcription
-                        const videoDuration = h.metadata!.basic!.duration
-                        return transcriptionTime / (videoDuration / 60) // seconds per minute of video
+                        const contentType = getContentType(h)
+                        const processingTime = h.analysisTime.duration || h.analysisTime.total || 0
+                        return normalizeProcessingTime(processingTime, h, contentType)
                       })
+                      .filter(time => time > 0 && !isNaN(time) && isFinite(time))
                     
-                    const avgTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
-                      transcriptionTimePerMinute.reduce((a, b) => a + b, 0) / transcriptionTimePerMinute.length : 0
-                    const minTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
-                      Math.min(...transcriptionTimePerMinute) : 0
-                    const maxTranscriptionPerMinute = transcriptionTimePerMinute.length > 0 ? 
-                      Math.max(...transcriptionTimePerMinute) : 0
+                    const avgTimePerUnit = processingTimeData.length > 0 ? 
+                      processingTimeData.reduce((a, b) => a + b, 0) / processingTimeData.length : 0
+                    const minTimePerUnit = processingTimeData.length > 0 ? Math.min(...processingTimeData) : 0
+                    const maxTimePerUnit = processingTimeData.length > 0 ? Math.max(...processingTimeData) : 0
                     
-                    // Calculate summary time per minute of video
-                    const summaryTimePerMinute = history
-                      .filter(h => h.analysisTime?.summary && h.metadata?.basic?.duration)
+                    // Calculate first stage processing time (transcription/extraction)
+                    const firstStageData = filteredHistory
                       .map(h => {
-                        const summaryTime = h.analysisTime!.summary
-                        const videoDuration = h.metadata!.basic!.duration
-                        return summaryTime / (videoDuration / 60) // seconds per minute of video
+                        const contentType = getContentType(h)
+                        const firstStageTime = getFirstStageTime(h, contentType)
+                        return firstStageTime ? normalizeProcessingTime(firstStageTime, h, contentType) : null
                       })
+                      .filter(time => time !== null && time > 0) as number[]
                     
-                    const avgSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
-                      summaryTimePerMinute.reduce((a, b) => a + b, 0) / summaryTimePerMinute.length : 0
-                    const minSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
-                      Math.min(...summaryTimePerMinute) : 0
-                    const maxSummaryPerMinute = summaryTimePerMinute.length > 0 ? 
-                      Math.max(...summaryTimePerMinute) : 0
+                    const avgFirstStagePerUnit = firstStageData.length > 0 ? 
+                      firstStageData.reduce((a, b) => a + b, 0) / firstStageData.length : 0
+                    const minFirstStagePerUnit = firstStageData.length > 0 ? Math.min(...firstStageData) : 0
+                    const maxFirstStagePerUnit = firstStageData.length > 0 ? Math.max(...firstStageData) : 0
+                    
+                    // Calculate summary time
+                    const summaryData = filteredHistory
+                      .map(h => {
+                        const contentType = getContentType(h)
+                        const summaryTime = h.analysisTime?.summary
+                        return summaryTime ? normalizeProcessingTime(summaryTime, h, contentType) : null
+                      })
+                      .filter(time => time !== null && time > 0) as number[]
+                    
+                    const avgSummaryPerUnit = summaryData.length > 0 ? 
+                      summaryData.reduce((a, b) => a + b, 0) / summaryData.length : 0
+                    const minSummaryPerUnit = summaryData.length > 0 ? Math.min(...summaryData) : 0
+                    const maxSummaryPerUnit = summaryData.length > 0 ? Math.max(...summaryData) : 0
+                    
+                    // Get appropriate first stage name
+                    const firstStageName = selectedContentType === 'all' ? '第一段階処理' : 
+                      getFirstStageName(selectedContentType === 'pdf' ? 'pdf' : 
+                                      selectedContentType === 'audio' ? 'audio' : 'youtube')
                     
                     return (
                       <>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-gray-700">合計処理時間（平均）:</span>
                           <span className="text-sm font-bold text-blue-600">
-                            {avgTimePerMinute > 0 ? `${avgTimePerMinute.toFixed(1)}秒` : '―'}
+                            {avgTimePerUnit > 0 ? `${avgTimePerUnit.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-gray-700">合計処理時間（最短）:</span>
                           <span className="text-sm font-semibold text-gray-900">
-                            {minTimePerMinute > 0 ? `${minTimePerMinute.toFixed(1)}秒` : '―'}
+                            {minTimePerUnit > 0 ? `${minTimePerUnit.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-gray-700">合計処理時間（最長）:</span>
                           <span className="text-sm font-semibold text-gray-900">
-                            {maxTimePerMinute > 0 ? `${maxTimePerMinute.toFixed(1)}秒` : '―'}
+                            {maxTimePerUnit > 0 ? `${maxTimePerUnit.toFixed(1)}秒` : '―'}
                           </span>
                         </div>
                         <div className="border-t border-gray-200 pt-2 mt-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-indigo-700">文字起こし（平均）:</span>
+                            <span className="text-sm font-medium text-indigo-700">{firstStageName}（平均）:</span>
                             <span className="text-sm font-bold text-indigo-600">
-                              {avgTranscriptionPerMinute > 0 ? `${avgTranscriptionPerMinute.toFixed(1)}秒` : '―'}
+                              {avgFirstStagePerUnit > 0 ? `${avgFirstStagePerUnit.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-indigo-700">文字起こし（最短）:</span>
+                            <span className="text-sm font-medium text-indigo-700">{firstStageName}（最短）:</span>
                             <span className="text-sm font-semibold text-indigo-500">
-                              {minTranscriptionPerMinute > 0 ? `${minTranscriptionPerMinute.toFixed(1)}秒` : '―'}
+                              {minFirstStagePerUnit > 0 ? `${minFirstStagePerUnit.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-indigo-700">文字起こし（最長）:</span>
+                            <span className="text-sm font-medium text-indigo-700">{firstStageName}（最長）:</span>
                             <span className="text-sm font-semibold text-indigo-500">
-                              {maxTranscriptionPerMinute > 0 ? `${maxTranscriptionPerMinute.toFixed(1)}秒` : '―'}
+                              {maxFirstStagePerUnit > 0 ? `${maxFirstStagePerUnit.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                         </div>
@@ -494,19 +644,19 @@ const AnalysisPage: React.FC = () => {
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-green-700">要約生成（平均）:</span>
                             <span className="text-sm font-bold text-green-600">
-                              {avgSummaryPerMinute > 0 ? `${avgSummaryPerMinute.toFixed(1)}秒` : '―'}
+                              {avgSummaryPerUnit > 0 ? `${avgSummaryPerUnit.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-green-700">要約生成（最短）:</span>
                             <span className="text-sm font-semibold text-green-500">
-                              {minSummaryPerMinute > 0 ? `${minSummaryPerMinute.toFixed(1)}秒` : '―'}
+                              {minSummaryPerUnit > 0 ? `${minSummaryPerUnit.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-green-700">要約生成（最長）:</span>
                             <span className="text-sm font-semibold text-green-500">
-                              {maxSummaryPerMinute > 0 ? `${maxSummaryPerMinute.toFixed(1)}秒` : '―'}
+                              {maxSummaryPerUnit > 0 ? `${maxSummaryPerUnit.toFixed(1)}秒` : '―'}
                             </span>
                           </div>
                         </div>
@@ -547,25 +697,38 @@ const AnalysisPage: React.FC = () => {
           {history && history.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               {(() => {
-                const normalizedProcessingTimes = history
-                  .filter(h => h.analysisTime?.duration && h.metadata?.basic?.duration)
-                  .map(h => {
-                    const processingTime = h.analysisTime!.duration
-                    const videoDuration = h.metadata!.basic!.duration
-                    return processingTime / (videoDuration / 60) // seconds per minute of video
+                const filteredHistory = getFilteredHistory()
+                const normalizedProcessingTimes = filteredHistory
+                  .filter(h => {
+                    // Ensure analysisTime exists and has valid data
+                    if (!h.analysisTime) return false
+                    const time = h.analysisTime.duration || h.analysisTime.total
+                    return time && !isNaN(time) && time > 0
                   })
+                  .map(h => {
+                    const contentType = getContentType(h)
+                    const processingTime = h.analysisTime.duration || h.analysisTime.total || 0
+                    return normalizeProcessingTime(processingTime, h, contentType)
+                  })
+                  .filter(time => time > 0 && !isNaN(time) && isFinite(time))
+                
+                const unit = selectedContentType === 'all' ? 'ユニット' : 
+                           getNormalizationUnit(selectedContentType as any).replace('の処理時間', '')
                 
                 return normalizedProcessingTimes.length > 0 ? (
                   <HistogramChart
-                    title="処理時間の分布（動画1分あたり）"
+                    title={`処理時間の分布（${unit}あたり）`}
                     data={normalizedProcessingTimes}
                     bins={6}
-                    xAxisLabel="動画１分あたりの処理時間（秒）"
+                    xAxisLabel={`${unit}あたりの処理時間（秒）`}
                     yAxisLabel="頻度"
                     color="#f59e0b"
                   />
                 ) : (
-                  <p className="text-center text-gray-500">処理時間データがありません</p>
+                  <p className="text-center text-gray-500">
+                    {selectedContentType === 'all' ? '処理時間データがありません' : 
+                     `${unit.replace('あたり', '')}の処理時間データがありません`}
+                  </p>
                 )
               })()}
             </div>
@@ -578,15 +741,22 @@ const AnalysisPage: React.FC = () => {
           {history && history.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               {(() => {
-                // Sort history by timestamp first (oldest to newest)
-                const sortedHistory = [...history].sort((a, b) => 
-                  new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-                )
+                // Sort history by timestamp first (oldest to newest), filtering out invalid timestamps
+                const sortedHistory = [...history]
+                  .filter(item => safeCreateDate(item.timestamp)) // Filter out invalid timestamps
+                  .sort((a, b) => {
+                    const dateA = safeCreateDate(a.timestamp)
+                    const dateB = safeCreateDate(b.timestamp)
+                    return (dateA?.getTime() || 0) - (dateB?.getTime() || 0)
+                  })
 
                 // Group by date
                 const dailyData = sortedHistory.reduce((acc: any, item) => {
-                  const date = new Date(item.timestamp).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
-                  acc[date] = (acc[date] || 0) + 1
+                  const itemDate = safeCreateDate(item.timestamp)
+                  if (itemDate) {
+                    const date = itemDate.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
+                    acc[date] = (acc[date] || 0) + 1
+                  }
                   return acc
                 }, {})
 
@@ -627,8 +797,8 @@ const AnalysisPage: React.FC = () => {
                   const weekLabel = `${(weekStart.getMonth() + 1)}/${weekStart.getDate()}`
                   
                   const count = history.filter(h => {
-                    const timestamp = new Date(h.timestamp)
-                    return timestamp >= weekStart && timestamp < weekEnd
+                    const timestamp = safeCreateDate(h.timestamp)
+                    return timestamp && timestamp >= weekStart && timestamp < weekEnd
                   }).length
                   
                   weeklyData.push({

@@ -1,0 +1,12 @@
+number: 18
+title: 動画ファイル対応: MOV/MP4形式の動画解析サポート
+body: youtubeの動画のみではなく、movやmp4などの動画ファイルも対象にいれ、同様の解析ができるようにする
+state: Review
+type: Feature
+labels:
+  - Design
+  - Review
+  - TYPE: Feature
+createdAt: '2025-07-10T10:34:28Z'
+updatedAt: '2025-07-15T04:14:21Z'
+githubState: OPEN

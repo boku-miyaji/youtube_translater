@@ -1,7 +1,10 @@
 // Format processing time to human readable format
 export function formatProcessingTime(seconds: number): string {
-  if (seconds < 60) {
-    return `${seconds} sec`;
+  // Handle sub-second times
+  if (seconds < 1) {
+    return `${seconds.toFixed(1)} sec`;
+  } else if (seconds < 60) {
+    return `${Math.round(seconds)} sec`;
   } else if (seconds < 3600) {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;

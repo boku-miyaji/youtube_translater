@@ -76,16 +76,23 @@ cp .env.example .env
 ```
 OPENAI_API_KEY=your_openai_api_key_here
 PORT=3000
+# オプション: モックモード（開発・テスト用）
+# MOCK_OPENAI=true
 ```
+
+> **📝 モックモードについて**: `MOCK_OPENAI=true`を設定すると、実際のOpenAI APIを呼び出さずにモックレスポンスを返します。APIクォータを消費せずに開発・テストが可能です。本番環境では必ずこの設定を削除またはコメントアウトしてください。
+
+> **⚠️ 重要**: PDFの実際の要約を生成するには、モックモードを無効にして有効なOpenAI APIキーが必要です。APIクォータが不足している場合は、新しいAPIキーを取得するか、プランをアップグレードしてください。
 
 4. **サーバーの起動**
 ```bash
-# 開発モード
-npm run dev
+# 開発モード（サーバーとクライアント両方を起動）
+npm run dev:client  # Viteクライアント開発サーバー（別ターミナル）
+npm run dev         # Express APIサーバー
 
 # 本番モード
-npm run build
-npm start
+npm run build:all   # クライアントとサーバーをビルド
+npm start          # 本番サーバー起動
 ```
 
 5. **ブラウザでアクセス**
@@ -175,7 +182,7 @@ youtube_translater/
 
 ### TypeScript対応
 ```bash
-npm run dev:ts  # TypeScript版の実行
+npm run dev  # TypeScript版サーバーの実行
 ```
 
 ### 設定のカスタマイズ

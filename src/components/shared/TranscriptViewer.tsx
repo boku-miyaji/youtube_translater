@@ -10,7 +10,9 @@ interface TranscriptViewerProps {
   }>
   summary?: string
   transcriptSource?: 'subtitle' | 'whisper'
+  analysisType?: 'youtube' | 'video' | 'audio' | 'pdf'
   onSeek?: (time: number) => void
+  onPageJump?: (page: number) => void
   onQuestionClick?: (question: string) => void
   onArticleGenerated?: (cost: number) => void
 }
@@ -24,7 +26,7 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, onSeek, onQuestionClick, onArticleGenerated }) => {
+const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timestampedSegments, summary: initialSummary, transcriptSource, analysisType, onSeek, onPageJump, onQuestionClick, onArticleGenerated }) => {
   const [activeTab, setActiveTab] = useState<TabType>('transcript')
   const [summary, setSummary] = useState(initialSummary || '')
   const [article, setArticle] = useState('')
@@ -42,7 +44,10 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ transcript }),
+        body: JSON.stringify({ 
+          transcript,
+          analysisType: analysisType || 'youtube'
+        }),
       })
 
       if (!response.ok) {
@@ -152,6 +157,11 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                           <span className="mr-1">📺</span>
                           YouTube キャプション
                         </>
+                      ) : transcriptSource === 'pdf' ? (
+                        <>
+                          <span className="mr-1">📄</span>
+                          PDF テキスト
+                        </>
                       ) : (
                         <>
                           <span className="mr-1">🤖</span>
@@ -207,6 +217,11 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
                         <span className="mr-1">📺</span>
                         YouTube キャプション
                       </>
+                    ) : transcriptSource === 'pdf' ? (
+                      <>
+                        <span className="mr-1">📄</span>
+                        PDF テキスト
+                      </>
                     ) : (
                       <>
                         <span className="mr-1">🤖</span>
@@ -253,9 +268,24 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
               <MarkdownRenderer 
                 content={summary} 
                 onSeek={onSeek} 
+                onPageJump={onPageJump}
                 onQuestionClick={onQuestionClick}
                 className=""
               />
+              {/* PDF Page Reference Warning */}
+              {analysisType === 'pdf' && summary && !summary.match(/\bp\.\d+/g) && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start">
+                    <span className="text-yellow-600 mr-2">⚠️</span>
+                    <div className="text-sm text-yellow-800">
+                      <strong>PDF Page Navigation Notice:</strong> This summary doesn't contain page references (p.1, p.2, etc.). 
+                      Page navigation may not be available. This can happen if summary generation was disabled or failed.
+                      <br />
+                      <span className="text-xs mt-1 inline-block">To enable page references, ensure the analysis includes summary generation.</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* Deep dive questions section */}
               {(summary.includes('深掘り質問') || summary.includes('?')) && (
                 <div className="hint-style mt-2 p-2 rounded-lg border">
@@ -311,6 +341,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
               <MarkdownRenderer 
                 content={article} 
                 onSeek={onSeek} 
+                onPageJump={onPageJump}
                 onQuestionClick={onQuestionClick}
                 className=""
               />

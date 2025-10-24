@@ -39,6 +39,7 @@ export interface VideoMetadata {
     category?: string;
     description?: string;
     videoPath?: string;  // Path to local video file
+    pdfUrl?: string;     // URL to PDF for embedding
     thumbnail?: string;  // YouTube thumbnail URL
   };
   chapters?: Array<{ title: string; start: number }>;
@@ -51,7 +52,7 @@ export interface VideoMetadata {
   transcript?: string;
   summary?: string;
   timestampedSegments?: TimestampedSegment[];
-  transcriptSource?: 'subtitle' | 'whisper';
+  transcriptSource?: 'subtitle' | 'whisper' | 'pdf';
   // Computed properties
   costs?: DetailedCosts;
   analysisTime?: {
@@ -65,6 +66,76 @@ export interface VideoMetadata {
   originalFilename?: string;
   fileSize?: number;
   uploadedAt?: string;
+  // Analysis type for different content types
+  analysisType?: AnalysisType;
+  // PDF-specific content for page navigation
+  pdfContent?: PDFContent;
+}
+
+// Extended metadata for audio files
+export interface AudioMetadata {
+  basic?: {
+    title?: string;
+    artist?: string;
+    album?: string;
+    duration?: number;
+    bitrate?: number;
+    sampleRate?: number;
+    channels?: number;
+    format?: string;
+    audioPath?: string;
+  };
+  transcript?: string;
+  summary?: string;
+  timestampedSegments?: TimestampedSegment[];
+  costs?: DetailedCosts;
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
+  source?: 'file';
+  fileId?: string;
+  originalFilename?: string;
+  fileSize?: number;
+  uploadedAt?: string;
+}
+
+// Metadata for PDF files
+export interface PDFMetadata {
+  title?: string;
+  authors?: string[];
+  publicationDate?: string;
+  doi?: string;
+  journal?: string;
+  pageCount: number;
+  fileSize: number;
+  abstract?: string;
+  keywords?: string[];
+}
+
+export interface PDFContent {
+  fullText: string;
+  sections: PDFSection[];
+  pageCount: number;
+  language: string;
+  pageSegments?: PDFPageSegment[]; // Page-based segments for navigation
+}
+
+export interface PDFSection {
+  title: string;
+  content: string;
+  pageRange: [number, number];
+  type: 'abstract' | 'introduction' | 'methodology' | 
+        'results' | 'conclusion' | 'references' | 'other';
+}
+
+// PDF page-based segment (similar to TimestampedSegment for videos)
+export interface PDFPageSegment {
+  page: number; // Page number (1-based)
+  text: string; // Text content of the page
+  startChar?: number; // Character position in fullText
+  endChar?: number; // Character position in fullText
 }
 
 export interface VideoListItem {
@@ -90,7 +161,37 @@ export interface HistoryListResponse {
   totalCount: number;
 }
 
+// Analysis result types
+export type AnalysisType = 'youtube' | 'video' | 'audio' | 'pdf';
+
+export interface AnalysisResult {
+  id: string;
+  type: AnalysisType;
+  url?: string;
+  fileName?: string;
+  fileSize?: number;
+  
+  // Common fields
+  summary: Summary;
+  processingTime: ProcessingTime;
+  cost: number;  // Total cost
+  costs?: DetailedCosts;  // Detailed cost breakdown
+  
+  // Type-specific fields
+  transcription?: TranscriptionResult;  // video, audio
+  pdfContent?: PDFContent;               // pdf only
+  metadata: VideoMetadata | AudioMetadata | PDFMetadata;
+}
+
+export interface ProcessingTime {
+  transcription?: number;
+  extraction?: number;  // For PDF text extraction
+  summary: number;
+  total: number;
+}
+
 export interface ApiResponse {
+  success?: boolean;
   title?: string;
   videoId?: string;
   metadata?: {
@@ -131,6 +232,11 @@ export interface ApiResponse {
   message: string;
   error?: string;
   fromHistory?: boolean;
+  // Extended for new file types
+  analysisType?: AnalysisType;
+  pdfContent?: PDFContent;
+  audioMetadata?: AudioMetadata;
+  pdfMetadata?: PDFMetadata;
 }
 
 export interface PromptTemplate {
@@ -138,10 +244,37 @@ export interface PromptTemplate {
   template: string;
 }
 
+export interface PromptContext {
+  contentType: string;
+  contextInfo: string;
+  overviewInstruction: string;
+  timeReference: string;
+  additionalSections: string;
+  questionSectionTitle: string;
+  questionExamples: string;
+  additionalNotes: string;
+}
+
+export interface ContentTypePrompts {
+  base?: PromptTemplate;
+  contexts?: {
+    youtube?: PromptContext;
+    pdf?: PromptContext;
+    audio?: PromptContext;
+    [key: string]: PromptContext | undefined;
+  };
+  // Legacy support
+  youtube?: PromptTemplate;
+  pdf?: PromptTemplate;
+  audio?: PromptTemplate;
+  [key: string]: PromptTemplate | PromptContext | { [key: string]: PromptContext | undefined } | undefined;
+}
+
 export interface PromptsConfig {
-  summary?: PromptTemplate;
+  summarize?: ContentTypePrompts;
   article?: PromptTemplate;
-  [key: string]: PromptTemplate | undefined;
+  chat?: PromptTemplate;
+  [key: string]: ContentTypePrompts | PromptTemplate | undefined;
 }
 
 export interface TranscriptionResult {
@@ -202,6 +335,22 @@ export interface MergeArticleRequest {
   videoId?: string;
 }
 
+// Input type enums
+export enum InputType {
+  YOUTUBE_URL = 'youtube',
+  VIDEO_FILE = 'video',
+  AUDIO_FILE = 'audio',
+  PDF_URL = 'pdf_url',
+  PDF_FILE = 'pdf_file'
+}
+
+// File type detection
+export interface FileTypeInfo {
+  type: 'video' | 'audio' | 'pdf';
+  mimeType: string;
+  extension: string;
+}
+
 // New types for video file upload
 export interface VideoFile {
   file: File;
@@ -212,6 +361,26 @@ export interface VideoFile {
   preview?: string;  // Data URL for preview
 }
 
+// Extended for audio files
+export interface AudioFile {
+  file: File;
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
+  format?: string;
+}
+
+// PDF file interface
+export interface PDFFile {
+  file: File;
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
+  pageCount?: number;
+}
+
 export interface VideoUploadRequest {
   file: File;
   language?: string;
@@ -219,6 +388,25 @@ export interface VideoUploadRequest {
   transcriptionModel?: TranscriptionModel;
   generateSummary?: boolean;
   generateArticle?: boolean;
+}
+
+// Audio upload request
+export interface AudioUploadRequest {
+  file: File;
+  language?: string;
+  gptModel?: string;
+  transcriptionModel?: TranscriptionModel;
+  generateSummary?: boolean;
+}
+
+// PDF upload/URL request
+export interface PDFAnalysisRequest {
+  url?: string;
+  file?: File;
+  language?: string;
+  gptModel?: string;
+  generateSummary?: boolean;
+  extractStructure?: boolean;
 }
 
 export interface VideoUploadResponse extends ApiResponse {
@@ -234,10 +422,49 @@ export interface VideoUploadResponse extends ApiResponse {
   };
 }
 
+// Audio upload response
+export interface AudioUploadResponse extends ApiResponse {
+  fileId?: string;
+  originalName?: string;
+  size?: number;
+  mimeType?: string;
+  uploadedAt?: string;
+  audioMetadata?: AudioMetadata;
+  analysisTime?: {
+    transcription: number;
+    summary: number;
+    total: number;
+  };
+}
+
+// PDF analysis response
+export interface PDFAnalysisResponse extends ApiResponse {
+  fileId?: string;
+  originalName?: string;
+  size?: number;
+  pdfContent?: PDFContent;
+  pdfMetadata?: PDFMetadata;
+  contentMetrics?: {
+    pageCount: number;
+    characterCount: number;
+    wordCount: number;
+  };
+  analysisTime?: {
+    startTime?: string;
+    endTime?: string;
+    duration?: number;
+    extraction?: number;
+    transcription?: number;
+    summary: number;
+    total: number;
+  };
+}
+
 // Session cost tracking
 export interface SessionCosts {
   whisper: number;
   gpt: number;
+  pdf: number;  // Added for PDF processing costs
   total: number;
 }
 
@@ -256,6 +483,7 @@ export interface HistoryEntry {
   costs?: DetailedCosts;
   analysisTime?: {
     transcription?: number;
+    extraction?: number;  // Added for PDF processing
     summary?: number;
     total?: number;
     startTime?: string;
@@ -282,16 +510,17 @@ export interface HistoryEntry {
 // Cost entry for tracking individual costs
 export interface CostEntry {
   date: string;
-  service?: 'whisper' | 'gpt' | 'total';
+  service?: 'whisper' | 'gpt' | 'pdf' | 'total';
   cost?: number;
   // Additional fields used in server
   videoId?: string;
   title?: string;
-  method?: 'subtitle' | 'whisper';
+  method?: 'subtitle' | 'whisper' | 'pdf';
   language?: string;
   gptModel?: string;
   whisperCost?: number;
   gptCost?: number;
+  pdfCost?: number;  // Added for PDF processing costs
   totalCost?: number;
   timestamp?: string;
 }
@@ -400,6 +629,7 @@ export interface CostEstimationResponse {
     transcriptionRate?: string;  // e.g., "動画1分あたり30.0秒"
     summaryRate?: string;        // e.g., "動画1分あたり60.0秒"
     durationMinutes?: number;    // video duration in minutes
+    confidenceLevel?: number;  // 0-1, how confident we are in the estimate
   };
   error?: string;
   message?: string;
@@ -426,6 +656,7 @@ export interface FileCostEstimationResponse {
     transcriptionRate?: string;  // e.g., "動画1分あたり30.0秒"
     summaryRate?: string;        // e.g., "動画1分あたり60.0秒"
     durationMinutes?: number;    // video duration in minutes
+    confidenceLevel?: number;  // 0-1, how confident we are in the estimate
   };
   error?: string;
   message?: string;
