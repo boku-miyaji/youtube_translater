@@ -1132,14 +1132,15 @@ function addToHistory(
   tags: string[] = [],
   mainTags: string[] = [],
   article: string | null = null,
-  analysisTime: { 
-    startTime: string; 
-    endTime: string; 
+  analysisTime: {
+    startTime: string;
+    endTime: string;
     duration: number;
     transcription?: number;
     extraction?: number;
     summary?: number;
     total?: number;
+    durationMinutes?: number;  // Page count for PDFs, duration for videos
   } | null = null
 ): HistoryEntry {
   const history = loadHistory();
@@ -3275,7 +3276,8 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         duration: totalAnalysisTime,
         extraction: validatedExtractionDuration,
         summary: validatedSummaryDuration,
-        total: actualProcessingTime
+        total: actualProcessingTime,
+        durationMinutes: pdfContent.pageCount  // Add page count as durationMinutes for rationale display
       },
       message: 'PDF analyzed successfully'
     };
@@ -3308,7 +3310,8 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         duration: totalAnalysisTime,
         extraction: validatedExtractionDuration,
         summary: validatedSummaryDuration,
-        total: actualProcessingTime
+        total: actualProcessingTime,
+        durationMinutes: pdfContent.pageCount  // Add page count for rationale display
       }
     );
 
@@ -4650,7 +4653,7 @@ app.post('/api/estimate-cost-pdf', async (req: Request, res: Response) => {
       estimatedProcessingTime: processingTime,
       message: 'PDF cost estimation completed'
     };
-    
+
     res.json(response);
     
   } catch (error) {

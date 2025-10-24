@@ -457,6 +457,7 @@ export interface PDFAnalysisResponse extends ApiResponse {
     transcription?: number;
     summary?: number;
     total?: number;
+    durationMinutes?: number;  // Page count for PDFs, duration for videos
   };
 }
 
@@ -489,6 +490,7 @@ export interface HistoryEntry {
     startTime?: string;
     endTime?: string;
     duration?: number;
+    durationMinutes?: number;  // Page count for PDFs, duration for videos
   };
   source?: 'url' | 'file';
   fileId?: string;
