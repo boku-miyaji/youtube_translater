@@ -1217,7 +1217,7 @@ const AnalyzePage: React.FC = () => {
     const contentType = currentVideo?.analysisType || 'youtube';
     switch (contentType) {
       case 'pdf':
-        return '📄 文書解析';
+        return '📄 PDFテキスト抽出';
       case 'audio':
         return '🎵 文字起こし';
       case 'youtube':
@@ -1247,13 +1247,21 @@ const AnalyzePage: React.FC = () => {
     
     const isPdf = isPdfContent(currentVideo);
     console.log(`📊 getFirstStageProcessingTime: isPdf=${isPdf}, analysisTime=`, currentVideo.analysisTime);
-    
+
     if (isPdf) {
       const analysisTime = currentVideo.analysisTime;
-      
+
+      // Log all timing fields for debugging
+      console.log('📄 PDF Timing Fields:', {
+        extraction: analysisTime.extraction,
+        summary: analysisTime.summary,
+        total: analysisTime.total,
+        duration: analysisTime.duration
+      });
+
       // Priority 1: extraction field (specific for PDF text extraction)
       if (analysisTime.extraction !== undefined && typeof analysisTime.extraction === 'number' && analysisTime.extraction >= 0) {
-        console.log(`✅ PDF using extraction time: ${analysisTime.extraction}`);
+        console.log(`✅ PDF using extraction time: ${analysisTime.extraction}s (テキスト抽出のみ)`);
         return analysisTime.extraction;
       }
       

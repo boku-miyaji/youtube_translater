@@ -3085,15 +3085,17 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     // Ensure timing values are reasonable (>= 0) and preserve sub-second precision
     const validatedExtractionDuration = Math.max(0, extractionDuration || 0);
     const validatedSummaryDuration = Math.max(0, summaryDuration || 0);
-    
+
     // Calculate actual processing time as extraction + summary
     const actualProcessingTime = validatedExtractionDuration + validatedSummaryDuration;
-    
-    console.log(`📊 PDF timing calculation (validated):`);
-    console.log(`   📄 Extraction: ${extractionDuration}s → ${validatedExtractionDuration}s`);
-    console.log(`   📝 Summary: ${summaryDuration}s → ${validatedSummaryDuration}s`); 
-    console.log(`   ⏱️ Total processing: ${actualProcessingTime}s`);
-    console.log(`   🕒 Wall clock: ${totalAnalysisTime}s`);
+
+    console.log(`📊 ========== PDF TIMING BREAKDOWN ==========`);
+    console.log(`   📄 PDFテキスト抽出: ${validatedExtractionDuration}s (extractPDFText() のみ)`);
+    console.log(`   📝 要約生成: ${validatedSummaryDuration}s (generateSummary() のみ)`);
+    console.log(`   ⏱️ 合計処理時間: ${actualProcessingTime}s (抽出+要約)`);
+    console.log(`   🕒 壁時計時間: ${totalAnalysisTime}s (全体、ファイルI/O含む)`);
+    console.log(`   ℹ️  Note: フロントエンドには extraction=${validatedExtractionDuration}s が「PDFテキスト抽出」として表示されます`);
+    console.log(`=========================================`);
 
     // 6. Prepare response (limit content size to prevent network errors)
     let limitedPdfContent = undefined;
