@@ -1054,19 +1054,38 @@ const AnalyzePage: React.FC = () => {
     }
 
     // Section 2: Normalization Method
+    const transcriptionTime = processingTime.transcription;
+    const summaryTime = processingTime.summary;
+
+    const normalizationContent = [];
+
+    if (isPDF) {
+      normalizationContent.push(
+        "PDF: ページベースの正規化",
+        "",
+        `テキスト抽出: ${formatProcessingTime(transcriptionTime)}`,
+        processingTime.transcriptionRate ? `  → 速度: ${processingTime.transcriptionRate}` : "",
+        `要約生成: ${formatProcessingTime(summaryTime)}`,
+        processingTime.summaryRate ? `  → 速度: ${processingTime.summaryRate}` : "",
+        "",
+        "ページ数 × 処理速度 = 推定時間"
+      );
+    } else {
+      normalizationContent.push(
+        "動画/音声: 分ベースの正規化",
+        "",
+        `文字起こし: ${formatProcessingTime(transcriptionTime)}`,
+        processingTime.transcriptionRate ? `  → 速度: ${processingTime.transcriptionRate}` : "",
+        `要約生成: ${formatProcessingTime(summaryTime)}`,
+        processingTime.summaryRate ? `  → 速度: ${processingTime.summaryRate}` : "",
+        "",
+        "動画時間(分) × 処理速度 = 推定時間"
+      );
+    }
+
     rationale.sections.push({
       title: "⚖️ 正規化方法",
-      content: isPDF ? [
-        "PDF: ページベースの正規化",
-        `処理速度: ${processingTime.transcriptionRate || '推定中'}`,
-        `要約速度: ${processingTime.summaryRate || '推定中'}`,
-        "ページ数 × 処理速度 = 推定時間"
-      ] : [
-        "動画/音声: 分ベースの正規化",
-        `文字起こし速度: ${processingTime.transcriptionRate || '推定中'}`,
-        `要約速度: ${processingTime.summaryRate || '推定中'}`,
-        "動画時間(分) × 処理速度 = 推定時間"
-      ]
+      content: normalizationContent.filter(Boolean)
     });
 
     // Section 3: Cost Breakdown
@@ -1110,8 +1129,6 @@ const AnalyzePage: React.FC = () => {
     });
 
     // Section 4: Processing Breakdown
-    const transcriptionTime = processingTime.transcription;
-    const summaryTime = processingTime.summary;
     const total = processingTime.total;
 
     rationale.sections.push({
