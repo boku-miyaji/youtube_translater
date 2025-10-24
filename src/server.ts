@@ -2902,7 +2902,7 @@ p.${Math.floor(totalPages*2/3)}でこの文書の内容は、関連分野の研�
 // PDF analysis endpoint (handles both URL and file upload)
 app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Response) => {
   console.log('📄 PDF analysis request received');
-  
+
   const analysisStartTime = new Date();
   let pdfBuffer: Buffer;
   let fileName: string;
@@ -2910,6 +2910,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
   let fileId: string;
   let filePath: string | undefined;
   let isUrlSource = false;
+  let progressId: string | undefined; // Declare outside try-catch for error handling
 
   try {
     // Determine source (URL or file)
@@ -2970,7 +2971,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       shouldExtractStructure,
       source: isUrlSource ? 'url' : 'file'
     });
-    
+
     // 🚨 IMPORTANT: Validate summary generation for page references
     if (!shouldGenerateSummary) {
       console.warn('⚠️ PDF ANALYSIS WARNING: Summary generation is disabled!');
@@ -2985,12 +2986,43 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     const extractionStartTime = new Date();
     const pdfContent = await extractPDFText(pdfBuffer);
     const extractionEndTime = new Date();
-    // Calculate extraction duration with minimum value to prevent 0-second display issues  
+
+    // Create progress tracking record
+    // IMPORTANT: For PDF, contentDuration represents page count, not seconds
+    try {
+      progressId = analysisProgressDB.createRecord(
+        'pdf',
+        pdfContent.pageCount, // Use page count as "duration" for PDF
+        'pdf-parse', // PDF doesn't use Whisper, just text extraction
+        gptModel,
+        pdfContent.fullText.length, // Content length in characters
+        undefined, // No audio quality for PDF
+        language
+      );
+      console.log(`📊 Created progress tracking record: ${progressId}`);
+    } catch (err) {
+      console.warn('Failed to create progress tracking record:', err);
+    }
+    // Calculate extraction duration with minimum value to prevent 0-second display issues
     const rawExtractionDuration = (extractionEndTime.getTime() - extractionStartTime.getTime()) / 1000;
-    const extractionDuration = rawExtractionDuration < 1 ? 
-      parseFloat(rawExtractionDuration.toFixed(1)) : 
+    const extractionDuration = rawExtractionDuration < 1 ?
+      parseFloat(rawExtractionDuration.toFixed(1)) :
       Math.round(rawExtractionDuration);
-    
+
+    // Update transcription (extraction) progress
+    if (progressId) {
+      try {
+        analysisProgressDB.updateTranscriptionProgress(
+          progressId,
+          extractionStartTime.toISOString(),
+          extractionEndTime.toISOString()
+        );
+        console.log(`📊 Updated extraction progress: ${extractionDuration}s for ${pdfContent.pageCount} pages`);
+      } catch (err) {
+        console.warn('Failed to update extraction progress:', err);
+      }
+    }
+
     // 2. Analyze PDF structure
     let pdfMetadata: PDFMetadata | undefined;
     if (shouldExtractStructure) {
@@ -3004,10 +3036,19 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     let summaryCost = 0;
     let summaryStartTime: Date | null = null;
     let summaryEndTime: Date | null = null;
-    
+
     if (shouldGenerateSummary) {
       console.log('📝 Generating PDF summary...');
       summaryStartTime = new Date();
+
+      // Update summary progress - start time
+      if (progressId) {
+        try {
+          analysisProgressDB.updateSummaryProgress(progressId, summaryStartTime.toISOString());
+        } catch (err) {
+          console.warn('Failed to update summary progress (start):', err);
+        }
+      }
       
       // If pdfMetadata is not available, create a minimal one
       const metadataForSummary = pdfMetadata || {
@@ -3054,8 +3095,23 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         const inputTokens = Math.ceil(pdfContent.fullText.length / 4); // Rough token estimate
         const outputTokens = Math.ceil(summary.length / 4);
         summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
-        
+
         summaryEndTime = new Date();
+
+        // Update summary progress - end time
+        if (progressId && summaryStartTime) {
+          try {
+            analysisProgressDB.updateSummaryProgress(
+              progressId,
+              summaryStartTime.toISOString(),
+              summaryEndTime.toISOString()
+            );
+            const summaryDurationForLog = Math.round((summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000);
+            console.log(`📊 Updated summary progress: ${summaryDurationForLog}s`);
+          } catch (err) {
+            console.warn('Failed to update summary progress (end):', err);
+          }
+        }
       } catch (summaryError) {
         console.error('Error generating PDF summary:', summaryError);
         
@@ -3071,7 +3127,20 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         
         summaryCost = 0;
         summaryEndTime = new Date();
-        
+
+        // Update summary progress - end time (even on error)
+        if (progressId && summaryStartTime) {
+          try {
+            analysisProgressDB.updateSummaryProgress(
+              progressId,
+              summaryStartTime.toISOString(),
+              summaryEndTime.toISOString()
+            );
+          } catch (err) {
+            console.warn('Failed to update summary progress (error case):', err);
+          }
+        }
+
         // If it's an OpenAI error, we might want to include it in the response
         if (summaryError instanceof OpenAIError) {
           console.log('OpenAI API error detected, using fallback summary');
@@ -3238,12 +3307,32 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       cleanupTempFile(filePath, 5 * 60 * 1000); // 5 minutes
     }
 
+    // Complete progress tracking
+    if (progressId) {
+      try {
+        analysisProgressDB.completeAnalysis(progressId, true);
+        console.log(`📊 Completed progress tracking: ${progressId}`);
+      } catch (err) {
+        console.warn('Failed to complete progress tracking:', err);
+      }
+    }
+
     console.log('✅ PDF processed successfully');
     res.json(response);
 
   } catch (error) {
     console.error('❌ Error processing PDF:', error);
-    
+
+    // Complete progress tracking with error
+    if (progressId) {
+      try {
+        analysisProgressDB.completeAnalysis(progressId, false, error instanceof Error ? error.message : 'Unknown error');
+        console.log(`📊 Completed progress tracking with error: ${progressId}`);
+      } catch (err) {
+        console.warn('Failed to complete progress tracking (error case):', err);
+      }
+    }
+
     // Clean up file on error
     if (filePath) {
       try {
