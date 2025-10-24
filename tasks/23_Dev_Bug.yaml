@@ -5,7 +5,13 @@ description: |
   料金：chatした時にかかった料金も表示
   時間：pdfの計算時間が全く正しくない。
 type: 'Bug'
-state: Design
+state: Dev
 design: 'tasks/design/23_Bug.md'
+implementation:
+  branch: 'feature/implement-23'
+  commits:
+    - '92d8545'
+pr: 'tasks/pr/23_Bug.md'
+review: 'tasks/pr/23_Bug_review.md'
 createdAt: '2025-10-24T06:50:10Z'
-updatedAt: '2025-10-24T07:15:00Z'
+updatedAt: '2025-10-24T16:31:00Z'
