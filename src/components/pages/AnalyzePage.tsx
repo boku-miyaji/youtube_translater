@@ -9,7 +9,7 @@ import AnalysisProgress from '../shared/AnalysisProgress'
 import { VideoFile, AudioFile, PDFFile, InputType } from '../../types'
 import { formatProcessingTime } from '../../utils/formatTime'
 import { ProcessingTimePredictor, PredictionInput, PredictionResult, createTimePredictor } from '../../utils/timePredictor'
-import { detectInputTypeFromUrl, detectInputTypeFromUrlWithConfidence, DetectionResult } from '../../utils/inputTypeDetection'
+import { detectInputTypeFromUrl, detectInputTypeFromUrlWithConfidence, detectInputTypeFromFile, DetectionResult } from '../../utils/inputTypeDetection'
 const AnalyzePage: React.FC = () => {
   const { currentVideo, setCurrentVideo, loading, setLoading } = useAppStore()
   const location = useLocation()
@@ -457,10 +457,22 @@ const AnalyzePage: React.FC = () => {
 
   // Handle file selection based on input type
   const handleFileSelected = (file: VideoFile) => {
-    // Determine file type and set appropriate state
-    if (inputType === InputType.VIDEO_FILE) {
+    // Auto-detect file type from MIME type
+    const detectedFileType = detectInputTypeFromFile(file.file)
+
+    console.log(`🔍 Auto-detected file type: ${detectedFileType} for file: ${file.name} (MIME: ${file.type})`)
+
+    // Update inputType if in file mode and not manually selected
+    if (inputMode === 'file' && !isManualInputTypeSelection) {
+      setInputType(detectedFileType)
+    }
+
+    // Determine file type and set appropriate state based on detected type
+    if (detectedFileType === InputType.VIDEO_FILE) {
       setVideoFile(file)
-    } else if (inputType === InputType.AUDIO_FILE) {
+      setAudioFile(null)
+      setPdfFile(null)
+    } else if (detectedFileType === InputType.AUDIO_FILE) {
       // Convert VideoFile to AudioFile
       const audioFile: AudioFile = {
         file: file.file,
@@ -471,7 +483,9 @@ const AnalyzePage: React.FC = () => {
         format: file.type.split('/')[1] // e.g., 'audio/mp3' -> 'mp3'
       }
       setAudioFile(audioFile)
-    } else if (inputType === InputType.PDF_FILE) {
+      setVideoFile(null)
+      setPdfFile(null)
+    } else if (detectedFileType === InputType.PDF_FILE) {
       // Convert VideoFile to PDFFile
       const pdfFile: PDFFile = {
         file: file.file,
@@ -481,8 +495,10 @@ const AnalyzePage: React.FC = () => {
         lastModified: file.lastModified
       }
       setPdfFile(pdfFile)
+      setVideoFile(null)
+      setAudioFile(null)
     }
-    
+
     setFileError('')
     setUploadProgress(0)
     // Estimate cost for the selected file
