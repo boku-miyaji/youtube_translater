@@ -42,6 +42,7 @@ const AnalyzePage: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null)
   const costEstimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isFirstModelChange = useRef(true)
+  const [showEstimationRationale, setShowEstimationRationale] = useState(false)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -1015,6 +1016,109 @@ const AnalyzePage: React.FC = () => {
     setFormCollapsed(!formCollapsed)
   }
 
+  // Generate detailed rationale for the estimation
+  const generateEstimationRationale = (processingTime: any, costs: any) => {
+    const contentType =
+      (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 'pdf' :
+      (inputType === InputType.AUDIO_FILE) ? 'audio' : 'youtube';
+
+    const isPDF = contentType === 'pdf';
+    const isHistorical = processingTime?.isHistoricalEstimate;
+
+    const rationale = {
+      title: "推定時間の算出根拠",
+      sections: [] as Array<{title: string, content: string[]}>
+    };
+
+    // Section 1: Data Source
+    if (isHistorical) {
+      rationale.sections.push({
+        title: "📊 データソース",
+        content: [
+          `過去の実績データから推定しています`,
+          `サンプル数: ${processingTime.sampleSize || '不明'}件`,
+          `信頼度: ${processingTime.confidence ? Math.round(processingTime.confidence * 100) : '?'}%`,
+          isHistorical ? "✓ 精度の高い予測が可能です" : ""
+        ].filter(Boolean)
+      });
+    } else {
+      rationale.sections.push({
+        title: "📊 データソース",
+        content: [
+          "デフォルト係数を使用しています",
+          "履歴データがないため、標準的な処理速度で推定",
+          "実際の処理時間は変動する可能性があります",
+          "処理を重ねることで精度が向上します"
+        ]
+      });
+    }
+
+    // Section 2: Normalization Method
+    rationale.sections.push({
+      title: "⚖️ 正規化方法",
+      content: isPDF ? [
+        "PDF: ページベースの正規化",
+        `処理速度: ${processingTime.transcriptionRate || '推定中'}`,
+        `要約速度: ${processingTime.summaryRate || '推定中'}`,
+        "ページ数 × 処理速度 = 推定時間"
+      ] : [
+        "動画/音声: 分ベースの正規化",
+        `文字起こし速度: ${processingTime.transcriptionRate || '推定中'}`,
+        `要約速度: ${processingTime.summaryRate || '推定中'}`,
+        "動画時間(分) × 処理速度 = 推定時間"
+      ]
+    });
+
+    // Section 3: Cost Breakdown
+    rationale.sections.push({
+      title: "💰 コスト内訳",
+      content: [
+        `文字起こし: $${costs.transcription.toFixed(4)}`,
+        `要約生成: $${costs.summary.toFixed(4)}`,
+        `合計: $${costs.total.toFixed(4)}`,
+        "",
+        "コストは使用したトークン数に基づいて計算されます"
+      ]
+    });
+
+    // Section 4: Processing Breakdown
+    const transcriptionTime = processingTime.transcription;
+    const summaryTime = processingTime.summary;
+    const total = processingTime.total;
+
+    rationale.sections.push({
+      title: "⏱️ 処理時間内訳",
+      content: [
+        `${isPDF ? 'テキスト抽出' : '文字起こし'}: ${formatProcessingTime(transcriptionTime)} (${Math.round(transcriptionTime / total * 100)}%)`,
+        `要約生成: ${formatProcessingTime(summaryTime)} (${Math.round(summaryTime / total * 100)}%)`,
+        `合計: ${formatProcessingTime(total)}`,
+        "",
+        isPDF ?
+          "PDFからのテキスト抽出は高速です" :
+          "文字起こしが処理時間の大部分を占めます"
+      ]
+    });
+
+    // Section 5: Factors
+    rationale.sections.push({
+      title: "📝 影響要因",
+      content: isPDF ? [
+        "• ページ数: ページが多いほど時間がかかります",
+        "• テキスト量: 1ページあたりの文字数",
+        "• 要約モデル: GPT-4oはGPT-4o-miniより遅いですが高品質",
+        "• サーバー負荷: 混雑時は遅くなる可能性があります"
+      ] : [
+        "• 動画の長さ: 長いほど時間がかかります",
+        "• 音声品質: 音質が悪いと文字起こしに時間がかかる場合があります",
+        "• 文字起こしモデル: GPT-4oはWhisperより高速です",
+        "• 要約モデル: GPT-4oはGPT-4o-miniより遅いですが高品質",
+        "• サーバー負荷: 混雑時は遅くなる可能性があります"
+      ]
+    });
+
+    return rationale;
+  };
+
   // Render cost estimation display
   const renderCostEstimation = () => {
     console.log('🎨 renderCostEstimation called - loadingCostEstimation:', loadingCostEstimation, 'costEstimation:', costEstimation)
@@ -1166,6 +1270,48 @@ const AnalyzePage: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Detailed Rationale Toggle */}
+          {processingTime && (
+            <div className="mt-2">
+              <button
+                onClick={() => setShowEstimationRationale(!showEstimationRationale)}
+                className="w-full p-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
+              >
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-gray-700 flex items-center gap-2">
+                    <span>📋</span>
+                    <span>推定の詳細な根拠を見る</span>
+                  </span>
+                  <span className="text-gray-500">
+                    {showEstimationRationale ? '▲' : '▼'}
+                  </span>
+                </div>
+              </button>
+
+              {showEstimationRationale && (() => {
+                const rationale = generateEstimationRationale(processingTime, costs);
+                return (
+                  <div className="mt-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                    <div className="space-y-3">
+                      {rationale.sections.map((section, index) => (
+                        <div key={index} className="space-y-1">
+                          <div className="text-sm font-semibold text-gray-800">
+                            {section.title}
+                          </div>
+                          <div className="text-xs text-gray-700 space-y-0.5">
+                            {section.content.map((line, lineIndex) => (
+                              <div key={lineIndex}>{line}</div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
