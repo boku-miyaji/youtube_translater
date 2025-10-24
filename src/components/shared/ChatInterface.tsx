@@ -14,9 +14,10 @@ interface ChatInterfaceProps {
   transcript?: string
   summary?: string
   gptModel?: string
+  contentType?: 'youtube' | 'pdf' | 'audio' | 'video'
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion, videoTitle, transcript, summary, gptModel }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion, videoTitle, transcript, summary, gptModel, contentType = 'youtube' }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -95,9 +96,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     
     if (!hasAnyContent) {
       console.log('❌ No content available - showing error')
+      const labels = getContentLabel()
+      const errorContent = contentType === 'pdf'
+        ? 'まずPDFをアップロードして分析を実行してから質問してください。'
+        : `まず${labels.source}をアップロードして文字起こしを生成してから質問してください。`
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: 'まず動画をアップロードして文字起こしを生成してから質問してください。',
+        content: errorContent,
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, {
@@ -311,19 +316,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
     return uniqueQuestions.slice(0, 5)
   }
 
+  // Get content label based on content type
+  const getContentLabel = () => {
+    switch (contentType) {
+      case 'pdf':
+        return { short: 'この文書', long: 'この文書', title: '文書', source: '文書' }
+      case 'audio':
+        return { short: 'この音声', long: 'この音声コンテンツ', title: '音声', source: '音声' }
+      case 'video':
+        return { short: 'この動画', long: 'この動画', title: '動画', source: '動画' }
+      case 'youtube':
+      default:
+        return { short: '動画', long: 'この動画', title: '動画', source: '動画' }
+    }
+  }
+
   // Advanced content analysis function - ensures questions are answerable from content
   const analyzeContentForQuestions = (summary: string, transcript: string, title: string) => {
     const specificQuestions: string[] = []
     const contextualQuestions: string[] = []
     const deepDiveQuestions: string[] = []
-    
+
     // Use primary content (summary preferred, then transcript)
     const primaryContent = summary || transcript
     const secondaryContent = summary ? transcript : ''
-    
+
     if (!primaryContent) {
       return { specificQuestions, contextualQuestions, deepDiveQuestions }
     }
+
+    // Get appropriate content labels
+    const labels = getContentLabel()
     
     // Extract key entities and concepts from content
     const contentAnalysis = extractKeyEntities(primaryContent)
@@ -334,57 +357,58 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         // Only ask if the concept appears to be explained (has context around it)
         const conceptContext = findConceptContext(primaryContent, concept)
         if (conceptContext.isExplained) {
-          specificQuestions.push(`${concept}について、動画で説明されていた内容をもう少し詳しく教えて`)
+          specificQuestions.push(`${concept}について、${labels.source}で説明されていた内容をもう少し詳しく教えて`)
         }
       }
     })
-    
+
     // Generate questions for numbers that have context in the content
     contentAnalysis.numbers.forEach(number => {
       const numberContext = findNumberContext(primaryContent, number)
       if (numberContext.hasExplanation) {
-        specificQuestions.push(`動画で言及されていた「${number}」について詳しく説明して`)
+        specificQuestions.push(`${labels.source}で言及されていた「${number}」について詳しく説明して`)
       }
     })
-    
+
     // Generate questions for methods that are actually described
     contentAnalysis.methods.forEach(method => {
       const methodContext = findMethodContext(primaryContent, method)
       if (methodContext.isDescribed) {
-        specificQuestions.push(`動画で紹介されていた「${method}」について詳しく教えて`)
+        specificQuestions.push(`${labels.source}で紹介されていた「${method}」について詳しく教えて`)
       }
     })
-    
+
     // Generate contextual questions only for themes present in content
     if (contentAnalysis.hasResults && hasResultsDetails(primaryContent)) {
-      contextualQuestions.push('動画で紹介されていた結果について、より詳しく説明して')
+      contextualQuestions.push(`${labels.source}で紹介されていた結果について、より詳しく説明して`)
     }
-    
+
     if (contentAnalysis.hasComparison && hasComparisonDetails(primaryContent)) {
-      contextualQuestions.push('動画で比較されていた内容について、違いをもっと詳しく教えて')
+      contextualQuestions.push(`${labels.source}で比較されていた内容について、違いをもっと詳しく教えて`)
     }
-    
+
     if (contentAnalysis.hasProcess && hasProcessDetails(primaryContent)) {
-      contextualQuestions.push('動画で説明されていたプロセスの重要なポイントを教えて')
+      contextualQuestions.push(`${labels.source}で説明されていたプロセスの重要なポイントを教えて`)
     }
-    
+
     // Extract quotes and specific mentions that have enough context
     const quotes = extractMeaningfulQuotes(primaryContent)
     quotes.forEach(quote => {
       if (quote.length > 5 && quote.length < 30) {
-        deepDiveQuestions.push(`動画で「${quote}」と言っていたのはどういう意味ですか？`)
+        const verb = contentType === 'pdf' ? '記載されていた' : '言っていた'
+        deepDiveQuestions.push(`${labels.source}で「${quote}」と${verb}のはどういう意味ですか？`)
       }
     })
-    
+
     // Generate questions about specific examples mentioned in the content
     const examples = extractExamples(primaryContent)
     examples.forEach(example => {
-      deepDiveQuestions.push(`動画で例として挙げられていた「${example}」について詳しく教えて`)
+      deepDiveQuestions.push(`${labels.source}で例として挙げられていた「${example}」について詳しく教えて`)
     })
-    
+
     // Only include title-based questions if the title content is actually discussed
     if (title && isTitleContentDiscussed(primaryContent, title)) {
-      contextualQuestions.push(`動画のタイトル「${title}」に関する内容で、特に重要だと思うポイントは？`)
+      contextualQuestions.push(`${labels.title}のタイトル「${title}」に関する内容で、特に重要だと思うポイントは？`)
     }
     
     return { specificQuestions, contextualQuestions, deepDiveQuestions }

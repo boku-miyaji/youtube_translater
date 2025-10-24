@@ -2500,13 +2500,14 @@ const AnalyzePage: React.FC = () => {
                   preview: typeof currentVideo.summary === 'string' ? currentVideo.summary.substring(0, 100) + '...' : JSON.stringify(currentVideo.summary).substring(0, 100) + '...'
                 } : 'MISSING')
                 
-                return <ChatInterface 
-                  videoId={currentVideo.basic?.videoId} 
+                return <ChatInterface
+                  videoId={currentVideo.basic?.videoId}
                   prefillQuestion={prefillQuestion}
                   videoTitle={currentVideo.basic?.title}
                   transcript={currentVideo.transcript}
                   summary={currentVideo.summary}
                   gptModel={currentVideo.gptModel}
+                  contentType={currentVideo.analysisType || 'youtube'}
                 />
               })()}
             </div>
