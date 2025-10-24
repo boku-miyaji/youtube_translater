@@ -1130,18 +1130,58 @@ const AnalyzePage: React.FC = () => {
 
     // Section 4: Processing Breakdown
     const total = processingTime.total;
+    const transcriptionPercentage = Math.round(transcriptionTime / total * 100);
+    const summaryPercentage = Math.round(summaryTime / total * 100);
+
+    const timeBreakdownContent = [];
+
+    if (isPDF) {
+      // For PDF: show per-page breakdown
+      const pagesCount = durationMinutes || 0;
+      const transcriptionPerPage = pagesCount > 0 ? transcriptionTime / pagesCount : 0;
+      const summaryPerPage = pagesCount > 0 ? summaryTime / pagesCount : 0;
+
+      timeBreakdownContent.push(
+        `テキスト抽出: ${formatProcessingTime(transcriptionTime)}`,
+        pagesCount > 0 ? `  → 1ページあたり: ${transcriptionPerPage.toFixed(1)}秒` : "",
+        `要約生成: ${formatProcessingTime(summaryTime)}`,
+        pagesCount > 0 ? `  → 1ページあたり: ${summaryPerPage.toFixed(1)}秒` : "",
+        `合計: ${formatProcessingTime(total)}`,
+        "",
+        pagesCount > 0 ? `このPDF (${pagesCount}ページ) の場合:` : "",
+        pagesCount > 0 ? `${pagesCount}ページ × ${transcriptionPerPage.toFixed(1)}秒/ページ = ${formatProcessingTime(transcriptionTime)} (テキスト抽出)` : "",
+        pagesCount > 0 ? `${pagesCount}ページ × ${summaryPerPage.toFixed(1)}秒/ページ = ${formatProcessingTime(summaryTime)} (要約)` : "",
+        pagesCount > 0 ? `合計: ${formatProcessingTime(total)}` : "",
+        "",
+        `テキスト抽出: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`,
+        "PDFからのテキスト抽出は高速です"
+      );
+    } else {
+      // For video: show per-minute breakdown
+      const minutes = durationMinutes || 0;
+      const transcriptionPerMinute = minutes > 0 ? transcriptionTime / minutes : 0;
+      const summaryPerMinute = minutes > 0 ? summaryTime / minutes : 0;
+
+      timeBreakdownContent.push(
+        `文字起こし: ${formatProcessingTime(transcriptionTime)}`,
+        minutes > 0 ? `  → 1分あたり: ${transcriptionPerMinute.toFixed(1)}秒` : "",
+        `要約生成: ${formatProcessingTime(summaryTime)}`,
+        minutes > 0 ? `  → 1分あたり: ${summaryPerMinute.toFixed(1)}秒` : "",
+        `合計: ${formatProcessingTime(total)}`,
+        "",
+        minutes > 0 ? `この動画 (${minutes}分) の場合:` : "",
+        minutes > 0 ? `${minutes}分 × ${transcriptionPerMinute.toFixed(1)}秒/分 = ${formatProcessingTime(transcriptionTime)} (文字起こし)` : "",
+        minutes > 0 ? `${minutes}分 × ${summaryPerMinute.toFixed(1)}秒/分 = ${formatProcessingTime(summaryTime)} (要約)` : "",
+        minutes > 0 ? `合計: ${formatProcessingTime(total)}` : "",
+        "",
+        `文字起こし: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`,
+        "文字起こしが処理時間の大部分を占めます"
+      );
+    }
 
     rationale.sections.push({
       title: "⏱️ 処理時間内訳",
-      content: [
-        `${isPDF ? 'テキスト抽出' : '文字起こし'}: ${formatProcessingTime(transcriptionTime)} (${Math.round(transcriptionTime / total * 100)}%)`,
-        `要約生成: ${formatProcessingTime(summaryTime)} (${Math.round(summaryTime / total * 100)}%)`,
-        `合計: ${formatProcessingTime(total)}`,
-        "",
-        isPDF ?
-          "PDFからのテキスト抽出は高速です" :
-          "文字起こしが処理時間の大部分を占めます"
-      ]
+      content: timeBreakdownContent.filter(Boolean)
     });
 
     // Section 5: Factors
