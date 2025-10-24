@@ -15,12 +15,14 @@ interface ChatInterfaceProps {
   summary?: string
   gptModel?: string
   contentType?: 'youtube' | 'pdf' | 'audio' | 'video'
+  onCostUpdate?: (messageCost: number, totalChatCost: number) => void
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion, videoTitle, transcript, summary, gptModel, contentType = 'youtube' }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion, videoTitle, transcript, summary, gptModel, contentType = 'youtube', onCostUpdate }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [chatCost, setChatCost] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   // Ensure transcript and summary are strings for all usage and handle empty strings
@@ -248,6 +250,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
       }
 
       const data = await response.json()
+
+      // Update chat costs if available
+      if (data.cost !== undefined) {
+        const newTotalChatCost = data.costs?.chat || (chatCost + data.cost)
+        setChatCost(newTotalChatCost)
+
+        // Notify parent component of cost update
+        if (onCostUpdate) {
+          onCostUpdate(data.cost, newTotalChatCost)
+        }
+
+        console.log('💰 Chat cost updated:', {
+          messageCost: data.cost,
+          totalChatCost: newTotalChatCost,
+          sessionCosts: data.costs
+        })
+      }
+
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.response,
@@ -638,6 +658,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ videoId, prefillQuestion,
         <div ref={messagesEndRef} />
       </div>
       
+
+      {/* Chat cost display */}
+      {chatCost > 0 && (
+        <div className="text-xs text-gray-500 mb-2 flex items-center justify-end">
+          <span className="bg-gray-100 px-2 py-1 rounded">
+            💬 Chat cost: ${chatCost.toFixed(4)}
+          </span>
+        </div>
+      )}
 
       <form onSubmit={sendMessage} className="flex space-x-2">
         <input

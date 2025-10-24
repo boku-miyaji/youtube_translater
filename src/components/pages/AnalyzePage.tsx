@@ -876,10 +876,17 @@ const AnalyzePage: React.FC = () => {
           // Ensure we have the required fields for PDF analysis
           if ((inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) && data.analysisTime) {
             const analysisTime = { ...data.analysisTime };
+
+            // Ensure total is correctly calculated for PDFs
+            if (!analysisTime.total && analysisTime.extraction !== undefined && analysisTime.summary !== undefined) {
+              analysisTime.total = (analysisTime.extraction || 0) + (analysisTime.summary || 0);
+              console.log('🔧 Calculated missing PDF total time:', analysisTime.total);
+            }
+
             console.log('🔧 Created analysisTime copy for PDF:', analysisTime);
             return analysisTime;
           }
-          
+
           return data.analysisTime;
         })(),
         // Add analysis type from server response or infer from input type
@@ -968,15 +975,31 @@ const AnalyzePage: React.FC = () => {
     setTimeout(() => setPrefillQuestion(''), 100)
   }
 
+  // Handle chat cost update
+  const handleChatCostUpdate = (messageCost: number, totalChatCost: number) => {
+    if (currentVideo && currentVideo.costs) {
+      const updatedCosts = {
+        ...currentVideo.costs,
+        chat: totalChatCost,
+        total: currentVideo.costs.transcription + currentVideo.costs.summary + currentVideo.costs.article + totalChatCost
+      }
+
+      setCurrentVideo({
+        ...currentVideo,
+        costs: updatedCosts
+      })
+    }
+  }
+
   // Handle article generation cost update
   const handleArticleGenerated = (cost: number) => {
     if (currentVideo && currentVideo.costs) {
       const updatedCosts = {
         ...currentVideo.costs,
         article: cost,
-        total: currentVideo.costs.transcription + currentVideo.costs.summary + cost
+        total: currentVideo.costs.transcription + currentVideo.costs.summary + cost + (currentVideo.costs.chat || 0)
       }
-      
+
       setCurrentVideo({
         ...currentVideo,
         costs: updatedCosts
@@ -2210,7 +2233,7 @@ const AnalyzePage: React.FC = () => {
                                   )}
                                 </div>
                               </div>
-                              
+
                               {/* 記事生成（もし生成されていれば） */}
                               {currentVideo.costs.article > 0 && (
                                 <div className="bg-gray-50 p-2 rounded border border-gray-200">
@@ -2225,7 +2248,22 @@ const AnalyzePage: React.FC = () => {
                                   </div>
                                 </div>
                               )}
-                              
+
+                              {/* チャット（もし使用していれば） */}
+                              {currentVideo.costs.chat > 0 && (
+                                <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                  <div className="text-xs font-semibold text-gray-700 mb-1">💬 チャット</div>
+                                  <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">コスト:</span>
+                                      <span className="font-semibold text-black">
+                                        ${currentVideo.costs.chat.toFixed(4)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
                               {/* 合計 */}
                               <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
                                 <span className="text-sm text-black font-bold">合計コスト:</span>
@@ -2524,6 +2562,7 @@ const AnalyzePage: React.FC = () => {
                   summary={currentVideo.summary}
                   gptModel={currentVideo.gptModel}
                   contentType={currentVideo.analysisType || 'youtube'}
+                  onCostUpdate={handleChatCostUpdate}
                 />
               })()}
             </div>

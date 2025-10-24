@@ -455,8 +455,8 @@ export interface PDFAnalysisResponse extends ApiResponse {
     duration?: number;
     extraction?: number;
     transcription?: number;
-    summary: number;
-    total: number;
+    summary?: number;
+    total?: number;
   };
 }
 
@@ -596,6 +596,7 @@ export interface DetailedCosts {
   transcription: number;
   summary: number;
   article: number;
+  chat: number;
   total: number;
 }
 

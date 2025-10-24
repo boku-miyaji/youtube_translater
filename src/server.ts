@@ -2321,6 +2321,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: totalCost
       },
       analysisTime: analysisTimeInfo,
@@ -2345,6 +2346,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0, // Article is generated separately
+        chat: 0,
         total: totalCost
       },
       analysisTime: analysisTimeInfo,
@@ -2482,6 +2484,7 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: transcriptionCost + summaryCost
       },
       analysisTime,
@@ -2551,6 +2554,7 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: transcriptionCost + summaryCost
       },
       analysisTime: {
@@ -2746,6 +2750,7 @@ app.post('/api/upload-audio-file', upload.single('file'), async (req: Request, r
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: totalCost
       },
       audioMetadata: {
@@ -2757,6 +2762,7 @@ app.post('/api/upload-audio-file', upload.single('file'), async (req: Request, r
           transcription: transcriptionCost,
           summary: summaryCost,
           article: 0,
+          chat: 0,
           total: totalCost
         },
         analysisTime: {
@@ -3143,6 +3149,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         transcription: 0,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: summaryCost
       },
       analysisTime: {
