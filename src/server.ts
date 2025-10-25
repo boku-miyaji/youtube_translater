@@ -3958,6 +3958,21 @@ app.get('/history', (req: Request, res: Response) => {
   });
 });
 
+// Health check endpoint for Docker/Cloud Run
+app.get('/api/health', (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: {
+      rss: `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`,
+      heapUsed: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)}MB`
+    },
+    version: '2.0.0'
+  });
+});
+
 // API version of history endpoint
 app.get('/api/history', (req: Request, res: Response) => {
   const history = loadHistory();

@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# Node modules (will be installed in container)
+node_modules
+
+# Build outputs (will be rebuilt)
+dist
+
+# Development files
+.env
+.env.local
+*.log
+npm-debug.log*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/__tests__
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Tasks and project management
+tasks
+.claude
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# User uploads (should be stored in cloud storage)
+uploads/*
+history/*
+transcripts/*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Development scripts
+test-*.js
+test-*.sh
+*.sh
