@@ -1,319 +1,223 @@
-# Pull Request: Fix Cost and Time Calculation Issues
+# Pull Request: Fix cost and time calculation issues (#23)
 
-**Issue**: #23
-**Type**: Bug Fix
-**Branch**: `feature/implement-23`
-**Status**: Ready for Review
+## 概要
 
-## 📋 Issue Summary
+料金計算と時間計算の精度を大幅に改善しました。特にPDF処理において、推定時間が実際の54倍もずれていた問題を修正し、チャット料金の表示、履歴データを活用した予測、詳細な根拠表示など、ユーザーエクスペリエンスを向上させる機能を実装しました。
 
-Fixes two critical bugs affecting user experience and transparency:
+## 実装した機能
 
-1. **Chat Cost Not Displayed**: チャット機能を使用した際の料金が表示されていない
-2. **PDF Time Display Issues**: PDFの処理時間の表示に問題
-   - 計算自体は正しいが、ラベルが不明確で混乱を招いていた
-   - 「文書解析」というラベルでは何を測定しているか分からない
+### 1. チャット料金追跡（Chat Cost Tracking）
+- チャット機能使用時の料金を追跡・表示
+- 総コストにチャット料金を含めて表示
+- リアルタイムでコスト更新
 
-## 🔧 Implementation Summary
+### 2. PDF処理時間計算の修正
+- **PDF抽出時間**: WhisperベースからページベースCalculationに変更
+- **正規化の実装**: ページ数による正規化（秒/ページ）
+- **デフォルト値の最適化**:
+  - 抽出: 1.5秒/ページ → 0.5秒/ページ
+  - 要約: 48秒/ページ → 1.5秒/ページ (gpt-4o-mini)
+  - 結果: 18分59秒の予測 → 47秒（実際21秒）
 
-### 1. Chat Cost Tracking and Display
+### 3. 履歴データ活用による時間推定
+- `AnalysisProgressDatabase`による実績データ追跡
+- コンテンツタイプ別（PDF/動画/音声）の統計
+- サンプル数に基づく信頼度計算
+- 2件以上の実績で履歴ベースの推定に自動切り替え
 
-**Problem**: Backend was calculating chat costs but frontend wasn't capturing or displaying them.
+### 4. 事前推定機能（Pre-Analysis Estimation）
+- **YouTube URL**: URL入力時に動画時間を取得し、コスト・時間を推定
+- **PDF URL**: PDFをダウンロードしてページ数を取得し、正確な推定を提供
+- リアルタイムでの推定表示
 
-**Solution**:
-- Added `chat` field to `DetailedCosts` interface
-- Updated `ChatInterface` to capture costs from API response
-- Added `onCostUpdate` callback to notify parent component
-- Display chat cost in UI (💬 Chat cost: $X.XXXX)
-- Include chat costs in total cost calculation
+### 5. 詳細な根拠表示（Detailed Rationale）
+トグルボタンで表示・非表示を切り替え可能な詳細根拠：
 
-**Code Changes**:
-- `ChatInterface.tsx`: Added cost state, capture logic, and UI display
-- `AnalyzePage.tsx`: Added `handleChatCostUpdate` handler and cost display section
-- `types/index.ts`: Added `chat: number` to DetailedCosts
-- `server.ts`: Added `chat: 0` to all cost initializations
+#### 表示項目
+- **データソース**: 履歴データ使用 or デフォルト係数使用
+- **正規化方法**: ページベース（PDF）/ 分ベース（動画）
+- **コスト内訳**:
+  - 文字起こし/テキスト抽出コスト
+  - 要約生成コスト
+  - 単位あたりコスト（$/分 or $/ページ）
+  - 計算式: "23ページ × $0.000270/ページ = $0.0062"
+- **処理時間内訳**:
+  - 文字起こし/テキスト抽出時間
+  - 要約生成時間
+  - 単位あたり時間（秒/分 or 秒/ページ）
+  - 計算式: "23ページ × 1.5秒/ページ = 35秒"
+  - パーセンテージ表示
+- **影響要因**: モデル選択、コンテンツ特性、サーバー負荷など
 
-### 2. PDF Time Calculation and Display Improvements
+#### UI改善
+- 簡潔な表示: 冗長な情報を削減し、スキャン可能な構造に
+- 一貫性: 動画とPDFで同じフォーマット
+- アクセシビリティ: トグルボタンでオンデマンド表示
 
-**Problem 1**: Type inconsistencies and missing fallback calculations
-**Solution**:
-- Made `analysisTime` fields consistently optional across interfaces
-- Added safeguard to calculate `total` from `extraction + summary` if missing
-- Ensured PDF times display correctly without showing "計測中..." indefinitely
+### 6. バグ修正
+- **ボタンの誤動作**: 「推定の詳細を見る」ボタンが解析を開始してしまう問題を修正
+- **表示形式**: 合計時間ではなくレート表示されていた問題を修正
+- **durationMinutes欠落**: PDF解析完了後に詳細根拠が表示されない問題を修正
 
-**Problem 2**: Unclear labeling causing user confusion
-**User Feedback**:
-> pdfなどの文書の処理時間はどうやって求めている？文字起こし（文字抽出）に想定よりも時間かかっています。そんなにかからないはず。ようやくの方が時間がかかるのでは？
+## テスト結果
 
-**Root Cause**:
-- Label "文書解析" (Document Analysis) was too vague
-- Users expected: text extraction = fast, summary = slow
-- Backend was measuring correctly, but UI wasn't clear about what was being displayed
+### 時間推定精度の改善
 
-**Solution**:
-- Changed label from "📄 文書解析" → "📄 PDFテキスト抽出" (clearer intent)
-- Added detailed console logging for timing breakdown
-- Frontend logs all timing fields for debugging
-- Backend logs comprehensive timing breakdown in Japanese
+**23ページPDFの例**:
+| 項目 | 修正前 | 修正後 | 実際 | 精度 |
+|------|--------|--------|------|------|
+| 抽出時間 | 35秒 | 12秒 | 0.1秒 | 大幅改善 |
+| 要約時間 | 1104秒 | 35秒 | 21秒 | 大幅改善 |
+| 合計 | 18分59秒 | 47秒 | 21秒 | ✅ |
+| 誤差 | 54倍 | 2.2倍 | - | 96%改善 |
 
-**Enhanced Logging**:
+### 型チェック・ビルド
+- ✅ TypeScript型チェック通過
+- ✅ サーバービルド成功
+- ✅ クライアントビルド成功
 
-Frontend (AnalyzePage.tsx):
-```typescript
-console.log('📄 PDF Timing Fields:', {
-  extraction: ...,  // extractPDFText() only
-  summary: ...,     // generateSummary() only
-  total: ...,       // extraction + summary
-  duration: ...     // wall clock with file I/O
-});
-```
+### 機能テスト
+- ✅ YouTube URL推定表示
+- ✅ PDF URL推定表示（ページ数取得）
+- ✅ 詳細根拠のトグル表示
+- ✅ チャット料金追跡
+- ✅ 履歴データ活用（2件以上処理後）
+- ✅ PDF/動画それぞれで正しい正規化
 
-Backend (server.ts):
-```
-📊 ========== PDF TIMING BREAKDOWN ==========
-   📄 PDFテキスト抽出: 2.3s (extractPDFText() のみ)
-   📝 要約生成: 15.7s (generateSummary() のみ)
-   ⏱️ 合計処理時間: 18.0s (抽出+要約)
-   🕒 壁時計時間: 25.0s (全体、ファイルI/O含む)
-   ℹ️  Note: フロントエンドには extraction=2.3s が表示されます
-=========================================
-```
+## 変更ファイル一覧
 
-**Code Changes**:
-- `types/index.ts`: Made analysisTime fields optional
-- `AnalyzePage.tsx`:
-  - Changed label for PDF first stage
-  - Added detailed timing debug logs
-  - Added fallback calculation for missing total time
-- `server.ts`:
-  - Enhanced timing logging with Japanese labels
-  - Clear explanation of what each time value represents
-- `tasks/memo/pdf-time-investigation.md`: Investigation documentation
+### コアロジック
+- **src/server.ts** (+386, -165)
+  - `/api/estimate-cost-pdf` エンドポイント追加・強化
+  - `calculateProcessingTime()` 関数のPDF対応
+  - PDF処理のデフォルト値最適化
+  - 履歴データ活用ロジック
+  - analysisTime に durationMinutes 追加
 
-### 3. Backend Updates
+- **src/database/analysis-progress.ts** (+34)
+  - `calculateContentTypeStats()` でPDFの正規化を修正
+  - PDF用の統計計算（秒/ページ）
 
-**Changes**: Added `chat: 0` to cost object initializations in 7+ API endpoints
-- YouTube transcription endpoints
-- PDF analysis endpoint
-- Audio/video upload endpoints
-- All cost objects now include the chat field
+- **src/types/index.ts** (+7)
+  - `PDFAnalysisResponse` に durationMinutes 追加
+  - `HistoryEntry` に durationMinutes 追加
+  - `addToHistory` パラメータ型更新
 
-### 4. Testing
+### フロントエンド
+- **src/components/pages/AnalyzePage.tsx** (+400)
+  - `estimateCostForPDFUrl()` 関数追加
+  - `generateEstimationRationale()` 関数実装
+  - PDF URL estimation triggering
+  - 詳細根拠UI実装
+  - トグルボタン実装
 
-**New Tests**: Created `tests/utils/cost-time-calculations.test.ts`
-- 17 test cases covering cost calculations and time formatting
-- Tests for chat cost accumulation
-- Tests for PDF time calculation
-- Edge case handling (zero, negative values)
+- **src/components/shared/ChatInterface.tsx** (+31)
+  - チャットコスト追跡機能
 
-## 📊 Testing Results
+### テスト
+- **tests/utils/cost-time-calculations.test.ts** (新規)
+  - コスト・時間計算のユニットテスト
 
-### Build & Type Check
-- ✅ `npm run build`: Success (no TypeScript errors)
-- ✅ `npm run type-check`: Success
-- ✅ All type definitions compatible
+### ドキュメント
+- **tasks/pr/23_commits/** (8ファイル)
+  - 各コミットの詳細な変更記録
 
-### Manual Testing Checklist
+## 技術的ハイライト
 
-#### Chat Cost Display
-- [ ] Send multiple chat messages and verify cost appears
-- [ ] Verify cost increases with each message
-- [ ] Check that total cost includes chat cost
-- [ ] Verify cost persists in the cost breakdown UI
-- [ ] Test with different GPT models (different pricing)
-
-#### PDF Time Display
-- [ ] Upload a PDF file
-- [ ] Verify "PDFテキスト抽出" label (not "文書解析")
-- [ ] Verify extraction time displays (not "計測中...")
-- [ ] Verify summary time displays
-- [ ] Check that total time ≈ extraction + summary
-- [ ] Check server console for detailed timing breakdown
-- [ ] Reload page and verify times persist correctly
-
-#### PDF Time Console Verification
-- [ ] Upload PDF and check server console shows:
-  - 📄 PDFテキスト抽出: X.Xs
-  - 📝 要約生成: Y.Ys
-  - ⏱️ 合計処理時間: Z.Zs
-  - 🕒 壁時計時間: W.Ws
-- [ ] Verify extraction time is reasonable (< 5s for typical PDFs)
-- [ ] Verify summary time is larger than extraction time
-
-#### Regression Testing
-- [ ] Test YouTube video analysis (times should still work)
-- [ ] Test audio file analysis (times should still work)
-- [ ] Test video file analysis (times should still work)
-- [ ] Verify article generation costs still work
-- [ ] Check cost history functionality
-
-## 📁 Files Modified
-
-### Source Code (5 files)
-1. **src/types/index.ts** (8 changes)
-   - Added `chat: number` to DetailedCosts interface
-   - Made analysisTime fields optional in PDFAnalysisResponse
-
-2. **src/components/shared/ChatInterface.tsx** (40+ changes)
-   - Added onCostUpdate prop
-   - Added chatCost state
-   - Capture cost from API response
-   - Display chat cost in UI
-
-3. **src/components/pages/AnalyzePage.tsx** (70+ changes)
-   - Added handleChatCostUpdate handler
-   - Updated handleArticleGenerated to include chat costs
-   - Added chat cost display section in UI
-   - Added PDF time fallback calculation
-   - Changed PDF first stage label from "文書解析" to "PDFテキスト抽出"
-   - Added detailed timing debug logs
-
-4. **src/server.ts** (20+ changes)
-   - Added `chat: 0` to 7+ cost object initializations
-   - Enhanced PDF timing logging with Japanese labels
-   - Added comprehensive timing breakdown in console
-
-### Tests (1 new file)
-5. **tests/utils/cost-time-calculations.test.ts** (185 lines)
-   - Comprehensive test coverage for Issue #23 fixes
-
-### Documentation (1 new file)
-6. **tasks/memo/pdf-time-investigation.md** (126 lines)
-   - Investigation of PDF timing implementation
-   - Explanation of timing measurement points
-   - Documentation of each timing field's meaning
-   - Debug scenarios and solutions
-
-## 🔍 Code Review Points
-
-### Type Safety
-- All changes maintain TypeScript type safety
-- DetailedCosts interface extended without breaking changes
-- Optional fields properly handled with fallbacks
-
-### Performance
-- Minimal performance impact
-- Cost calculations are simple arithmetic
-- No additional API calls required
-- Logging has negligible overhead
-
-### User Experience
-- Users now have visibility into chat costs
-- PDF time labels are clear and unambiguous
-- Detailed console logging helps diagnose issues
-- No breaking changes to existing functionality
-
-### Code Quality
-- Follows existing code patterns
-- Proper error handling
-- Comprehensive comments and logs in Japanese for clarity
-- Investigation documentation for future reference
-
-## 📊 Timing Architecture (PDF)
-
-### How PDF Times Are Measured
-
-```
-Request Start (analysisStartTime)
-  ↓
-File Download/Upload
-  ↓
-extractionStartTime
-  ↓ extractPDFText(pdfBuffer)  ← Measured as "extraction"
-  ↓
-extractionEndTime
-  ↓
-summaryStartTime
-  ↓ generateSummary(...)        ← Measured as "summary"
-  ↓
-summaryEndTime
-  ↓
-Response Sent (analysisEndTime)
-```
-
-### Time Fields Explained
+### 1. コンテンツタイプ別の正規化
 
 ```typescript
-analysisTime: {
-  duration: totalAnalysisTime,      // Full wall clock time (includes file I/O)
-  extraction: extractionDuration,   // extractPDFText() only
-  summary: summaryDuration,         // generateSummary() only
-  total: actualProcessingTime       // extraction + summary
+// PDF: ページベース
+const secondsPerPage = extractionTime / pageCount;
+stats.pdf.transcriptionAverage = secondsPerPage;
+
+// Video: 分ベース
+const secondsPerMinute = extractionTime / (duration / 60);
+stats.video.transcriptionAverage = secondsPerMinute;
+```
+
+### 2. 履歴データ活用
+
+```typescript
+if (stats.contentTypeStats.pdf && stats.contentTypeStats.pdf.sampleSize >= 2) {
+  // 履歴データ使用
+  summaryTime = pageCount * stats.contentTypeStats.pdf.summaryAverage;
+  isHistoricalEstimate = true;
+} else {
+  // デフォルト値使用
+  summaryTime = pageCount * 1.5; // 現実的なデフォルト
 }
 ```
 
-### What's Displayed
+### 3. PDF URL からの正確な推定
 
-| Stage | Label | Time Source | Typical Value |
-|-------|-------|-------------|---------------|
-| First Stage | 📄 PDFテキスト抽出 | `extraction` | 1-5 seconds |
-| Second Stage | 📋 要約生成 | `summary` | 10-30 seconds |
-| Total | 合計処理時間 | `total` | extraction + summary |
+```typescript
+// PDFをダウンロードして実際のページ数を取得
+const pdfBuffer = await downloadPDF(url);
+const pdfContent = await extractPDFText(pdfBuffer);
+const actualPageCount = pdfContent.pageCount;
+// 正確なページ数で推定
+const processingTime = calculateProcessingTime('pdf-parse', gptModel, actualPageCount, 'pdf');
+```
 
-## ✅ Success Metrics
+## 人間が最終チェックすべき項目
 
-### Chat Costs
-- ✅ Chat costs display correctly in UI
-- ✅ Costs accumulate properly across multiple messages
-- ✅ Total cost includes all components (transcription + summary + article + chat)
-- ✅ No console errors related to cost calculation
+### 機能確認
+- [ ] YouTube URL入力時に推定コスト・時間が表示される
+- [ ] PDF URL入力時に推定コスト・時間が表示される（PDFダウンロード後）
+- [ ] 「推定の詳細を見る」ボタンで詳細根拠が表示・非表示切り替え
+- [ ] 詳細根拠に以下が含まれる:
+  - [ ] データソース（履歴 or デフォルト）
+  - [ ] コスト内訳（単位あたりコスト含む）
+  - [ ] 処理時間内訳（単位あたり時間含む）
+  - [ ] 計算式（"Xページ × Y/ページ = Z"形式）
+  - [ ] 影響要因
+- [ ] チャット使用時に料金が追跡・表示される
+- [ ] 2件目のPDF解析後、履歴データを使った推定に切り替わる
 
-### PDF Times
-- ✅ PDF time labels are clear ("PDFテキスト抽出" not "文書解析")
-- ✅ Detailed console logging helps diagnose performance issues
-- ✅ Time values are logical (extraction + summary ≈ total)
-- ✅ No "計測エラー" for valid PDF processing
-- ✅ Times persist correctly after page refresh
-- ✅ Users can verify timing breakdown in console
+### 精度確認
+- [ ] PDF推定時間が実際の処理時間の2-3倍以内に収まる
+- [ ] 動画推定時間が実際の処理時間の2-3倍以内に収まる
+- [ ] コスト推定が実際のコストの±20%以内
 
-## 🔗 Related Issues
+### UI/UX確認
+- [ ] 推定表示が読みやすい
+- [ ] 詳細根拠が冗長すぎない
+- [ ] 動画とPDFで表示形式が統一されている
+- [ ] ボタンのアクションが意図通り（解析開始しない）
 
-- **Related to Issue #20**: PDF processing and time display issues (related context)
-- **Related to Issue #21**: Content-type aware UI (may affect display logic)
+### エッジケース
+- [ ] 非常に大きなPDF（100ページ以上）での推定
+- [ ] 非常に長い動画（2時間以上）での推定
+- [ ] 履歴データがない状態（初回）での推定
+- [ ] ネットワークエラー時の挙動
 
-## 📝 Notes for Reviewers
+### パフォーマンス
+- [ ] PDF URL推定のダウンロード時間が許容範囲内（数秒）
+- [ ] 詳細根拠の表示・非表示が即座に切り替わる
+- [ ] ページロード時間に影響がない
 
-### Why These Changes?
-1. **Chat Costs**: Backend already had the logic, frontend just needed to capture and display
-2. **PDF Times (Type Safety)**: Type safety improvements + defensive programming for edge cases
-3. **PDF Times (Labeling)**: Clear communication about what's being measured
-4. **Minimal Changes**: Focused fixes without unnecessary refactoring
+## Breaking Changes
 
-### What to Watch For?
-- Verify chat costs update correctly in real-time
-- Check PDF time label clarity in UI
-- Verify server console shows detailed timing breakdown
-- Confirm no regression in video/audio time display
-- Check that "PDFテキスト抽出" time is reasonable (should be fast)
+なし。すべて後方互換性を維持しています。
 
-### Debug Scenarios
+## 次のステップ
 
-**If extraction seems slow:**
-1. Check server console for actual timing values
-2. Verify extraction time vs summary time
-3. Check if wall clock time >> processing time (indicates I/O issue)
+1. 人間による最終チェック
+2. 本番環境へのデプロイ
+3. ユーザーフィードバック収集
+4. 必要に応じてデフォルト値の微調整
 
-**If summary seems slow:**
-- This is expected behavior (GPT API calls)
-- Can be optimized by using faster models
+## 関連Issue
 
-### Future Improvements
-- Consider adding cost warnings/limits
-- Add analytics for cost tracking
-- Implement cost breakdown charts
-- Consider PDF processing optimization if extraction is genuinely slow
+- Issue #23: Fix cost and time calculation issues
+
+## コミット数
+
+合計: 19コミット（docs含む）
+機能実装: 15コミット
 
 ---
 
-**Ready for Merge**: After manual testing checklist is completed
-
-**Estimated Testing Time**: 15-20 minutes
-
-**Risk Level**: Low (focused bug fixes, enhanced logging, no architectural changes)
-
-## 📦 Commits
-
-1. **92d8545**: Main implementation (chat costs + PDF time type fixes)
-2. **123d42b**: PDF time labeling clarification and enhanced logging
-
-**Total Changes**: +1097 insertions, -22 deletions across 11 files
+**レビュワーへのNote**:
+このPRは複数の機能改善とバグ修正を含む大きな変更です。特に「PDF処理時間の精度」と「詳細根拠表示」の部分を重点的にレビューしてください。履歴データ活用により、使えば使うほど推定精度が向上する設計になっています。
