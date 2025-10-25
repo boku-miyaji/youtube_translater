@@ -42,6 +42,7 @@ const AnalyzePage: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null)
   const costEstimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isFirstModelChange = useRef(true)
+  const [showEstimationRationale, setShowEstimationRationale] = useState(false)
 
   useEffect(() => {
     if (location.state?.url) {
@@ -157,8 +158,11 @@ const AnalyzePage: React.FC = () => {
       let predictionInput: PredictionInput
 
       if (inputType === InputType.YOUTUBE_URL) {
-        // For YouTube, we need to estimate duration or use a default
-        const estimatedDuration = 300 // Default 5 minutes - could be improved with YouTube API
+        // IMPORTANT: For YouTube URLs entered by user, we don't have the actual duration yet
+        // We use a conservative estimate that will be replaced with accurate time once analysis starts
+        // The backend will fetch real duration using ytdl.getInfo()
+        const estimatedDuration = 600 // Conservative: assume 10 minutes (was 5, increased for safety)
+        console.warn(`⚠️ YouTube URL: Using estimated duration of ${estimatedDuration}s. Actual duration will be fetched by backend.`);
         predictionInput = {
           contentType: 'youtube',
           duration: estimatedDuration,
@@ -305,8 +309,13 @@ const AnalyzePage: React.FC = () => {
           estimateCostForUrl(value.trim())
         }, 200) // Reduced delay to 200ms for faster response
       } else if (inputType === InputType.PDF_URL && validatePDFUrl(value.trim())) {
-        console.log('✅ Valid PDF URL detected')
-        // Could add PDF preview logic here if needed
+        console.log('✅ Valid PDF URL detected, starting cost estimation')
+        // Estimate cost for valid PDF URLs with a delay using ref for cleanup
+        console.log('⏰ Setting timeout for PDF cost estimation in 200ms')
+        costEstimationTimeoutRef.current = setTimeout(() => {
+          console.log('🔄 Starting PDF cost estimation for URL:', value.trim())
+          estimateCostForPDFUrl(value.trim())
+        }, 200) // Consistent delay with YouTube
       } else if (inputType === InputType.YOUTUBE_URL) {
         console.log('❌ Invalid YouTube URL')
         setUrlError('Please enter a valid YouTube URL')
@@ -346,8 +355,14 @@ const AnalyzePage: React.FC = () => {
         }, 200) // Consistent 200ms delay
       }, 100)
     } else if (pastedText && inputType === InputType.PDF_URL && validatePDFUrl(pastedText)) {
-      console.log('✅ Valid pasted PDF URL')
-      // Could add PDF preview logic here if needed
+      console.log('✅ Valid pasted PDF URL, will trigger cost estimation')
+      setTimeout(() => {
+        // Also estimate cost for pasted PDF URLs
+        setTimeout(() => {
+          console.log('🔄 Starting PDF cost estimation for pasted URL:', pastedText)
+          estimateCostForPDFUrl(pastedText)
+        }, 200) // Consistent 200ms delay
+      }, 100)
     }
   }
 
@@ -415,6 +430,71 @@ const AnalyzePage: React.FC = () => {
     } finally {
       setLoadingCostEstimation(false)
       console.log('✅ Cost estimation completed')
+    }
+  }
+
+  // Estimate cost for PDF URL
+  const estimateCostForPDFUrl = async (url: string) => {
+    console.log('💰 estimateCostForPDFUrl called with:', url)
+
+    if (!validatePDFUrl(url.trim())) {
+      console.log('❌ Invalid PDF URL, skipping cost estimation')
+      return
+    }
+
+    console.log('✅ Valid PDF URL, starting cost estimation...')
+    setLoadingCostEstimation(true)
+    setCostEstimation(null)
+
+    try {
+      console.log('📡 Making API call to /api/estimate-cost-pdf')
+      const response = await fetch('/api/estimate-cost-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: url.trim(),
+          gptModel: model,
+          generateSummary: true
+        }),
+      })
+
+      console.log('📡 API response status:', response.status)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('💰 PDF cost estimation result:', data)
+        setCostEstimation(data)
+        if (data.estimatedProcessingTime) {
+          console.log('💡 Setting estimatedProcessingTime:', data.estimatedProcessingTime)
+          setEstimatedProcessingTime(data.estimatedProcessingTime)
+        } else {
+          console.log('⚠️ No estimatedProcessingTime in response')
+        }
+      } else {
+        let errorDetails = ''
+        try {
+          const errorData = await response.clone().json()
+          errorDetails = JSON.stringify(errorData, null, 2)
+          console.error('❌ Failed to estimate PDF cost (JSON):', response.status, errorData)
+        } catch {
+          const errorText = await response.text()
+          errorDetails = errorText
+          console.error('❌ Failed to estimate PDF cost (Text):', response.status, errorText)
+        }
+        // Set error state with details for debugging
+        setCostEstimation({
+          success: false,
+          error: `API Error ${response.status}: ${errorDetails}`,
+          debug: true
+        })
+      }
+    } catch (error) {
+      console.error('❌ Error estimating PDF cost:', error)
+    } finally {
+      setLoadingCostEstimation(false)
+      console.log('✅ PDF cost estimation completed')
     }
   }
 
@@ -876,10 +956,17 @@ const AnalyzePage: React.FC = () => {
           // Ensure we have the required fields for PDF analysis
           if ((inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) && data.analysisTime) {
             const analysisTime = { ...data.analysisTime };
+
+            // Ensure total is correctly calculated for PDFs
+            if (!analysisTime.total && analysisTime.extraction !== undefined && analysisTime.summary !== undefined) {
+              analysisTime.total = (analysisTime.extraction || 0) + (analysisTime.summary || 0);
+              console.log('🔧 Calculated missing PDF total time:', analysisTime.total);
+            }
+
             console.log('🔧 Created analysisTime copy for PDF:', analysisTime);
             return analysisTime;
           }
-          
+
           return data.analysisTime;
         })(),
         // Add analysis type from server response or infer from input type
@@ -968,15 +1055,31 @@ const AnalyzePage: React.FC = () => {
     setTimeout(() => setPrefillQuestion(''), 100)
   }
 
+  // Handle chat cost update
+  const handleChatCostUpdate = (messageCost: number, totalChatCost: number) => {
+    if (currentVideo && currentVideo.costs) {
+      const updatedCosts = {
+        ...currentVideo.costs,
+        chat: totalChatCost,
+        total: currentVideo.costs.transcription + currentVideo.costs.summary + currentVideo.costs.article + totalChatCost
+      }
+
+      setCurrentVideo({
+        ...currentVideo,
+        costs: updatedCosts
+      })
+    }
+  }
+
   // Handle article generation cost update
   const handleArticleGenerated = (cost: number) => {
     if (currentVideo && currentVideo.costs) {
       const updatedCosts = {
         ...currentVideo.costs,
         article: cost,
-        total: currentVideo.costs.transcription + currentVideo.costs.summary + cost
+        total: currentVideo.costs.transcription + currentVideo.costs.summary + cost + (currentVideo.costs.chat || 0)
       }
-      
+
       setCurrentVideo({
         ...currentVideo,
         costs: updatedCosts
@@ -988,6 +1091,179 @@ const AnalyzePage: React.FC = () => {
   const toggleFormCollapse = () => {
     setFormCollapsed(!formCollapsed)
   }
+
+  // Generate detailed rationale for the estimation
+  const generateEstimationRationale = (processingTime: any, costs: any) => {
+    const contentType =
+      (inputType === InputType.PDF_URL || inputType === InputType.PDF_FILE) ? 'pdf' :
+      (inputType === InputType.AUDIO_FILE) ? 'audio' : 'youtube';
+
+    const isPDF = contentType === 'pdf';
+    const isHistorical = processingTime?.isHistoricalEstimate;
+
+    const rationale = {
+      title: "推定時間の算出根拠",
+      sections: [] as Array<{title: string, content: string[]}>
+    };
+
+    // Section 1: Data Source
+    if (isHistorical) {
+      rationale.sections.push({
+        title: "📊 データソース",
+        content: [
+          `過去の実績データ (サンプル数: ${processingTime.sampleSize || '不明'}件, 信頼度: ${processingTime.confidence ? Math.round(processingTime.confidence * 100) : '?'}%)`
+        ]
+      });
+    } else {
+      rationale.sections.push({
+        title: "📊 データソース",
+        content: [
+          "デフォルト係数を使用 (履歴データなし)"
+        ]
+      });
+    }
+
+    // Section 2: Normalization Method
+    const transcriptionTime = processingTime.transcription;
+    const summaryTime = processingTime.summary;
+
+    const normalizationContent = [];
+
+    if (isPDF) {
+      normalizationContent.push(
+        "PDF: ページベースの正規化",
+        "",
+        `テキスト抽出: ${formatProcessingTime(transcriptionTime)}`,
+        processingTime.transcriptionRate ? `  → 速度: ${processingTime.transcriptionRate}` : "",
+        `要約生成: ${formatProcessingTime(summaryTime)}`,
+        processingTime.summaryRate ? `  → 速度: ${processingTime.summaryRate}` : "",
+        "",
+        "ページ数 × 処理速度 = 推定時間"
+      );
+    } else {
+      normalizationContent.push(
+        "動画/音声: 分ベースの正規化",
+        "",
+        `文字起こし: ${formatProcessingTime(transcriptionTime)}`,
+        processingTime.transcriptionRate ? `  → 速度: ${processingTime.transcriptionRate}` : "",
+        `要約生成: ${formatProcessingTime(summaryTime)}`,
+        processingTime.summaryRate ? `  → 速度: ${processingTime.summaryRate}` : "",
+        "",
+        "動画時間(分) × 処理速度 = 推定時間"
+      );
+    }
+
+    rationale.sections.push({
+      title: "⚖️ 正規化方法",
+      content: normalizationContent.filter(Boolean)
+    });
+
+    // Section 3: Cost Breakdown
+    const durationMinutes = processingTime.durationMinutes || 0;
+    const costPerMinuteTranscription = durationMinutes > 0 ? costs.transcription / durationMinutes : 0;
+    const costPerMinuteSummary = durationMinutes > 0 ? costs.summary / durationMinutes : 0;
+    const costPerMinuteTotal = durationMinutes > 0 ? costs.total / durationMinutes : 0;
+
+    const costContent = [];
+
+    if (isPDF) {
+      // For PDF, show per-page cost
+      const costPerPageSummary = durationMinutes > 0 ? costs.summary / durationMinutes : 0;
+      const costPerPageTotal = durationMinutes > 0 ? costs.total / durationMinutes : 0;
+      costContent.push(
+        `文字起こし: $${costs.transcription.toFixed(4)}`,
+        `要約生成: $${costs.summary.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1ページあたり: 約$${costPerPageSummary.toFixed(6)}` : "",
+        `合計: $${costs.total.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1ページあたり: 約$${costPerPageTotal.toFixed(6)}` : "",
+        "",
+        durationMinutes > 0 ? `このPDF (${durationMinutes}ページ) の場合:` : "",
+        durationMinutes > 0 ? `${durationMinutes}ページ × $${costPerPageSummary.toFixed(6)}/ページ = $${costs.summary.toFixed(4)} (要約)` : "",
+        durationMinutes > 0 ? `合計: $${costs.total.toFixed(4)}` : ""
+      );
+    } else {
+      // For video/audio, show per-minute cost
+      costContent.push(
+        `文字起こし: $${costs.transcription.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteTranscription.toFixed(6)}` : "",
+        `要約生成: $${costs.summary.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteSummary.toFixed(6)}` : "",
+        `合計: $${costs.total.toFixed(4)}`,
+        durationMinutes > 0 ? `  → 1分あたり: 約$${costPerMinuteTotal.toFixed(6)}` : ""
+      );
+    }
+
+    rationale.sections.push({
+      title: "💰 コスト内訳",
+      content: costContent.filter(Boolean)
+    });
+
+    // Section 4: Processing Breakdown
+    const total = processingTime.total;
+    const transcriptionPercentage = Math.round(transcriptionTime / total * 100);
+    const summaryPercentage = Math.round(summaryTime / total * 100);
+
+    const timeBreakdownContent = [];
+
+    if (isPDF) {
+      // For PDF: show per-page breakdown
+      const pagesCount = durationMinutes || 0;
+      const transcriptionPerPage = pagesCount > 0 ? transcriptionTime / pagesCount : 0;
+      const summaryPerPage = pagesCount > 0 ? summaryTime / pagesCount : 0;
+
+      timeBreakdownContent.push(
+        `テキスト抽出: ${formatProcessingTime(transcriptionTime)}`,
+        pagesCount > 0 ? `  → 1ページあたり: ${transcriptionPerPage.toFixed(1)}秒` : "",
+        `要約生成: ${formatProcessingTime(summaryTime)}`,
+        pagesCount > 0 ? `  → 1ページあたり: ${summaryPerPage.toFixed(1)}秒` : "",
+        `合計: ${formatProcessingTime(total)}`,
+        "",
+        pagesCount > 0 ? `このPDF (${pagesCount}ページ) の場合:` : "",
+        pagesCount > 0 ? `${pagesCount}ページ × ${transcriptionPerPage.toFixed(1)}秒/ページ = ${formatProcessingTime(transcriptionTime)} (テキスト抽出)` : "",
+        pagesCount > 0 ? `${pagesCount}ページ × ${summaryPerPage.toFixed(1)}秒/ページ = ${formatProcessingTime(summaryTime)} (要約)` : "",
+        pagesCount > 0 ? `合計: ${formatProcessingTime(total)}` : "",
+        "",
+        `テキスト抽出: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`
+      );
+    } else {
+      // For video: show per-minute breakdown
+      const minutes = durationMinutes || 0;
+      const transcriptionPerMinute = minutes > 0 ? transcriptionTime / minutes : 0;
+      const summaryPerMinute = minutes > 0 ? summaryTime / minutes : 0;
+
+      timeBreakdownContent.push(
+        `文字起こし: ${formatProcessingTime(transcriptionTime)}`,
+        minutes > 0 ? `  → 1分あたり: ${transcriptionPerMinute.toFixed(1)}秒` : "",
+        `要約生成: ${formatProcessingTime(summaryTime)}`,
+        minutes > 0 ? `  → 1分あたり: ${summaryPerMinute.toFixed(1)}秒` : "",
+        `合計: ${formatProcessingTime(total)}`,
+        "",
+        `文字起こし: ${transcriptionPercentage}% | 要約生成: ${summaryPercentage}%`
+      );
+    }
+
+    rationale.sections.push({
+      title: "⏱️ 処理時間内訳",
+      content: timeBreakdownContent.filter(Boolean)
+    });
+
+    // Section 5: Factors
+    rationale.sections.push({
+      title: "📝 影響要因",
+      content: isPDF ? [
+        "• ページ数とテキスト量",
+        "• 要約モデル (GPT-4o > GPT-4o-mini: 品質優先)",
+        "• サーバー負荷状況"
+      ] : [
+        "• 動画の長さと音声品質",
+        "• 文字起こしモデル (GPT-4o > Whisper: 高速)",
+        "• 要約モデル (GPT-4o > GPT-4o-mini: 品質優先)",
+        "• サーバー負荷状況"
+      ]
+    });
+
+    return rationale;
+  };
 
   // Render cost estimation display
   const renderCostEstimation = () => {
@@ -1070,22 +1346,31 @@ const AnalyzePage: React.FC = () => {
               <div className="flex items-start gap-2">
                 <span className="text-blue-600 text-lg">⏱️</span>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-blue-800 mb-2">
-                    想定処理時間（概算）
-                    {processingTime.isHistoricalEstimate && (
-                      <span className="ml-2 text-xs font-normal text-green-700 bg-green-100 px-2 py-1 rounded">
-                        過去の実績から算出
+                  <div className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2 flex-wrap">
+                    <span>想定処理時間（概算）</span>
+                    {processingTime.isHistoricalEstimate ? (
+                      <span className="text-xs font-normal text-green-700 bg-green-100 px-2 py-1 rounded">
+                        ✓ 過去の実績から算出
+                      </span>
+                    ) : (
+                      <span className="text-xs font-normal text-orange-700 bg-orange-100 px-2 py-1 rounded">
+                        ⚠️ デフォルト値 (参考程度)
+                      </span>
+                    )}
+                    {inputType === InputType.YOUTUBE_URL && (
+                      <span className="text-xs font-normal text-yellow-700 bg-yellow-100 px-2 py-1 rounded">
+                        ℹ️ 動画の長さを仮定
                       </span>
                     )}
                   </div>
                   <div className="text-xs text-blue-700 space-y-1">
                     <div className="flex justify-between">
-                      <span>{getFirstStageSpeedLabel()}:</span>
-                      <span className="font-mono">{processingTime.transcriptionRate || `${formatProcessingTime(processingTime.transcription)}`}</span>
+                      <span>{getFirstStageSpeedLabel().replace('速度', '時間')}:</span>
+                      <span className="font-mono">{formatProcessingTime(processingTime.transcription)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>要約生成速度:</span>
-                      <span className="font-mono">{processingTime.summaryRate || `${formatProcessingTime(processingTime.summary)}`}</span>
+                      <span>要約生成時間:</span>
+                      <span className="font-mono">{formatProcessingTime(processingTime.summary)}</span>
                     </div>
                     <div className="border-t border-blue-200 mt-1 pt-1"></div>
                     <div className="flex justify-between font-medium">
@@ -1131,6 +1416,49 @@ const AnalyzePage: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Detailed Rationale Toggle */}
+          {processingTime && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setShowEstimationRationale(!showEstimationRationale)}
+                className="w-full p-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
+              >
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-gray-700 flex items-center gap-2">
+                    <span>📋</span>
+                    <span>推定の詳細な根拠を見る</span>
+                  </span>
+                  <span className="text-gray-500">
+                    {showEstimationRationale ? '▲' : '▼'}
+                  </span>
+                </div>
+              </button>
+
+              {showEstimationRationale && (() => {
+                const rationale = generateEstimationRationale(processingTime, costs);
+                return (
+                  <div className="mt-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                    <div className="space-y-3">
+                      {rationale.sections.map((section, index) => (
+                        <div key={index} className="space-y-1">
+                          <div className="text-sm font-semibold text-gray-800">
+                            {section.title}
+                          </div>
+                          <div className="text-xs text-gray-700 space-y-0.5">
+                            {section.content.map((line, lineIndex) => (
+                              <div key={lineIndex}>{line}</div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1194,7 +1522,7 @@ const AnalyzePage: React.FC = () => {
     const contentType = currentVideo?.analysisType || 'youtube';
     switch (contentType) {
       case 'pdf':
-        return '📄 文書解析';
+        return '📄 PDFテキスト抽出';
       case 'audio':
         return '🎵 文字起こし';
       case 'youtube':
@@ -1224,13 +1552,21 @@ const AnalyzePage: React.FC = () => {
     
     const isPdf = isPdfContent(currentVideo);
     console.log(`📊 getFirstStageProcessingTime: isPdf=${isPdf}, analysisTime=`, currentVideo.analysisTime);
-    
+
     if (isPdf) {
       const analysisTime = currentVideo.analysisTime;
-      
+
+      // Log all timing fields for debugging
+      console.log('📄 PDF Timing Fields:', {
+        extraction: analysisTime.extraction,
+        summary: analysisTime.summary,
+        total: analysisTime.total,
+        duration: analysisTime.duration
+      });
+
       // Priority 1: extraction field (specific for PDF text extraction)
       if (analysisTime.extraction !== undefined && typeof analysisTime.extraction === 'number' && analysisTime.extraction >= 0) {
-        console.log(`✅ PDF using extraction time: ${analysisTime.extraction}`);
+        console.log(`✅ PDF using extraction time: ${analysisTime.extraction}s (テキスト抽出のみ)`);
         return analysisTime.extraction;
       }
       
@@ -2210,7 +2546,7 @@ const AnalyzePage: React.FC = () => {
                                   )}
                                 </div>
                               </div>
-                              
+
                               {/* 記事生成（もし生成されていれば） */}
                               {currentVideo.costs.article > 0 && (
                                 <div className="bg-gray-50 p-2 rounded border border-gray-200">
@@ -2225,7 +2561,22 @@ const AnalyzePage: React.FC = () => {
                                   </div>
                                 </div>
                               )}
-                              
+
+                              {/* チャット（もし使用していれば） */}
+                              {currentVideo.costs.chat > 0 && (
+                                <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                  <div className="text-xs font-semibold text-gray-700 mb-1">💬 チャット</div>
+                                  <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">コスト:</span>
+                                      <span className="font-semibold text-black">
+                                        ${currentVideo.costs.chat.toFixed(4)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
                               {/* 合計 */}
                               <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-300">
                                 <span className="text-sm text-black font-bold">合計コスト:</span>
@@ -2524,6 +2875,7 @@ const AnalyzePage: React.FC = () => {
                   summary={currentVideo.summary}
                   gptModel={currentVideo.gptModel}
                   contentType={currentVideo.analysisType || 'youtube'}
+                  onCostUpdate={handleChatCostUpdate}
                 />
               })()}
             </div>

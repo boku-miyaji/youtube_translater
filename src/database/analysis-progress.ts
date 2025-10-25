@@ -267,7 +267,7 @@ export class AnalysisProgressDatabase {
 
   private calculateContentTypeStats(records: AnalysisProgressRecord[]) {
     const contentTypeStats: Record<string, { transcriptionAverage: number; summaryAverage: number; sampleSize: number }> = {};
-    
+
     const contentTypeGroups = records.reduce((groups, r) => {
       if (!groups[r.contentType]) groups[r.contentType] = [];
       groups[r.contentType].push(r);
@@ -276,14 +276,30 @@ export class AnalysisProgressDatabase {
 
     Object.keys(contentTypeGroups).forEach(contentType => {
       const records = contentTypeGroups[contentType];
-      const transcriptionAverage = records.reduce((sum, r) => sum + r.transcriptionDuration / (r.contentDuration / 60), 0) / records.length;
-      const summaryAverage = records.reduce((sum, r) => sum + r.summaryDuration / (r.contentDuration / 60), 0) / records.length;
-      
-      contentTypeStats[contentType] = {
-        transcriptionAverage,
-        summaryAverage,
-        sampleSize: records.length
-      };
+
+      // IMPORTANT: PDF uses page-based calculation, video/audio use duration-based
+      if (contentType === 'pdf') {
+        // For PDF: contentDuration represents page count, not seconds
+        // Calculate seconds per page
+        const transcriptionAverage = records.reduce((sum, r) => sum + r.transcriptionDuration / r.contentDuration, 0) / records.length;
+        const summaryAverage = records.reduce((sum, r) => sum + r.summaryDuration / r.contentDuration, 0) / records.length;
+
+        contentTypeStats[contentType] = {
+          transcriptionAverage, // seconds per page
+          summaryAverage,       // seconds per page
+          sampleSize: records.length
+        };
+      } else {
+        // For video/audio: contentDuration is in seconds, calculate seconds per minute
+        const transcriptionAverage = records.reduce((sum, r) => sum + r.transcriptionDuration / (r.contentDuration / 60), 0) / records.length;
+        const summaryAverage = records.reduce((sum, r) => sum + r.summaryDuration / (r.contentDuration / 60), 0) / records.length;
+
+        contentTypeStats[contentType] = {
+          transcriptionAverage, // seconds per minute
+          summaryAverage,       // seconds per minute
+          sampleSize: records.length
+        };
+      }
     });
 
     return contentTypeStats;

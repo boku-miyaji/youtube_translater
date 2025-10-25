@@ -214,18 +214,21 @@ const pricing: Pricing = {
 };
 
 // Processing speed for each model (video minutes per real-time minute)
+// IMPORTANT: These coefficients are conservative estimates to avoid under-estimation
+// Real-world performance includes API latency, network delays, and server load
+// Better to over-estimate than under-estimate for user experience
 const processingSpeed = {
   transcription: {
-    'whisper-1': 10, // Whisper processes ~10 minutes of video per minute
-    'gpt-4o-transcribe': 8, // GPT-4o processes ~8 minutes of video per minute
-    'gpt-4o-mini-transcribe': 12 // GPT-4o Mini processes ~12 minutes of video per minute
+    'whisper-1': 5, // Conservative: ~5 minutes of video per minute (was 10, too optimistic)
+    'gpt-4o-transcribe': 4, // Conservative: ~4 minutes per minute (was 8)
+    'gpt-4o-mini-transcribe': 6 // Conservative: ~6 minutes per minute (was 12)
   },
   summary: {
-    'gpt-4o-mini': 0.5, // Processing time coefficient (lower = slower)
-    'gpt-4o': 0.4,
-    'gpt-4-turbo': 0.3,
-    'gpt-4': 0.25,
-    'gpt-3.5-turbo': 0.6
+    'gpt-4o-mini': 0.8, // Conservative: 0.8 min per video min (was 0.5, too fast)
+    'gpt-4o': 0.7, // Conservative: slightly faster than mini (was 0.4)
+    'gpt-4-turbo': 0.6, // (was 0.3)
+    'gpt-4': 0.5, // (was 0.25)
+    'gpt-3.5-turbo': 1.0 // Conservative: 1:1 ratio (was 0.6)
   }
 };
 
@@ -417,68 +420,110 @@ function calculateProcessingTime(
   let isHistoricalEstimate = false;
   let confidenceLevel = 0.1; // Default low confidence
   
-  // Calculate transcription time
-  if (stats.transcriptionStats.sampleSize > 0) {
-    // Use historical data for transcription model if available
-    const modelStats = stats.transcriptionStats.modelStats[transcriptionModel];
-    if (modelStats && modelStats.sampleSize >= 2) {
-      transcriptionTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
-      confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
-      console.log(`📊 Using historical data for transcription time: ${transcriptionTime}s (${modelStats.sampleSize} samples)`);
+  // Calculate transcription/extraction time
+  // IMPORTANT: PDF text extraction is fundamentally different from audio transcription
+  if (contentType === 'pdf') {
+    // PDF text extraction is page-based, not duration-based
+    // durationMinutes for PDF represents estimated page count (e.g., 10 pages = 10 "minutes")
+    const estimatedPageCount = durationMinutes;
+
+    if (stats.contentTypeStats.pdf && stats.contentTypeStats.pdf.sampleSize >= 2) {
+      // Use historical PDF extraction data
+      transcriptionTime = Math.ceil(estimatedPageCount * stats.contentTypeStats.pdf.transcriptionAverage);
+      confidenceLevel = Math.max(confidenceLevel, Math.min(0.8, stats.contentTypeStats.pdf.sampleSize / 10));
+      console.log(`📊 Using historical PDF extraction data: ${transcriptionTime}s for ${estimatedPageCount} pages`);
+      isHistoricalEstimate = true;
     } else {
-      // Use overall transcription average
-      transcriptionTime = Math.ceil(durationMinutes * stats.transcriptionStats.averageSecondsPerMinute);
-      confidenceLevel = Math.max(confidenceLevel, stats.transcriptionStats.confidenceLevel);
-      console.log(`📊 Using overall transcription average: ${transcriptionTime}s (${stats.transcriptionStats.sampleSize} samples)`);
+      // Default: PDF text extraction is very fast (typically 0.1-0.5 seconds per page)
+      const secondsPerPage = 0.5; // Realistic default based on actual performance
+      transcriptionTime = Math.ceil(estimatedPageCount * secondsPerPage);
+      console.log(`📊 Using default PDF extraction time: ${transcriptionTime}s (${secondsPerPage}s/page for ${estimatedPageCount} pages)`);
     }
-    isHistoricalEstimate = true;
   } else {
-    // Fall back to default speed coefficients
-    const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 10;
-    transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
-    console.log(`📊 Using default transcription coefficients: ${transcriptionTime}s`);
+    // For video/audio: use Whisper transcription speeds
+    if (stats.transcriptionStats.sampleSize > 0) {
+      // Use historical data for transcription model if available
+      const modelStats = stats.transcriptionStats.modelStats[transcriptionModel];
+      if (modelStats && modelStats.sampleSize >= 2) {
+        transcriptionTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
+        confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
+        console.log(`📊 Using historical data for transcription time: ${transcriptionTime}s (${modelStats.sampleSize} samples)`);
+      } else {
+        // Use overall transcription average
+        transcriptionTime = Math.ceil(durationMinutes * stats.transcriptionStats.averageSecondsPerMinute);
+        confidenceLevel = Math.max(confidenceLevel, stats.transcriptionStats.confidenceLevel);
+        console.log(`📊 Using overall transcription average: ${transcriptionTime}s (${stats.transcriptionStats.sampleSize} samples)`);
+      }
+      isHistoricalEstimate = true;
+    } else {
+      // Fall back to default speed coefficients
+      const transcriptionSpeed = processingSpeed.transcription[transcriptionModel as keyof typeof processingSpeed.transcription] || 5;
+      transcriptionTime = Math.ceil((durationMinutes / transcriptionSpeed) * 60);
+      console.log(`📊 Using default transcription coefficients: ${transcriptionTime}s`);
+    }
   }
   
   // Calculate summary time
-  if (stats.summaryStats.sampleSize > 0) {
-    // Use historical data for GPT model if available
-    const modelStats = stats.summaryStats.modelStats[gptModel];
-    if (modelStats && modelStats.sampleSize >= 2) {
-      summaryTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
-      confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
-      console.log(`📊 Using historical data for summary time: ${summaryTime}s (${modelStats.sampleSize} samples)`);
+  // IMPORTANT: PDF uses page-based normalization, video/audio use minute-based normalization
+  if (contentType === 'pdf') {
+    // For PDF: durationMinutes represents page count, use page-based calculation (seconds per page)
+    const estimatedPageCount = durationMinutes;
+
+    if (stats.contentTypeStats.pdf && stats.contentTypeStats.pdf.sampleSize >= 2) {
+      // Use historical PDF summary data (already normalized by page count)
+      summaryTime = Math.ceil(estimatedPageCount * stats.contentTypeStats.pdf.summaryAverage);
+      confidenceLevel = Math.max(confidenceLevel, Math.min(0.8, stats.contentTypeStats.pdf.sampleSize / 10));
+      console.log(`📊 Using historical PDF summary data: ${summaryTime}s (${stats.contentTypeStats.pdf.summaryAverage.toFixed(1)}s/page for ${estimatedPageCount} pages)`);
+      isHistoricalEstimate = true;
     } else {
-      // Use overall summary average
-      summaryTime = Math.ceil(durationMinutes * stats.summaryStats.averageSecondsPerMinute);
-      confidenceLevel = Math.max(confidenceLevel, stats.summaryStats.confidenceLevel);
-      console.log(`📊 Using overall summary average: ${summaryTime}s (${stats.summaryStats.sampleSize} samples)`);
+      // Default: PDF summary generation (typically 1-2 seconds per page with GPT-4o-mini)
+      // Note: This is MUCH faster than video summarization because we're working with pre-extracted text
+      const secondsPerPage = gptModel.includes('gpt-4o-mini') ? 1.5 : 3.0; // Faster for gpt-4o-mini
+      summaryTime = Math.ceil(estimatedPageCount * secondsPerPage);
+      console.log(`📊 Using default PDF summary time: ${summaryTime}s (${secondsPerPage.toFixed(1)}s/page for ${estimatedPageCount} pages)`);
     }
-    isHistoricalEstimate = true;
   } else {
-    // Fall back to default speed coefficients
-    const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.5;
-    summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
-    console.log(`📊 Using default summary coefficients: ${summaryTime}s`);
-  }
-  
-  // Apply content type adjustments if we have data
-  if (stats.contentTypeStats[contentType] && stats.contentTypeStats[contentType].sampleSize >= 2) {
-    const contentTypeStats = stats.contentTypeStats[contentType];
-    const transcriptionAdjustment = contentTypeStats.transcriptionAverage / stats.transcriptionStats.averageSecondsPerMinute;
-    const summaryAdjustment = contentTypeStats.summaryAverage / stats.summaryStats.averageSecondsPerMinute;
-    
-    transcriptionTime = Math.ceil(transcriptionTime * transcriptionAdjustment);
-    summaryTime = Math.ceil(summaryTime * summaryAdjustment);
-    
-    console.log(`📊 Applied content type adjustments for ${contentType}: transcription x${transcriptionAdjustment.toFixed(2)}, summary x${summaryAdjustment.toFixed(2)}`);
+    // For video/audio: Use minute-based calculation (seconds per minute)
+    if (stats.summaryStats.sampleSize > 0) {
+      // Use historical data for GPT model if available
+      const modelStats = stats.summaryStats.modelStats[gptModel];
+      if (modelStats && modelStats.sampleSize >= 2) {
+        summaryTime = Math.ceil(durationMinutes * modelStats.averageSecondsPerMinute);
+        confidenceLevel = Math.max(confidenceLevel, Math.min(0.9, modelStats.sampleSize / 10));
+        console.log(`📊 Using historical data for summary time: ${summaryTime}s (${modelStats.averageSecondsPerMinute.toFixed(1)}s/min for ${durationMinutes} minutes)`);
+      } else {
+        // Use overall summary average
+        summaryTime = Math.ceil(durationMinutes * stats.summaryStats.averageSecondsPerMinute);
+        confidenceLevel = Math.max(confidenceLevel, stats.summaryStats.confidenceLevel);
+        console.log(`📊 Using overall summary average: ${summaryTime}s (${stats.summaryStats.averageSecondsPerMinute.toFixed(1)}s/min for ${durationMinutes} minutes)`);
+      }
+      isHistoricalEstimate = true;
+    } else {
+      // Fall back to default speed coefficients
+      const summarySpeed = processingSpeed.summary[gptModel as keyof typeof processingSpeed.summary] || 0.8;
+      summaryTime = Math.ceil(durationMinutes * 60 * summarySpeed);
+      console.log(`📊 Using default summary coefficients: ${summaryTime}s (${summarySpeed}min/min for ${durationMinutes} minutes)`);
+    }
   }
   
   // Calculate rates for display
-  const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
-  const summarySecondsPerVideoMinute = summaryTime / durationMinutes;
-  const transcriptionRate = `動画1分あたり${transcriptionSecondsPerVideoMinute.toFixed(1)}秒`;
-  const summaryRate = `動画1分あたり${summarySecondsPerVideoMinute.toFixed(1)}秒`;
-  
+  let transcriptionRate: string;
+  let summaryRate: string;
+
+  if (contentType === 'pdf') {
+    // For PDF: display per-page rates
+    const extractionSecondsPerPage = transcriptionTime / durationMinutes; // durationMinutes = page count
+    const summarySecondsPerPage = summaryTime / durationMinutes;
+    transcriptionRate = `${extractionSecondsPerPage.toFixed(1)}秒/ページ`;
+    summaryRate = `${summarySecondsPerPage.toFixed(1)}秒/ページ`;
+  } else {
+    // For video/audio: display per-minute rates
+    const transcriptionSecondsPerVideoMinute = transcriptionTime / durationMinutes;
+    const summarySecondsPerVideoMinute = summaryTime / durationMinutes;
+    transcriptionRate = `動画1分あたり${transcriptionSecondsPerVideoMinute.toFixed(1)}秒`;
+    summaryRate = `動画1分あたり${summarySecondsPerVideoMinute.toFixed(1)}秒`;
+  }
+
   const totalTime = transcriptionTime + summaryTime;
   
   return {
@@ -1086,14 +1131,15 @@ function addToHistory(
   tags: string[] = [],
   mainTags: string[] = [],
   article: string | null = null,
-  analysisTime: { 
-    startTime: string; 
-    endTime: string; 
+  analysisTime: {
+    startTime: string;
+    endTime: string;
     duration: number;
     transcription?: number;
     extraction?: number;
     summary?: number;
     total?: number;
+    durationMinutes?: number;  // Page count for PDFs, duration for videos
   } | null = null
 ): HistoryEntry {
   const history = loadHistory();
@@ -2321,6 +2367,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: totalCost
       },
       analysisTime: analysisTimeInfo,
@@ -2345,6 +2392,7 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0, // Article is generated separately
+        chat: 0,
         total: totalCost
       },
       analysisTime: analysisTimeInfo,
@@ -2482,6 +2530,7 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: transcriptionCost + summaryCost
       },
       analysisTime,
@@ -2551,6 +2600,7 @@ app.post('/api/upload-video-file', upload.single('file'), async (req: Request, r
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: transcriptionCost + summaryCost
       },
       analysisTime: {
@@ -2746,6 +2796,7 @@ app.post('/api/upload-audio-file', upload.single('file'), async (req: Request, r
         transcription: transcriptionCost,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: totalCost
       },
       audioMetadata: {
@@ -2757,6 +2808,7 @@ app.post('/api/upload-audio-file', upload.single('file'), async (req: Request, r
           transcription: transcriptionCost,
           summary: summaryCost,
           article: 0,
+          chat: 0,
           total: totalCost
         },
         analysisTime: {
@@ -2860,7 +2912,7 @@ p.${Math.floor(totalPages*2/3)}でこの文書の内容は、関連分野の研�
 // PDF analysis endpoint (handles both URL and file upload)
 app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Response) => {
   console.log('📄 PDF analysis request received');
-  
+
   const analysisStartTime = new Date();
   let pdfBuffer: Buffer;
   let fileName: string;
@@ -2868,6 +2920,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
   let fileId: string;
   let filePath: string | undefined;
   let isUrlSource = false;
+  let progressId: string | undefined; // Declare outside try-catch for error handling
 
   try {
     // Determine source (URL or file)
@@ -2928,7 +2981,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       shouldExtractStructure,
       source: isUrlSource ? 'url' : 'file'
     });
-    
+
     // 🚨 IMPORTANT: Validate summary generation for page references
     if (!shouldGenerateSummary) {
       console.warn('⚠️ PDF ANALYSIS WARNING: Summary generation is disabled!');
@@ -2943,12 +2996,43 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     const extractionStartTime = new Date();
     const pdfContent = await extractPDFText(pdfBuffer);
     const extractionEndTime = new Date();
-    // Calculate extraction duration with minimum value to prevent 0-second display issues  
+
+    // Create progress tracking record
+    // IMPORTANT: For PDF, contentDuration represents page count, not seconds
+    try {
+      progressId = analysisProgressDB.createRecord(
+        'pdf',
+        pdfContent.pageCount, // Use page count as "duration" for PDF
+        'pdf-parse', // PDF doesn't use Whisper, just text extraction
+        gptModel,
+        pdfContent.fullText.length, // Content length in characters
+        undefined, // No audio quality for PDF
+        language
+      );
+      console.log(`📊 Created progress tracking record: ${progressId}`);
+    } catch (err) {
+      console.warn('Failed to create progress tracking record:', err);
+    }
+    // Calculate extraction duration with minimum value to prevent 0-second display issues
     const rawExtractionDuration = (extractionEndTime.getTime() - extractionStartTime.getTime()) / 1000;
-    const extractionDuration = rawExtractionDuration < 1 ? 
-      parseFloat(rawExtractionDuration.toFixed(1)) : 
+    const extractionDuration = rawExtractionDuration < 1 ?
+      parseFloat(rawExtractionDuration.toFixed(1)) :
       Math.round(rawExtractionDuration);
-    
+
+    // Update transcription (extraction) progress
+    if (progressId) {
+      try {
+        analysisProgressDB.updateTranscriptionProgress(
+          progressId,
+          extractionStartTime.toISOString(),
+          extractionEndTime.toISOString()
+        );
+        console.log(`📊 Updated extraction progress: ${extractionDuration}s for ${pdfContent.pageCount} pages`);
+      } catch (err) {
+        console.warn('Failed to update extraction progress:', err);
+      }
+    }
+
     // 2. Analyze PDF structure
     let pdfMetadata: PDFMetadata | undefined;
     if (shouldExtractStructure) {
@@ -2962,10 +3046,19 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     let summaryCost = 0;
     let summaryStartTime: Date | null = null;
     let summaryEndTime: Date | null = null;
-    
+
     if (shouldGenerateSummary) {
       console.log('📝 Generating PDF summary...');
       summaryStartTime = new Date();
+
+      // Update summary progress - start time
+      if (progressId) {
+        try {
+          analysisProgressDB.updateSummaryProgress(progressId, summaryStartTime.toISOString());
+        } catch (err) {
+          console.warn('Failed to update summary progress (start):', err);
+        }
+      }
       
       // If pdfMetadata is not available, create a minimal one
       const metadataForSummary = pdfMetadata || {
@@ -3012,8 +3105,23 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         const inputTokens = Math.ceil(pdfContent.fullText.length / 4); // Rough token estimate
         const outputTokens = Math.ceil(summary.length / 4);
         summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
-        
+
         summaryEndTime = new Date();
+
+        // Update summary progress - end time
+        if (progressId && summaryStartTime) {
+          try {
+            analysisProgressDB.updateSummaryProgress(
+              progressId,
+              summaryStartTime.toISOString(),
+              summaryEndTime.toISOString()
+            );
+            const summaryDurationForLog = Math.round((summaryEndTime.getTime() - summaryStartTime.getTime()) / 1000);
+            console.log(`📊 Updated summary progress: ${summaryDurationForLog}s`);
+          } catch (err) {
+            console.warn('Failed to update summary progress (end):', err);
+          }
+        }
       } catch (summaryError) {
         console.error('Error generating PDF summary:', summaryError);
         
@@ -3029,7 +3137,20 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         
         summaryCost = 0;
         summaryEndTime = new Date();
-        
+
+        // Update summary progress - end time (even on error)
+        if (progressId && summaryStartTime) {
+          try {
+            analysisProgressDB.updateSummaryProgress(
+              progressId,
+              summaryStartTime.toISOString(),
+              summaryEndTime.toISOString()
+            );
+          } catch (err) {
+            console.warn('Failed to update summary progress (error case):', err);
+          }
+        }
+
         // If it's an OpenAI error, we might want to include it in the response
         if (summaryError instanceof OpenAIError) {
           console.log('OpenAI API error detected, using fallback summary');
@@ -3079,15 +3200,17 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
     // Ensure timing values are reasonable (>= 0) and preserve sub-second precision
     const validatedExtractionDuration = Math.max(0, extractionDuration || 0);
     const validatedSummaryDuration = Math.max(0, summaryDuration || 0);
-    
+
     // Calculate actual processing time as extraction + summary
     const actualProcessingTime = validatedExtractionDuration + validatedSummaryDuration;
-    
-    console.log(`📊 PDF timing calculation (validated):`);
-    console.log(`   📄 Extraction: ${extractionDuration}s → ${validatedExtractionDuration}s`);
-    console.log(`   📝 Summary: ${summaryDuration}s → ${validatedSummaryDuration}s`); 
-    console.log(`   ⏱️ Total processing: ${actualProcessingTime}s`);
-    console.log(`   🕒 Wall clock: ${totalAnalysisTime}s`);
+
+    console.log(`📊 ========== PDF TIMING BREAKDOWN ==========`);
+    console.log(`   📄 PDFテキスト抽出: ${validatedExtractionDuration}s (extractPDFText() のみ)`);
+    console.log(`   📝 要約生成: ${validatedSummaryDuration}s (generateSummary() のみ)`);
+    console.log(`   ⏱️ 合計処理時間: ${actualProcessingTime}s (抽出+要約)`);
+    console.log(`   🕒 壁時計時間: ${totalAnalysisTime}s (全体、ファイルI/O含む)`);
+    console.log(`   ℹ️  Note: フロントエンドには extraction=${validatedExtractionDuration}s が「PDFテキスト抽出」として表示されます`);
+    console.log(`=========================================`);
 
     // 6. Prepare response (limit content size to prevent network errors)
     let limitedPdfContent = undefined;
@@ -3143,6 +3266,7 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         transcription: 0,
         summary: summaryCost,
         article: 0,
+        chat: 0,
         total: summaryCost
       },
       analysisTime: {
@@ -3151,7 +3275,8 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         duration: totalAnalysisTime,
         extraction: validatedExtractionDuration,
         summary: validatedSummaryDuration,
-        total: actualProcessingTime
+        total: actualProcessingTime,
+        durationMinutes: pdfContent.pageCount  // Add page count as durationMinutes for rationale display
       },
       message: 'PDF analyzed successfully'
     };
@@ -3184,7 +3309,8 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
         duration: totalAnalysisTime,
         extraction: validatedExtractionDuration,
         summary: validatedSummaryDuration,
-        total: actualProcessingTime
+        total: actualProcessingTime,
+        durationMinutes: pdfContent.pageCount  // Add page count for rationale display
       }
     );
 
@@ -3193,12 +3319,32 @@ app.post('/api/analyze-pdf', upload.single('file'), async (req: Request, res: Re
       cleanupTempFile(filePath, 5 * 60 * 1000); // 5 minutes
     }
 
+    // Complete progress tracking
+    if (progressId) {
+      try {
+        analysisProgressDB.completeAnalysis(progressId, true);
+        console.log(`📊 Completed progress tracking: ${progressId}`);
+      } catch (err) {
+        console.warn('Failed to complete progress tracking:', err);
+      }
+    }
+
     console.log('✅ PDF processed successfully');
     res.json(response);
 
   } catch (error) {
     console.error('❌ Error processing PDF:', error);
-    
+
+    // Complete progress tracking with error
+    if (progressId) {
+      try {
+        analysisProgressDB.completeAnalysis(progressId, false, error instanceof Error ? error.message : 'Unknown error');
+        console.log(`📊 Completed progress tracking with error: ${progressId}`);
+      } catch (err) {
+        console.warn('Failed to complete progress tracking (error case):', err);
+      }
+    }
+
     // Clean up file on error
     if (filePath) {
       try {
@@ -4435,57 +4581,61 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
 // Cost estimation for PDF
 app.post('/api/estimate-cost-pdf', async (req: Request, res: Response) => {
   console.log('📊 Cost estimation request for PDF');
-  
+
   try {
-    const { url, pageCount = 10, gptModel = 'gpt-4o-mini', generateSummary = true }: {
+    const { url, pageCount: requestedPageCount, gptModel = 'gpt-4o-mini', generateSummary = true }: {
       url?: string;
       pageCount?: number;
       gptModel?: string;
       generateSummary?: boolean;
     } = req.body;
-    
-    console.log('📊 Request params:', { url, pageCount, gptModel, generateSummary });
-    
-    // Estimate character count based on page count
-    // Average academic paper has ~3000-5000 characters per page
-    const avgCharsPerPage = 4000;
-    const estimatedCharacterCount = pageCount * avgCharsPerPage;
-    
-    // Calculate PDF processing time (extraction + summary)
-    // PDF extraction: roughly 0.5-2 seconds per page based on complexity
-    const extractionTime = pageCount * 1.5; // 1.5 seconds per page
-    
-    // Summary cost estimation
+
+    console.log('📊 Request params:', { url, pageCount: requestedPageCount, gptModel, generateSummary });
+
+    // Get actual page count if URL is provided
+    let actualPageCount = requestedPageCount || 10;
+    let estimatedCharacterCount = 0;
+
+    if (url) {
+      try {
+        console.log('📥 Downloading PDF from URL to get page count:', url);
+        const pdfBuffer = await downloadPDF(url);
+        console.log('📊 Extracting PDF metadata...');
+        const pdfContent = await extractPDFText(pdfBuffer);
+        actualPageCount = pdfContent.pageCount;
+        estimatedCharacterCount = pdfContent.fullText.length;
+        console.log(`📊 PDF has ${actualPageCount} pages and ${estimatedCharacterCount} characters`);
+      } catch (error) {
+        console.warn('⚠️ Failed to download/parse PDF, using default page count:', error);
+        // Fall back to default/requested page count
+        actualPageCount = requestedPageCount || 10;
+      }
+    }
+
+    // Estimate character count based on page count if not already calculated
+    if (!estimatedCharacterCount) {
+      // Average academic paper has ~3000-5000 characters per page
+      const avgCharsPerPage = 4000;
+      estimatedCharacterCount = actualPageCount * avgCharsPerPage;
+    }
+
+    const pageCount = actualPageCount;
+
+    // Calculate processing time using the same logic as YouTube videos
+    // For PDF, durationMinutes represents page count
+    const processingTime = calculateProcessingTime('pdf-parse', gptModel, pageCount, 'pdf');
+
+    // Calculate cost estimation
     let summaryCost = 0;
-    let summaryTime = 0;
-    
+
     if (generateSummary) {
       // Estimate tokens: roughly 1 token per 4 characters
       const inputTokens = Math.ceil(estimatedCharacterCount / 4);
       const outputTokens = Math.ceil(inputTokens * 0.2); // Summary is typically 20% of input
-      
+
       const modelPricing = pricing.models[gptModel as keyof typeof pricing.models] || pricing.models['gpt-4o-mini'];
       summaryCost = (inputTokens * modelPricing.input) + (outputTokens * modelPricing.output);
-      
-      // Summary generation time: depends on model and text length
-      const summarySecondsPerKChar = gptModel.includes('gpt-4') ? 3 : 2;
-      summaryTime = (estimatedCharacterCount / 1000) * summarySecondsPerKChar;
     }
-    
-    const totalTime = extractionTime + summaryTime;
-    
-    // Format processing time
-    const processingTime = {
-      transcription: extractionTime,
-      summary: summaryTime,
-      total: totalTime,
-      formatted: formatProcessingTime(totalTime),
-      transcriptionRate: `${(extractionTime / pageCount).toFixed(1)}s/page`,
-      summaryRate: summaryCost > 0 ? `${(summaryTime / pageCount).toFixed(1)}s/page` : '0s',
-      basedOn: 'model_default',
-      confidence: 0.6,
-      isHistoricalEstimate: false
-    };
     
     const response = {
       success: true,
@@ -4502,7 +4652,7 @@ app.post('/api/estimate-cost-pdf', async (req: Request, res: Response) => {
       estimatedProcessingTime: processingTime,
       message: 'PDF cost estimation completed'
     };
-    
+
     res.json(response);
     
   } catch (error) {
