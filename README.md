@@ -7,6 +7,21 @@ YouTube動画のURLを入力するだけで、音声を自動的に文字起こ�
 ![Node](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen)
 ![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-orange)
 
+## 📑 目次
+
+- [✨ 新機能](#-新機能v200)
+- [🌟 主な機能](#-主な機能)
+- [🚀 クイックスタート](#-クイックスタート)
+- [📖 使用方法](#-使用方法)
+- [📚 ドキュメント](#-ドキュメント)
+- [🐳 Docker / Cloud Run デプロイ](#-docker--cloud-run-デプロイ)
+- [🏗️ システム構成](#️-システム構成)
+- [💡 機能詳細](#-機能詳細)
+- [🔧 開発・カスタマイズ](#-開発カスタマイズ)
+- [📊 料金目安](#-料金目安)
+- [🤝 コントリビューション](#-コントリビューション)
+- [📄 ライセンス](#-ライセンス)
+
 ## ✨ 新機能（v2.0.0）
 
 ### 🎨 モダンUIデザイン
@@ -124,6 +139,57 @@ http://localhost:3000
    - チャンネル名・YouTube URLから動画を特定
    - 言語・モデル設定別に管理
    - 料金情報を確認して使用量を管理
+
+## 📚 ドキュメント
+
+開発者向けの詳細ドキュメント：
+
+- **[技術スタック](docs/tech-stack.md)** - フロントエンド・バックエンド・インフラの全技術スタック解説
+- **[Cloud Run デプロイガイド](docs/deployment.md)** - Google Cloud Run への詳細なデプロイ手順
+- **[PDF処理詳細](docs/pdf-implementation-details.md)** - PDF処理実装の詳細仕様
+- **[PDF処理ロジック](docs/pdf-processing-logic.md)** - PDF処理のアルゴリズム解説
+- **[PDFクイックスタートガイド](docs/pdf-quickstart-guide.md)** - PDF機能の使い方
+
+## 🐳 Docker / Cloud Run デプロイ
+
+### ローカルDockerビルド
+
+```bash
+# ビルド
+docker build -t youtube-ai-assistant .
+
+# 起動
+docker run -p 3000:3000 \
+  -e OPENAI_API_KEY=your_api_key_here \
+  youtube-ai-assistant
+
+# ヘルスチェック
+curl http://localhost:3000/api/health
+```
+
+### Google Cloud Run デプロイ
+
+```bash
+# 1. Google Cloud認証
+gcloud auth login
+gcloud config set project <PROJECT_ID>
+
+# 2. ビルドとプッシュ
+gcloud builds submit --tag gcr.io/<PROJECT_ID>/youtube-ai-assistant
+
+# 3. Cloud Runにデプロイ
+gcloud run deploy youtube-ai-assistant \
+  --image gcr.io/<PROJECT_ID>/youtube-ai-assistant \
+  --platform managed \
+  --region asia-northeast1 \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --cpu 2 \
+  --timeout 300 \
+  --set-secrets OPENAI_API_KEY=openai-api-key:latest
+```
+
+詳細な手順やトラブルシューティングは[技術スタックドキュメント](docs/tech-stack.md#-docker--cloud-run-デプロイ)を参照してください。
 
 ## 🏗️ システム構成
 
