@@ -145,6 +145,7 @@ http://localhost:3000
 開発者向けの詳細ドキュメント：
 
 - **[技術スタック](docs/tech-stack.md)** - フロントエンド・バックエンド・インフラの全技術スタック解説
+- **[Cloud Run デプロイガイド](docs/deployment.md)** - Google Cloud Run への詳細なデプロイ手順
 - **[PDF処理詳細](docs/pdf-implementation-details.md)** - PDF処理実装の詳細仕様
 - **[PDF処理ロジック](docs/pdf-processing-logic.md)** - PDF処理のアルゴリズム解説
 - **[PDFクイックスタートガイド](docs/pdf-quickstart-guide.md)** - PDF機能の使い方
