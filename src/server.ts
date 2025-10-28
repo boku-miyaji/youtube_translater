@@ -88,7 +88,15 @@ app.use((req: Request, res: Response, next) => {
   next();
 });
 
-app.use(express.static('public'));
+// Serve static files (development vs production)
+// In production (Docker), Vite builds to dist/public
+// In development, we use the public folder directly
+const publicDir = fs.existsSync(path.join(__dirname, 'public'))
+  ? path.join(__dirname, 'public')  // Production: dist/public (after build)
+  : 'public';  // Development: public folder
+
+console.log('📂 Serving static files from:', publicDir);
+app.use(express.static(publicDir));
 app.use('/uploads', express.static('uploads'));
 
 // Health check endpoint
@@ -4868,6 +4876,17 @@ app.post('/api/estimate-cost-file', upload.single('file'), async (req: Request, 
       error: error instanceof Error ? error.message : 'Unknown error during cost estimation'
     } as FileCostEstimationResponse);
   }
+});
+
+// SPA fallback - serve index.html for all non-API routes
+// This must be after all API routes but before app.listen
+app.get('*', (req: Request, res: Response) => {
+  const indexPath = fs.existsSync(path.join(__dirname, 'public', 'index.html'))
+    ? path.join(__dirname, 'public', 'index.html')  // Production: dist/public/index.html
+    : path.join(__dirname, '..', 'index.html');      // Development: root index.html
+
+  console.log('📄 Serving index.html from:', indexPath);
+  res.sendFile(indexPath);
 });
 
 app.listen(PORT, () => {
