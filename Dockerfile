@@ -32,10 +32,16 @@ RUN npm run build:client
 # ========================================
 FROM node:20-alpine
 
-# Install FFmpeg and other runtime dependencies
+# Install FFmpeg, yt-dlp and other runtime dependencies
 RUN apk add --no-cache \
     ffmpeg \
-    tzdata
+    tzdata \
+    curl \
+    python3
+
+# Download and install yt-dlp
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp
 
 # Set timezone to Asia/Tokyo
 ENV TZ=Asia/Tokyo

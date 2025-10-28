@@ -10,6 +10,10 @@ import multer from 'multer';
 import crypto from 'crypto';
 import pdfParse from 'pdf-parse';
 import axios from 'axios';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // Load environment variables from .env file
 const envPath = path.resolve(process.cwd(), '.env');
@@ -1749,26 +1753,115 @@ p.${availablePages[Math.floor(availablePages.length/2)] || 3}でこの文書の�
   }
 }
 
+// Fallback function using yt-dlp when ytdl-core fails
+async function downloadYouTubeAudioWithYtDlp(url: string, outputPath: string): Promise<void> {
+  console.log('Using yt-dlp as fallback for audio download...');
+  const tempOutput = outputPath.replace('.mp3', '_ytdlp.%(ext)s');
+
+  try {
+    // Use yt-dlp to download audio
+    // Try /usr/local/bin/yt-dlp first (Docker), then /tmp/yt-dlp (local dev)
+    const ytDlpPath = fs.existsSync('/usr/local/bin/yt-dlp')
+      ? '/usr/local/bin/yt-dlp'
+      : '/tmp/yt-dlp';
+    const command = `${ytDlpPath} -x --audio-format mp3 --audio-quality 5 -o "${tempOutput}" "${url}"`;
+    console.log('Running yt-dlp command:', command);
+
+    const { stdout, stderr } = await execAsync(command);
+    console.log('yt-dlp output:', stdout);
+    if (stderr) console.log('yt-dlp stderr:', stderr);
+
+    // Find the downloaded file (yt-dlp replaces %(ext)s with actual extension)
+    const downloadedFile = tempOutput.replace('.%(ext)s', '.mp3');
+
+    // Convert to the required format using ffmpeg
+    return new Promise((resolve, reject) => {
+      ffmpeg(downloadedFile)
+        .audioCodec('libmp3lame')
+        .audioBitrate(64)
+        .audioChannels(1)
+        .audioFrequency(16000)
+        .toFormat('mp3')
+        .on('error', (err: Error) => {
+          console.error('FFmpeg conversion error:', err);
+          // Clean up temp file
+          try { fs.unlinkSync(downloadedFile); } catch {}
+          reject(err);
+        })
+        .on('end', () => {
+          console.log('Audio conversion completed');
+          // Clean up temp file
+          try { fs.unlinkSync(downloadedFile); } catch {}
+          resolve();
+        })
+        .save(outputPath);
+    });
+  } catch (error) {
+    console.error('yt-dlp download failed:', error);
+    throw error;
+  }
+}
+
 async function downloadYouTubeAudio(url: string, outputPath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const stream = ytdl(url, { quality: 'highestaudio' });
-    
-    ffmpeg(stream)
-      .audioCodec('libmp3lame')
-      .audioBitrate(64)
-      .audioChannels(1)
-      .audioFrequency(16000)
-      .toFormat('mp3')
-      .on('error', (err: Error) => {
-        console.error('FFmpeg error:', err);
-        reject(err);
-      })
-      .on('end', () => {
-        console.log('Audio extraction completed');
-        resolve();
-      })
-      .save(outputPath);
-  });
+  // Try ytdl-core first
+  try {
+    return await new Promise<void>((resolve, reject) => {
+      // Add options to help bypass YouTube restrictions
+      const ytdlOptions = {
+        quality: 'highestaudio' as const,
+        // Disable IPv6 to avoid some blocking issues
+        IPv6Block: undefined,
+        // Add request options with user agent
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Dest': 'document'
+          }
+        }
+      };
+
+      const stream = ytdl(url, ytdlOptions);
+
+      // Track if stream has started successfully
+      let streamStarted = false;
+
+      stream.on('info', () => {
+        streamStarted = true;
+        console.log('ytdl-core stream started successfully');
+      });
+
+      // Add error handler for the stream itself
+      stream.on('error', (err: Error) => {
+        console.error('ytdl stream error:', err);
+        if (!streamStarted) {
+          reject(err);
+        }
+      });
+
+      ffmpeg(stream)
+        .audioCodec('libmp3lame')
+        .audioBitrate(64)
+        .audioChannels(1)
+        .audioFrequency(16000)
+        .toFormat('mp3')
+        .on('error', (err: Error) => {
+          console.error('FFmpeg error:', err);
+          reject(err);
+        })
+        .on('end', () => {
+          console.log('Audio extraction completed');
+          resolve();
+        })
+        .save(outputPath);
+    });
+  } catch (error) {
+    console.log('ytdl-core failed, trying yt-dlp fallback...');
+    // Fall back to yt-dlp if ytdl-core fails
+    return await downloadYouTubeAudioWithYtDlp(url, outputPath);
+  }
 }
 
 async function transcribeAudio(audioPath: string, language: string = 'original', transcriptionModel: string = 'whisper-1'): Promise<TranscriptionResult> {
