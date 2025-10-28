@@ -119,7 +119,11 @@ console.log('  - API Key length:', process.env.OPENAI_API_KEY?.length || 0);
 console.log('  - API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 10) + '...');
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || ''
+  apiKey: process.env.OPENAI_API_KEY || '',
+  // Increase timeout for long audio files (10 minutes = 600 seconds)
+  timeout: 600 * 1000,
+  // Increase max retries for better reliability
+  maxRetries: 2
 });
 
 // Create necessary directories
