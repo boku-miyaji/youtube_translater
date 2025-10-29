@@ -3,7 +3,12 @@ title: "CI/CD環境整備: dev/stg/prod環境の構築"
 description: |
   dev, stg, prodの環境を作成。CI/CDが回るように整備。development.mdを参照。
 type: Task
-state: Design
+state: Dev
 design: tasks/design/27_Task.md
+implementation:
+  branch: feature/implement-27
+  commit: 1e19d3ad6c561f7d4c4661885f37d35b2a0a9df7
+pr: tasks/pr/27_Task.md
+review: tasks/pr/27_Task_review.md
 createdAt: "2025-10-29T05:54:11Z"
-updatedAt: "2025-10-29T07:07:11Z"
+updatedAt: "2025-10-29T08:23:45Z"
