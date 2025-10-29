@@ -1,0 +1,109 @@
+name: CD - Deploy to Dev
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-northeast1
+  SERVICE_NAME: youtube-ai-dev
+  REPOSITORY: apps
+  IMAGE_NAME: youtube-ai
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.SA_DEV }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build Docker image
+        run: |
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:dev-${GITHUB_SHA::7}"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          docker build -t $IMAGE_TAG .
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.IMAGE_TAG }}
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.IMAGE_TAG }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=1Gi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --timeout=300 \
+            --set-secrets=OPENAI_API_KEY=openai-api-key-dev:latest \
+            --service-account=${{ secrets.SA_DEV }} \
+            --port=8080
+
+      - name: Get service URL
+        id: url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Service URL: $URL"
+
+      - name: Wait for deployment to stabilize
+        run: sleep 10
+
+      - name: Health check
+        run: |
+          URL="${{ steps.url.outputs.url }}"
+          echo "Performing health check on: $URL/healthz"
+
+          for i in {1..5}; do
+            if curl -f -s "$URL/healthz" > /dev/null; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "⏳ Attempt $i/5 failed, retrying in 5 seconds..."
+            sleep 5
+          done
+
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "🎉 Deployment to Dev environment successful!"
+          echo ""
+          echo "📊 Deployment details:"
+          echo "  - Service: ${{ env.SERVICE_NAME }}"
+          echo "  - Region: ${{ env.REGION }}"
+          echo "  - Image: ${{ env.IMAGE_TAG }}"
+          echo "  - URL: ${{ steps.url.outputs.url }}"
+          echo ""
+          echo "✅ Health check passed"
