@@ -1,0 +1,8 @@
+issue: 27
+title: "CI/CD環境整備: dev/stg/prod環境の構築"
+description: |
+  dev, stg, prodの環境を作成。CI/CDが回るように整備。development.mdを参照。
+type: Task
+state: Backlog
+createdAt: "2025-10-29T05:54:11Z"
+updatedAt: "2025-10-29T05:56:33Z"
