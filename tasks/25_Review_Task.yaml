@@ -1,0 +1,17 @@
+issue: 25
+title: "Add comprehensive tech stack documentation"
+description: |
+  docs,README整備。
+  google Croud RUnに載せれるように整備
+  
+  Created tech-stack.md documenting:
+  - Frontend stack (React, TypeScript, Vite, Tailwind)
+  - Backend stack (Node.js, Express, OpenAI API)
+  - Development tools
+  - Infrastructure
+  - Libraries and their rationale
+  - Security and scalability considerations
+type: Task
+state: Review
+createdAt: "2025-10-25T15:59:56Z"
+updatedAt: "2025-10-28T09:23:25Z"

@@ -1,8 +1,0 @@
-issue: 14
-title: "動画・音声ファイルアップロード機能の追加"
-description: |
-  Youtubeの動画リンクだけではなく、movやmp4の動画ファイル・音声ファイルをアップロードしても文字起こし、解析できるようにしたい
-type: Feature
-state: Backlog
-createdAt: "2025-07-01T03:17:18Z"
-updatedAt: "2025-07-01T03:17:18Z"

@@ -1,0 +1,18 @@
+issue: 27
+title: "CI/CD環境整備: dev/stg/prod環境の構築"
+description: |
+  dev, stg, prodの環境を作成。CI/CDが回るように整備。development.mdを参照。
+type: Task
+state: Review
+design: tasks/design/27_Task.md
+implementation:
+  branch: feature/implement-27
+  commit: cca58e38ba09181a3ff0f3388349fb48e926ed2c
+pr:
+  number: 29
+  url: https://github.com/boku-miyaji/youtube_translater/pull/29
+  description: tasks/pr/27_Task.md
+  review: tasks/pr/27_Task_review.md
+  status: tasks/pr/27_Task_status.md
+createdAt: "2025-10-29T05:54:11Z"
+updatedAt: "2025-10-30T14:44:47Z"
