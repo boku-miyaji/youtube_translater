@@ -110,12 +110,19 @@ create_service_accounts() {
         SA_NAME="sa-${env}"
         SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
+        # Set display name based on environment
+        case $env in
+            dev) DISPLAY_NAME="Dev Deploy Service Account" ;;
+            stg) DISPLAY_NAME="Staging Deploy Service Account" ;;
+            prod) DISPLAY_NAME="Production Deploy Service Account" ;;
+        esac
+
         # Check if service account already exists
         if gcloud iam service-accounts describe $SA_EMAIL --project=$PROJECT_ID &>/dev/null; then
             print_warning "Service account $SA_NAME already exists"
         else
             gcloud iam service-accounts create $SA_NAME \
-                --display-name="${env^} Deploy Service Account" \
+                --display-name="$DISPLAY_NAME" \
                 --project=$PROJECT_ID
             print_success "Created service account: $SA_NAME"
         fi
