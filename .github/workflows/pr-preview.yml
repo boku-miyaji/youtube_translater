@@ -12,7 +12,7 @@ permissions:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: asia-northeast1
-  REPOSITORY: apps
+  REPOSITORY: cloud-run-source-deploy
   IMAGE_NAME: youtube-ai
 
 jobs:
