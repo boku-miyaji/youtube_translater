@@ -90,10 +90,10 @@ jobs:
         id: health
         run: |
           URL="${{ steps.url.outputs.url }}"
-          echo "Performing health check on: $URL/healthz"
+          echo "Performing health check on: $URL/api/health"
 
           for i in {1..5}; do
-            if curl -f -s "$URL/healthz" > /dev/null; then
+            if curl -f -s "$URL/api/health" > /dev/null; then
               echo "✅ Health check passed!"
               echo "status=success" >> $GITHUB_OUTPUT
               exit 0
