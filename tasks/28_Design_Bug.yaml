@@ -1,0 +1,15 @@
+issue: 28
+title: 'fix: improve error handling in /api/summarize endpoint'
+description: |
+  /api/summarize エンドポイントのエラーハンドリングが不適切で、実際のエラー原因がユーザーに伝わらない。
+  下記のエラーも出ており、今まで動いていた動作が動かない。
+  Unchecked runtime.lastError: The message port closed before a response was received.Understand this error
+  /api/summarize:1  Failed to load resource: the server responded with a status of 503 ()Understand this error
+  index-6tE7dN4Y.js:179 Summary generation failed: 503 {"error":"⚠️ 要約の生成に失敗しました。APIの利用制限に達している可能性があります。"}
+  HE.console.error @ index-6tE7dN4Y.js:179Understand this error
+  index-6tE7dN4Y.js:179 Error generating summary: Error: Failed to generate summary: 503
+type: Bug
+state: Design
+design: tasks/design/28_Bug.md
+createdAt: '2025-10-30T14:38:26Z'
+updatedAt: '2025-11-01T04:31:20Z'

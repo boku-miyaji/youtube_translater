@@ -126,6 +126,37 @@ console.log('🔑 OpenAI API Key check:', process.env.OPENAI_API_KEY ? 'CONFIGUR
 console.log('  - API Key length:', process.env.OPENAI_API_KEY?.length || 0);
 console.log('  - API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 10) + '...');
 
+// Configure ytdl-core to avoid bot detection
+const getYtdlOptions = () => {
+  const options: any = {
+    // Add realistic user agent to mimic browser
+    requestOptions: {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      }
+    }
+  };
+
+  // If YouTube cookies are provided in environment, use them
+  // Users can export cookies from browser using extensions like "Get cookies.txt"
+  if (process.env.YOUTUBE_COOKIES) {
+    console.log('🍪 Using YouTube cookies from environment');
+    options.agent = ytdl.createAgent(JSON.parse(process.env.YOUTUBE_COOKIES));
+  }
+
+  return options;
+};
+
+console.log('🎥 ytdl-core configuration:', {
+  hasCookies: !!process.env.YOUTUBE_COOKIES,
+  userAgent: 'Chrome/120.0.0.0'
+});
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
   // Increase timeout for long audio files (10 minutes = 600 seconds)
@@ -1255,7 +1286,7 @@ function addToHistory(
 async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
   try {
     console.log('Fetching YouTube metadata for:', url);
-    const info = await ytdl.getInfo(url);
+    const info = await ytdl.getInfo(url, getYtdlOptions());
     const videoDetails = info.videoDetails;
     const formats = info.formats;
     
@@ -1934,21 +1965,13 @@ async function downloadYouTubeAudio(url: string, outputPath: string): Promise<vo
   // Try ytdl-core first
   try {
     return await new Promise<void>((resolve, reject) => {
-      // Add options to help bypass YouTube restrictions
+      // Merge global options with download-specific options
+      const baseOptions = getYtdlOptions();
       const ytdlOptions = {
+        ...baseOptions,
         quality: 'highestaudio' as const,
         // Disable IPv6 to avoid some blocking issues
-        IPv6Block: undefined,
-        // Add request options with user agent
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Dest': 'document'
-          }
-        }
+        IPv6Block: undefined
       };
 
       const stream = ytdl(url, ytdlOptions);
@@ -3829,7 +3852,7 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
       }
     }
 
-    const videoInfo = await ytdl.getInfo(url);
+    const videoInfo = await ytdl.getInfo(url, getYtdlOptions());
     const videoTitle = videoInfo.videoDetails.title;
 
     // Get metadata
@@ -4861,7 +4884,7 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
     
     // Get video info from YouTube
     console.log('📊 Getting video info from YouTube for:', url);
-    const info = await ytdl.getInfo(url);
+    const info = await ytdl.getInfo(url, getYtdlOptions());
     console.log('📊 Got video info successfully');
     
     const videoDetails = info.videoDetails;
