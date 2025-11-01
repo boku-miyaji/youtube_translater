@@ -102,7 +102,22 @@ Google Cloud Console から:
    - **シークレットの値**: `your_actual_api_key`
    - 「シークレットを作成」をクリック
 
-2. 次に、Cloud Run でシークレットを環境変数として公開:
+2. **重要**: Cloud Run サービスアカウントにシークレットへのアクセス権を付与:
+   - Secret Manager で作成したシークレット `youtube-api-key` をクリック
+   - 右側の **「権限」** タブをクリック
+   - **「アクセス権を付与」** をクリック
+   - **新しいプリンシパル**: Cloud Run サービスアカウント（例: `sa-dev@your-project.iam.gserviceaccount.com`）
+   - **ロール**: `Secret Manager のシークレット アクセサー` を選択
+   - **「保存」** をクリック
+
+   💡 サービスアカウント名の確認方法:
+   ```bash
+   gcloud run services describe youtube-translater \
+     --region=asia-northeast1 \
+     --format='value(spec.template.spec.serviceAccountName)'
+   ```
+
+3. 次に、Cloud Run でシークレットを環境変数として公開:
    - [Cloud Run コンソール](https://console.cloud.google.com/run) にアクセス
    - サービスを選択
    - 「新しいリビジョンを編集してデプロイ」をクリック
@@ -130,7 +145,16 @@ echo -n "your_actual_api_key" | gcloud secrets create youtube-api-key \
   --data-file=- \
   --replication-policy=automatic
 
-# 2. Cloud Run サービスにシークレットを環境変数として公開
+# 2. Cloud Run サービスアカウントにシークレットへのアクセス権を付与
+SERVICE_ACCOUNT=$(gcloud run services describe youtube-translater \
+  --region=asia-northeast1 \
+  --format='value(spec.template.spec.serviceAccountName)')
+
+gcloud secrets add-iam-policy-binding youtube-api-key \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
+
+# 3. Cloud Run サービスにシークレットを環境変数として公開
 gcloud run services update youtube-translater \
   --update-secrets=YOUTUBE_API_KEY=youtube-api-key:latest \
   --region asia-northeast1
@@ -332,6 +356,52 @@ gcloud run services describe youtube-translater \
 ```
 
 `YOUTUBE_API_KEY` が表示されない場合は、シークレットが環境変数として公開されていません。
+
+### エラー: "Permission denied on secret" （Secret Manager）
+
+**エラーメッセージ例**:
+```
+Permission denied on secret: projects/XXX/secrets/YOUTUBE_API_KEY/versions/latest
+for Revision service account sa-xxx@xxx.iam.gserviceaccount.com.
+The service account used must be granted the 'Secret Manager Secret Accessor' role
+```
+
+**原因**: Cloud Run サービスアカウントに Secret Manager へのアクセス権限がない
+
+**解決策（Console）**:
+1. [Secret Manager](https://console.cloud.google.com/security/secret-manager) を開く
+2. シークレット（`youtube-api-key` または `YOUTUBE_API_KEY`）をクリック
+3. 右側の **「権限」** タブをクリック
+4. **「アクセス権を付与」** をクリック
+5. **新しいプリンシパル**: エラーメッセージに表示されているサービスアカウント（例: `sa-dev@xxx.iam.gserviceaccount.com`）
+6. **ロール**: `Secret Manager のシークレット アクセサー` を選択
+7. **「保存」** をクリック
+8. Cloud Run サービスを再デプロイ
+
+**解決策（gcloud CLI）**:
+```bash
+# サービスアカウント名を取得
+SERVICE_ACCOUNT=$(gcloud run services describe youtube-translater \
+  --region=asia-northeast1 \
+  --format='value(spec.template.spec.serviceAccountName)')
+
+# シークレットへのアクセス権を付与
+gcloud secrets add-iam-policy-binding youtube-api-key \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Cloud Run サービスを再デプロイ
+gcloud run services update youtube-translater \
+  --region=asia-northeast1
+```
+
+**確認方法**:
+```bash
+# IAM ポリシーを確認
+gcloud secrets get-iam-policy youtube-api-key
+```
+
+サービスアカウントに `roles/secretmanager.secretAccessor` が付与されていることを確認してください。
 
 ### エラー: "Invalid API key"
 
