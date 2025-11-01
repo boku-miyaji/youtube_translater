@@ -636,6 +636,9 @@ export interface CostEstimationResponse {
   };
   error?: string;
   message?: string;
+  suggestions?: string[];  // Helpful suggestions for resolving errors
+  details?: string;  // Additional details for debugging
+  debug?: boolean;  // Flag to indicate this is an error response for debugging
 }
 
 export interface FileCostEstimationResponse {

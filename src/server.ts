@@ -61,6 +61,7 @@ import {
 } from './types/index';
 import { formatProcessingTime } from './utils/formatTime';
 import { analysisProgressDB } from './database/analysis-progress';
+import { getVideoMetadata, extractVideoId, getRateLimitStats } from './services/youtube-api';
 
 
 const app = express();
@@ -122,9 +123,55 @@ app.get('/debug/state', (req: Request, res: Response) => {
   });
 });
 
+console.log('\n' + '='.repeat(80));
+console.log('⚠️  IMPORTANT: TERMS OF SERVICE AND COPYRIGHT COMPLIANCE');
+console.log('='.repeat(80));
+console.log('');
+console.log('This application must ONLY be used for:');
+console.log('  ✅ Your own videos');
+console.log('  ✅ Videos you have explicit permission to use');
+console.log('  ✅ Educational/research purposes within fair use guidelines');
+console.log('');
+console.log('DO NOT use this application for:');
+console.log('  ❌ Downloading others\' videos without permission');
+console.log('  ❌ Commercial use without proper licensing');
+console.log('  ❌ Violating YouTube Terms of Service');
+console.log('');
+console.log('📖 Full details: docs/terms-and-compliance.md');
+console.log('🔗 YouTube ToS: https://www.youtube.com/static?template=terms');
+console.log('');
+console.log('By using this application, you agree to comply with all applicable');
+console.log('copyright laws and YouTube\'s Terms of Service.');
+console.log('='.repeat(80) + '\n');
+
 console.log('🔑 OpenAI API Key check:', process.env.OPENAI_API_KEY ? 'CONFIGURED' : 'MISSING');
 console.log('  - API Key length:', process.env.OPENAI_API_KEY?.length || 0);
 console.log('  - API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 10) + '...');
+
+console.log('🔑 YouTube API Key check:', process.env.YOUTUBE_API_KEY ? 'CONFIGURED' : 'MISSING');
+if (process.env.YOUTUBE_API_KEY) {
+  console.log('  - API Key length:', process.env.YOUTUBE_API_KEY?.length || 0);
+  console.log('  - API Key prefix:', process.env.YOUTUBE_API_KEY?.substring(0, 10) + '...');
+} else {
+  console.log('  ⚠️  YouTube Data API v3 will not work without API key');
+  console.log('  📖 Setup guide: docs/youtube-api-setup.md');
+}
+
+// Configure ytdl-core with basic headers (used only for audio download with Whisper)
+const getYtdlOptions = () => {
+  return {
+    requestOptions: {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      }
+    }
+  };
+};
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
@@ -907,16 +954,70 @@ function analyzePDFStructure(pdfContent: PDFContent): PDFMetadata {
   };
 }
 
+// Error types for better classification
+enum SummaryErrorType {
+  RATE_LIMIT = 'RATE_LIMIT',
+  API_KEY_MISSING = 'API_KEY_MISSING',
+  API_KEY_INVALID = 'API_KEY_INVALID',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  INVALID_REQUEST = 'INVALID_REQUEST',
+  MODEL_ERROR = 'MODEL_ERROR',
+  TIMEOUT = 'TIMEOUT',
+  UNKNOWN = 'UNKNOWN'
+}
+
 // Error handling for OpenAI API errors
 class OpenAIError extends Error {
   statusCode: number;
   errorType: string;
-  
+
   constructor(message: string, statusCode: number, errorType: string) {
     super(message);
     this.name = 'OpenAIError';
     this.statusCode = statusCode;
     this.errorType = errorType;
+  }
+}
+
+// Extended OpenAIError with error type classification
+class SummaryError extends OpenAIError {
+  originalError?: Error;
+
+  constructor(
+    message: string,
+    statusCode: number,
+    errorType: SummaryErrorType,
+    originalError?: Error
+  ) {
+    super(message, statusCode, errorType);
+    this.name = 'SummaryError';
+    this.originalError = originalError;
+  }
+}
+
+// Transcript extraction error with detailed information
+class TranscriptExtractionError extends Error {
+  reasons: {
+    subtitle: string;
+    whisper: string;
+  };
+  suggestions: string[];
+  statusCode: number;
+
+  constructor(message: string, reasons: { subtitle: string; whisper: string }, suggestions: string[]) {
+    super(message);
+    this.name = 'TranscriptExtractionError';
+    this.reasons = reasons;
+    this.suggestions = suggestions;
+    this.statusCode = 500;
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      reasons: this.reasons,
+      suggestions: this.suggestions
+    };
   }
 }
 
@@ -1197,72 +1298,70 @@ function addToHistory(
   return entry;
 }
 
-// YouTube metadata analysis
+// YouTube metadata analysis using YouTube Data API v3
 async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
   try {
     console.log('Fetching YouTube metadata for:', url);
-    const info = await ytdl.getInfo(url);
-    const videoDetails = info.videoDetails;
-    const formats = info.formats;
-    
+
+    // Use YouTube Data API v3 instead of ytdl-core
+    const apiMetadata = await getVideoMetadata(url);
+
     console.log('Successfully retrieved video info:');
-    console.log('- Title:', videoDetails.title);
-    console.log('- Channel:', videoDetails.author?.name);
-    console.log('- Duration:', videoDetails.lengthSeconds);
-    console.log('- View Count:', videoDetails.viewCount);
-    
-    // Chapter information extraction
-    const description = videoDetails.description || '';
+    console.log('- Title:', apiMetadata.title);
+    console.log('- Channel:', apiMetadata.channelTitle);
+    console.log('- Duration:', apiMetadata.durationSeconds);
+    console.log('- View Count:', apiMetadata.viewCount);
+
+    // Chapter information extraction from description
+    const description = apiMetadata.description || '';
     const chapterRegex = /(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)/gm;
     const chapters = [];
     let match;
-    
+
     while ((match = chapterRegex.exec(description)) !== null) {
       chapters.push({
         timestamp: match[1],
         title: match[2].trim()
       });
     }
-    
-    // Caption information
-    const captions = (info as any).player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
-    
-    // Extract thumbnail URL (preferably maxresdefault, then hqdefault, then mqdefault)
+
+    // Extract thumbnail URL (prefer maxres, then standard, then high)
     let thumbnailUrl = '';
-    if (videoDetails.thumbnails && videoDetails.thumbnails.length > 0) {
-      // Sort thumbnails by width in descending order and pick the best quality
-      const sortedThumbnails = [...videoDetails.thumbnails].sort((a: any, b: any) => 
-        (b.width || 0) - (a.width || 0)
-      );
-      thumbnailUrl = sortedThumbnails[0]?.url || '';
+    if (apiMetadata.thumbnails.maxres?.url) {
+      thumbnailUrl = apiMetadata.thumbnails.maxres.url;
+    } else if (apiMetadata.thumbnails.standard?.url) {
+      thumbnailUrl = apiMetadata.thumbnails.standard.url;
+    } else if (apiMetadata.thumbnails.high?.url) {
+      thumbnailUrl = apiMetadata.thumbnails.high.url;
+    } else if (apiMetadata.thumbnails.medium?.url) {
+      thumbnailUrl = apiMetadata.thumbnails.medium.url;
+    } else if (apiMetadata.thumbnails.default?.url) {
+      thumbnailUrl = apiMetadata.thumbnails.default.url;
     }
-    
+
     const metadata = {
       basic: {
-        title: videoDetails.title || 'Unknown Title',
-        videoId: videoDetails.videoId || extractVideoId(url) || '',
-        duration: parseInt(videoDetails.lengthSeconds || '0'),
-        channel: videoDetails.author?.name || videoDetails.ownerChannelName || 'Unknown Channel',
-        viewCount: parseInt(videoDetails.viewCount || '0'),
-        likes: parseInt(String(videoDetails.likes || '0')),
-        uploadDate: videoDetails.uploadDate || videoDetails.publishDate || '',
-        publishDate: videoDetails.publishDate || videoDetails.uploadDate || '',
-        category: videoDetails.category || 'Unknown Category',
-        description: (videoDetails.description || '').slice(0, 2000), // Limit description length
+        title: apiMetadata.title || 'Unknown Title',
+        videoId: apiMetadata.id,
+        duration: apiMetadata.durationSeconds,
+        channel: apiMetadata.channelTitle || 'Unknown Channel',
+        viewCount: parseInt(apiMetadata.viewCount || '0'),
+        likes: parseInt(apiMetadata.likeCount || '0'),
+        uploadDate: apiMetadata.publishedAt,
+        publishDate: apiMetadata.publishedAt,
+        category: apiMetadata.categoryId || 'Unknown Category',
+        description: (apiMetadata.description || '').slice(0, 2000), // Limit description length
         thumbnail: thumbnailUrl
       },
       chapters: chapters,
-      captions: captions.map((cap: any) => ({
-        language: cap.languageCode || cap.vssId || 'unknown',
-        name: cap.name?.simpleText || cap.name?.runs?.[0]?.text || 'Unknown'
-      })),
+      captions: [], // YouTube Data API v3 doesn't provide caption list for third-party videos
       stats: {
-        formatCount: formats.length,
-        hasSubtitles: captions.length > 0,
-        keywords: (videoDetails.keywords || []).slice(0, 10) // Limit keywords to first 10
+        formatCount: 0, // Not available in Data API v3
+        hasSubtitles: false, // Will be determined when fetching subtitles
+        keywords: (apiMetadata.tags || []).slice(0, 10) // Limit keywords to first 10
       }
     };
-    
+
     console.log('Metadata extraction completed successfully');
     return metadata;
   } catch (error) {
@@ -1401,7 +1500,7 @@ async function generateSummary(
   timestampedSegments: TimestampedSegment[] = [],
   contentType: 'youtube' | 'pdf' | 'audio' = 'youtube',
   pageSegments?: PDFPageSegment[]
-): Promise<Summary | null> {
+): Promise<Summary> {
   console.log('🎯 === generateSummary DEBUG START ===');
   console.log('  - Transcript length:', transcript?.length || 0);
   console.log('  - Has metadata:', !!metadata);
@@ -1758,10 +1857,72 @@ p.${availablePages[Math.floor(availablePages.length/2)] || 3}でこの文書の�
 
   } catch (error) {
     console.error('❌ === generateSummary ERROR ===');
-    console.error('  - Error type:', error?.constructor?.name);
-    console.error('  - Error message:', error?.message);
-    console.error('  - Full error:', error);
-    return null;
+    console.error({
+      timestamp: new Date().toISOString(),
+      errorType: error?.constructor?.name,
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      statusCode: error?.response?.status,
+      stack: error?.stack,
+      context: {
+        transcriptLength: transcript?.length || 0,
+        gptModel,
+        contentType
+      }
+    });
+
+    // Classify and re-throw error with appropriate type
+    if (error instanceof OpenAIError || error instanceof SummaryError) {
+      // Already a properly classified error
+      throw error;
+    }
+
+    // Check for specific OpenAI API errors
+    if (error?.response?.status === 429) {
+      throw new SummaryError(
+        '⚠️ OpenAI API の利用制限に達しています。しばらく待ってから再試行してください。',
+        429,
+        SummaryErrorType.RATE_LIMIT,
+        error as Error
+      );
+    }
+
+    if (error?.response?.status === 401) {
+      throw new SummaryError(
+        '⚠️ OpenAI API キーが無効です。設定を確認してください。',
+        401,
+        SummaryErrorType.API_KEY_INVALID,
+        error as Error
+      );
+    }
+
+    if (error?.response?.status === 400) {
+      throw new SummaryError(
+        '⚠️ リクエストが無効です。入力内容を確認してください。',
+        400,
+        SummaryErrorType.INVALID_REQUEST,
+        error as Error
+      );
+    }
+
+    // Network errors
+    if (error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT') {
+      throw new SummaryError(
+        '⚠️ ネットワークエラーが発生しました。接続を確認してください。',
+        503,
+        SummaryErrorType.NETWORK_ERROR,
+        error as Error
+      );
+    }
+
+    // Generic error
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new SummaryError(
+      `⚠️ 要約の生成中にエラーが発生しました: ${errorMessage}`,
+      500,
+      SummaryErrorType.UNKNOWN,
+      error as Error
+    );
   }
 }
 
@@ -1818,21 +1979,13 @@ async function downloadYouTubeAudio(url: string, outputPath: string): Promise<vo
   // Try ytdl-core first
   try {
     return await new Promise<void>((resolve, reject) => {
-      // Add options to help bypass YouTube restrictions
+      // Merge global options with download-specific options
+      const baseOptions = getYtdlOptions();
       const ytdlOptions = {
+        ...baseOptions,
         quality: 'highestaudio' as const,
         // Disable IPv6 to avoid some blocking issues
-        IPv6Block: undefined,
-        // Add request options with user agent
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Dest': 'document'
-          }
-        }
+        IPv6Block: undefined
       };
 
       const stream = ytdl(url, ytdlOptions);
@@ -2077,11 +2230,7 @@ function getLanguageOrder(preferredLanguage: string): string[] {
   }
 }
 
-function extractVideoId(url: string): string | null {
-  const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
-  const match = url.match(regex);
-  return match ? match[1] : null;
-}
+// extractVideoId is now imported from youtube-api.ts service
 
 function calculateAudioDuration(audioPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -2305,30 +2454,60 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
 
     // Try subtitle first
     console.log('Attempting subtitle extraction...');
-    const subtitleResult = await getYouTubeSubtitles(videoId, language);
-    
+    let subtitleError: Error | null = null;
+    let subtitleResult = null;
+
+    try {
+      subtitleResult = await getYouTubeSubtitles(videoId, language);
+    } catch (error) {
+      subtitleError = error as Error;
+      console.error('❌ Subtitle extraction error:', {
+        message: subtitleError.message,
+        videoId,
+        language
+      });
+    }
+
     if (subtitleResult) {
       transcript = subtitleResult.text;
       timestampedSegments = subtitleResult.timestampedSegments;
       detectedLanguage = subtitleResult.detectedLanguage;
       method = 'subtitle';
-      console.log('Subtitle extraction successful');
+      console.log('✅ Subtitle extraction successful');
       // Subtitle extraction is fast, estimate 1-2 seconds
       transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
       analysisProgressDB.updateTranscriptionProgress(progressId, transcriptionStartTime.toISOString(), new Date().toISOString());
     } else {
-      console.log('Subtitle extraction failed, trying Whisper...');
+      // Subtitle failed, try Whisper
+      const subtitleFailureReason = subtitleError
+        ? `字幕取得エラー: ${subtitleError.message}`
+        : '字幕が利用不可（動画に字幕がないか、指定言語の字幕がありません）';
+
+      console.log('⚠️ Subtitle extraction failed:', subtitleFailureReason);
+      console.log('🔄 Attempting Whisper transcription...');
+
       try {
+        // Check if OpenAI API key is configured
+        if (!process.env.OPENAI_API_KEY) {
+          throw new Error('OpenAI API key is not configured. Cannot use Whisper transcription.');
+        }
+
         // Download audio and transcribe
         const audioPath = path.join('uploads', `${Date.now()}_audio.mp3`);
-        await downloadYouTubeAudio(url, audioPath);
-        
+
+        try {
+          await downloadYouTubeAudio(url, audioPath);
+        } catch (downloadError) {
+          const errorMsg = downloadError instanceof Error ? downloadError.message : 'Unknown download error';
+          throw new Error(`音声ダウンロード失敗: ${errorMsg}`);
+        }
+
         const transcriptionResult = await transcribeAudio(audioPath, language, transcriptionModel);
         transcript = transcriptionResult.text;
         timestampedSegments = transcriptionResult.timestampedSegments;
         method = 'whisper';
-        console.log('Whisper transcription successful');
-        
+        console.log('✅ Whisper transcription successful');
+
         // Clean up audio file
         if (fs.existsSync(audioPath)) {
           fs.unlinkSync(audioPath);
@@ -2338,9 +2517,49 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
         analysisProgressDB.updateTranscriptionProgress(progressId, transcriptionStartTime.toISOString(), new Date().toISOString());
       } catch (whisperError) {
-        console.error('Whisper transcription failed:', whisperError);
-        analysisProgressDB.completeAnalysis(progressId, false, 'Whisper transcription failed');
-        throw new Error('Failed to extract transcript using both methods');
+        const whisperErrorMsg = whisperError instanceof Error ? whisperError.message : 'Unknown Whisper error';
+
+        console.error('❌ === TRANSCRIPT EXTRACTION FAILED ===');
+        console.error({
+          timestamp: new Date().toISOString(),
+          videoId,
+          url,
+          language,
+          subtitleFailure: subtitleFailureReason,
+          whisperFailure: whisperErrorMsg,
+          originalSubtitleError: subtitleError?.stack,
+          originalWhisperError: whisperError instanceof Error ? whisperError.stack : whisperError
+        });
+
+        analysisProgressDB.completeAnalysis(progressId, false, 'Transcript extraction failed');
+
+        // Detect YouTube bot check error
+        const isBotCheckError = whisperErrorMsg.includes('Sign in to confirm') || whisperErrorMsg.includes('not a bot');
+
+        // Build context-specific suggestions
+        const suggestions: string[] = [];
+
+        if (isBotCheckError) {
+          suggestions.push('YouTube が bot として検出しています。字幕付きの動画を使用してください');
+          suggestions.push('別の動画を試すか、しばらく待ってから再試行してください');
+        } else if (subtitleError) {
+          suggestions.push('字幕付きの動画を使用するか、別の言語を試してください');
+        } else {
+          suggestions.push('字幕が利用できない動画です。OpenAI APIキーが正しく設定されているか確認してください');
+        }
+
+        suggestions.push('ネットワーク接続を確認してください');
+        suggestions.push('動画のURLが正しいか確認してください');
+
+        // Provide detailed error message to user
+        throw new TranscriptExtractionError(
+          '文字起こしの抽出に失敗しました',
+          {
+            subtitle: subtitleFailureReason,
+            whisper: `Whisper文字起こし失敗: ${whisperErrorMsg}`
+          },
+          suggestions
+        );
       }
     }
 
@@ -2509,12 +2728,20 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     
   } catch (error) {
     console.error('Error in /api/upload-youtube:', error);
-    
+
     // Complete progress tracking with error
     if (progressId) {
       analysisProgressDB.completeAnalysis(progressId, false, error instanceof Error ? error.message : 'Unknown error');
     }
-    
+
+    // Handle TranscriptExtractionError with detailed information
+    if (error instanceof TranscriptExtractionError) {
+      return res.status(error.statusCode).json({
+        error: error.toJSON()
+      });
+    }
+
+    // Handle generic errors
     res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -3635,13 +3862,11 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
       }
     }
 
-    const videoInfo = await ytdl.getInfo(url);
-    const videoTitle = videoInfo.videoDetails.title;
-
-    // Get metadata
+    // Get metadata using YouTube Data API v3
     console.log('Getting video metadata...');
     const metadata = await getYouTubeMetadata(url);
     currentMetadata = metadata;
+    const videoTitle = metadata?.basic?.title || 'Unknown Title';
 
     // First try YouTube subtitles
     console.log(`Checking for YouTube subtitles (preferred language: ${language})...`);
@@ -4406,14 +4631,15 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY) {
       console.error('❌ OPENAI_API_KEY is not configured');
-      return res.status(503).json({ 
-        error: '⚠️ OpenAI APIが設定されていません。管理者にお問い合わせください。' 
+      return res.status(503).json({
+        error: '⚠️ OpenAI APIが設定されていません。管理者にお問い合わせください。',
+        errorType: SummaryErrorType.API_KEY_MISSING
       });
     }
 
     // Determine content type
     let detectedContentType: 'youtube' | 'pdf' | 'audio' = 'youtube'; // default
-    
+
     if (contentType) {
       detectedContentType = contentType;
     } else if (analysisType === 'pdf') {
@@ -4421,18 +4647,11 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
     } else if (analysisType === 'audio') {
       detectedContentType = 'audio';
     }
-    
+
     console.log('📝 Detected content type:', detectedContentType);
 
-    // Generate summary
+    // Generate summary (no longer returns null, throws errors instead)
     const summary = await generateSummary(transcript, null, gptModel, [], detectedContentType);
-    
-    if (!summary) {
-      console.error('❌ generateSummary returned null');
-      return res.status(503).json({ 
-        error: '⚠️ 要約の生成に失敗しました。APIの利用制限に達している可能性があります。' 
-      });
-    }
 
     console.log('✅ Summary generated successfully');
     res.json({
@@ -4445,20 +4664,35 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
     console.error('❌ Error in /api/summarize:', error);
     console.error('  - Error type:', error?.constructor?.name);
     console.error('  - Error message:', error?.message);
-    
-    // Use simplified error response for backward compatibility with frontend
-    if (error instanceof OpenAIError) {
-      console.log('  - Returning OpenAIError with status:', error.statusCode);
-      res.status(error.statusCode).json({
-        error: error.message
-      });
-    } else {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary';
-      console.log('  - Returning generic error');
-      res.status(500).json({
-        error: errorMessage
+
+    // Handle SummaryError with detailed error type
+    if (error instanceof SummaryError) {
+      console.log('  - Returning SummaryError with status:', error.statusCode);
+      console.log('  - Error type:', error.errorType);
+      return res.status(error.statusCode).json({
+        error: error.message,
+        errorType: error.errorType,
+        // Include retry suggestion for rate limits
+        retryAfter: error.errorType === SummaryErrorType.RATE_LIMIT ? 60 : undefined
       });
     }
+
+    // Handle OpenAIError (backward compatibility)
+    if (error instanceof OpenAIError) {
+      console.log('  - Returning OpenAIError with status:', error.statusCode);
+      return res.status(error.statusCode).json({
+        error: error.message,
+        errorType: SummaryErrorType.UNKNOWN
+      });
+    }
+
+    // Generic error fallback
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary';
+    console.log('  - Returning generic error');
+    return res.status(500).json({
+      error: `⚠️ ${errorMessage}`,
+      errorType: SummaryErrorType.UNKNOWN
+    });
   }
 });
 
@@ -4656,32 +4890,31 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
       } as CostEstimationResponse);
     }
     
-    // Get video info from YouTube
+    // Get video info from YouTube Data API v3
     console.log('📊 Getting video info from YouTube for:', url);
-    const info = await ytdl.getInfo(url);
+    const apiMetadata = await getVideoMetadata(url);
     console.log('📊 Got video info successfully');
-    
-    const videoDetails = info.videoDetails;
-    const duration = parseInt(videoDetails.lengthSeconds || '0');
+
+    const duration = apiMetadata.durationSeconds;
     const durationMinutes = Math.ceil(duration / 60);
-    
-    console.log('📊 Video details:', { title: videoDetails.title, duration, durationMinutes });
-    
+
+    console.log('📊 Video details:', { title: apiMetadata.title, duration, durationMinutes });
+
     // Calculate costs
     console.log('📊 Calculating costs...');
     const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
     const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
     const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
-    
-    console.log(`📊 Cost estimation for "${videoDetails.title}": ${duration}s, $${totalCost.toFixed(4)}`);
-    
+
+    console.log(`📊 Cost estimation for "${apiMetadata.title}": ${duration}s, $${totalCost.toFixed(4)}`);
+
     // Calculate processing time
     const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes, 'youtube');
     console.log(`📊 Estimated processing time: ${processingTime.formatted}`);
-    
+
     const response: CostEstimationResponse = {
       success: true,
-      title: videoDetails.title,
+      title: apiMetadata.title,
       duration,
       durationFormatted: formatDuration(duration),
       gptModel,
@@ -4694,17 +4927,36 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
       estimatedProcessingTime: processingTime,
       message: 'Cost estimation completed'
     };
-    
+
     res.json(response);
     
   } catch (error) {
     console.error('❌ Error estimating cost for URL:');
     console.error('❌ Error details:', error);
     console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
-    
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error during cost estimation';
     console.error('❌ Error message to client:', errorMessage);
-    
+
+    // Detect YouTube bot check error
+    const isBotCheckError = errorMessage.includes('Sign in to confirm') ||
+                           errorMessage.includes('not a bot') ||
+                           errorMessage.includes('bot') && errorMessage.includes('YouTube');
+
+    if (isBotCheckError) {
+      return res.status(503).json({
+        success: false,
+        error: 'YouTube が bot として検出しています',
+        suggestions: [
+          '少し時間をおいてから再試行してください',
+          'ブラウザで直接動画にアクセスできるか確認してください',
+          '異なる動画で試してください',
+          'VPN や プロキシを使用している場合は無効にしてください'
+        ],
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      } as CostEstimationResponse);
+    }
+
     res.status(500).json({
       success: false,
       error: errorMessage,
