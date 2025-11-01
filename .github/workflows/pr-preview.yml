@@ -69,7 +69,7 @@ jobs:
             --min-instances=0 \
             --max-instances=1 \
             --timeout=300 \
-            --set-secrets=OPENAI_API_KEY=openai-api-key-dev:latest \
+            --set-secrets=OPENAI_API_KEY=openai-api-key-dev:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest \
             --service-account=${{ secrets.SA_DEV }} \
             --port=8080 \
             --tag=pr-${{ env.PR_NUMBER }}
