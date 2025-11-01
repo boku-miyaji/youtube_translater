@@ -948,6 +948,32 @@ class SummaryError extends OpenAIError {
   }
 }
 
+// Transcript extraction error with detailed information
+class TranscriptExtractionError extends Error {
+  reasons: {
+    subtitle: string;
+    whisper: string;
+  };
+  suggestions: string[];
+  statusCode: number;
+
+  constructor(message: string, reasons: { subtitle: string; whisper: string }, suggestions: string[]) {
+    super(message);
+    this.name = 'TranscriptExtractionError';
+    this.reasons = reasons;
+    this.suggestions = suggestions;
+    this.statusCode = 500;
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      reasons: this.reasons,
+      suggestions: this.suggestions
+    };
+  }
+}
+
 // Handle OpenAI API errors with user-friendly messages
 function handleOpenAIError(error: any): never {
   console.error('OpenAI API Error:', error);
@@ -2474,23 +2500,33 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
 
         analysisProgressDB.completeAnalysis(progressId, false, 'Transcript extraction failed');
 
+        // Detect YouTube bot check error
+        const isBotCheckError = whisperErrorMsg.includes('Sign in to confirm') || whisperErrorMsg.includes('not a bot');
+
+        // Build context-specific suggestions
+        const suggestions: string[] = [];
+
+        if (isBotCheckError) {
+          suggestions.push('YouTube が bot として検出しています。字幕付きの動画を使用してください');
+          suggestions.push('別の動画を試すか、しばらく待ってから再試行してください');
+        } else if (subtitleError) {
+          suggestions.push('字幕付きの動画を使用するか、別の言語を試してください');
+        } else {
+          suggestions.push('字幕が利用できない動画です。OpenAI APIキーが正しく設定されているか確認してください');
+        }
+
+        suggestions.push('ネットワーク接続を確認してください');
+        suggestions.push('動画のURLが正しいか確認してください');
+
         // Provide detailed error message to user
-        const detailedError = {
-          message: '文字起こしの抽出に失敗しました',
-          reasons: {
+        throw new TranscriptExtractionError(
+          '文字起こしの抽出に失敗しました',
+          {
             subtitle: subtitleFailureReason,
             whisper: `Whisper文字起こし失敗: ${whisperErrorMsg}`
           },
-          suggestions: [
-            subtitleError
-              ? '字幕付きの動画を使用するか、別の言語を試してください'
-              : '字幕が利用できない動画です。OpenAI APIキーが正しく設定されているか確認してください',
-            'ネットワーク接続を確認してください',
-            '動画のURLが正しいか確認してください'
-          ]
-        };
-
-        throw new Error(JSON.stringify(detailedError, null, 2));
+          suggestions
+        );
       }
     }
 
@@ -2659,12 +2695,20 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
     
   } catch (error) {
     console.error('Error in /api/upload-youtube:', error);
-    
+
     // Complete progress tracking with error
     if (progressId) {
       analysisProgressDB.completeAnalysis(progressId, false, error instanceof Error ? error.message : 'Unknown error');
     }
-    
+
+    // Handle TranscriptExtractionError with detailed information
+    if (error instanceof TranscriptExtractionError) {
+      return res.status(error.statusCode).json({
+        error: error.toJSON()
+      });
+    }
+
+    // Handle generic errors
     res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
