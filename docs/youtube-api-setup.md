@@ -63,6 +63,8 @@
 
 ### ステップ 6: 環境変数を設定
 
+#### ローカル開発環境
+
 1. プロジェクトの `.env` ファイルを開く
 2. 以下の行を追加:
 
@@ -72,6 +74,73 @@ YOUTUBE_API_KEY=YOUR_API_KEY_HERE
 
 3. `YOUR_API_KEY_HERE` を実際の API キーに置き換え
 4. ファイルを保存
+
+#### 本番環境（Cloud Run）
+
+**Google Cloud Console から設定:**
+
+1. [Cloud Run コンソール](https://console.cloud.google.com/run) にアクセス
+2. サービスを選択
+3. 「新しいリビジョンを編集してデプロイ」をクリック
+4. 「変数とシークレット」タブを選択
+5. 「変数を追加」をクリック
+6. 以下を入力:
+   - **名前**: `YOUTUBE_API_KEY`
+   - **値**: `your_actual_api_key`
+7. 「デプロイ」をクリック
+
+**gcloud CLI から設定:**
+
+```bash
+gcloud run services update youtube-translater \
+  --set-env-vars YOUTUBE_API_KEY=your_actual_api_key \
+  --region asia-northeast1
+```
+
+**Dockerfile / Cloud Build から設定:**
+
+```yaml
+# cloudbuild.yaml
+steps:
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'youtube-translater'
+      - '--image=gcr.io/$PROJECT_ID/youtube-translater'
+      - '--region=asia-northeast1'
+      - '--set-env-vars=YOUTUBE_API_KEY=$$YOUTUBE_API_KEY'
+    secretEnv: ['YOUTUBE_API_KEY']
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/youtube-api-key/versions/latest
+      env: 'YOUTUBE_API_KEY'
+```
+
+#### 他のプラットフォーム
+
+**Heroku:**
+```bash
+heroku config:set YOUTUBE_API_KEY=your_actual_api_key
+```
+
+**Vercel:**
+```bash
+vercel env add YOUTUBE_API_KEY
+# または Vercel Dashboard で設定
+```
+
+**Docker Compose:**
+```yaml
+services:
+  app:
+    environment:
+      - YOUTUBE_API_KEY=your_actual_api_key
+    # または
+    env_file:
+      - .env
+```
 
 ### ステップ 7: 動作確認
 
