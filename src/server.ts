@@ -2395,30 +2395,60 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
 
     // Try subtitle first
     console.log('Attempting subtitle extraction...');
-    const subtitleResult = await getYouTubeSubtitles(videoId, language);
-    
+    let subtitleError: Error | null = null;
+    let subtitleResult = null;
+
+    try {
+      subtitleResult = await getYouTubeSubtitles(videoId, language);
+    } catch (error) {
+      subtitleError = error as Error;
+      console.error('❌ Subtitle extraction error:', {
+        message: subtitleError.message,
+        videoId,
+        language
+      });
+    }
+
     if (subtitleResult) {
       transcript = subtitleResult.text;
       timestampedSegments = subtitleResult.timestampedSegments;
       detectedLanguage = subtitleResult.detectedLanguage;
       method = 'subtitle';
-      console.log('Subtitle extraction successful');
+      console.log('✅ Subtitle extraction successful');
       // Subtitle extraction is fast, estimate 1-2 seconds
       transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
       analysisProgressDB.updateTranscriptionProgress(progressId, transcriptionStartTime.toISOString(), new Date().toISOString());
     } else {
-      console.log('Subtitle extraction failed, trying Whisper...');
+      // Subtitle failed, try Whisper
+      const subtitleFailureReason = subtitleError
+        ? `字幕取得エラー: ${subtitleError.message}`
+        : '字幕が利用不可（動画に字幕がないか、指定言語の字幕がありません）';
+
+      console.log('⚠️ Subtitle extraction failed:', subtitleFailureReason);
+      console.log('🔄 Attempting Whisper transcription...');
+
       try {
+        // Check if OpenAI API key is configured
+        if (!process.env.OPENAI_API_KEY) {
+          throw new Error('OpenAI API key is not configured. Cannot use Whisper transcription.');
+        }
+
         // Download audio and transcribe
         const audioPath = path.join('uploads', `${Date.now()}_audio.mp3`);
-        await downloadYouTubeAudio(url, audioPath);
-        
+
+        try {
+          await downloadYouTubeAudio(url, audioPath);
+        } catch (downloadError) {
+          const errorMsg = downloadError instanceof Error ? downloadError.message : 'Unknown download error';
+          throw new Error(`音声ダウンロード失敗: ${errorMsg}`);
+        }
+
         const transcriptionResult = await transcribeAudio(audioPath, language, transcriptionModel);
         transcript = transcriptionResult.text;
         timestampedSegments = transcriptionResult.timestampedSegments;
         method = 'whisper';
-        console.log('Whisper transcription successful');
-        
+        console.log('✅ Whisper transcription successful');
+
         // Clean up audio file
         if (fs.existsSync(audioPath)) {
           fs.unlinkSync(audioPath);
@@ -2428,9 +2458,39 @@ app.post('/api/upload-youtube', async (req: Request, res: Response) => {
         transcriptionDuration = Math.round((new Date().getTime() - transcriptionStartTime.getTime()) / 1000);
         analysisProgressDB.updateTranscriptionProgress(progressId, transcriptionStartTime.toISOString(), new Date().toISOString());
       } catch (whisperError) {
-        console.error('Whisper transcription failed:', whisperError);
-        analysisProgressDB.completeAnalysis(progressId, false, 'Whisper transcription failed');
-        throw new Error('Failed to extract transcript using both methods');
+        const whisperErrorMsg = whisperError instanceof Error ? whisperError.message : 'Unknown Whisper error';
+
+        console.error('❌ === TRANSCRIPT EXTRACTION FAILED ===');
+        console.error({
+          timestamp: new Date().toISOString(),
+          videoId,
+          url,
+          language,
+          subtitleFailure: subtitleFailureReason,
+          whisperFailure: whisperErrorMsg,
+          originalSubtitleError: subtitleError?.stack,
+          originalWhisperError: whisperError instanceof Error ? whisperError.stack : whisperError
+        });
+
+        analysisProgressDB.completeAnalysis(progressId, false, 'Transcript extraction failed');
+
+        // Provide detailed error message to user
+        const detailedError = {
+          message: '文字起こしの抽出に失敗しました',
+          reasons: {
+            subtitle: subtitleFailureReason,
+            whisper: `Whisper文字起こし失敗: ${whisperErrorMsg}`
+          },
+          suggestions: [
+            subtitleError
+              ? '字幕付きの動画を使用するか、別の言語を試してください'
+              : '字幕が利用できない動画です。OpenAI APIキーが正しく設定されているか確認してください',
+            'ネットワーク接続を確認してください',
+            '動画のURLが正しいか確認してください'
+          ]
+        };
+
+        throw new Error(JSON.stringify(detailedError, null, 2));
       }
     }
 
