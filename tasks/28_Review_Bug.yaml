@@ -21,6 +21,8 @@ implementation:
     - 99fbec5a3c2b1d9e8f7a6b5c4d3e2f1a0b9c8d7
     - 80cc8f0d7e6c5b4a3f2e1d0c9b8a7f6e5d4c3b2
     - 3686f20e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0
+    - 778574bf6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1
+    - 28460ca35a4d3f2e1c9b8a7f6e5d4c3b2a1f0e9
   files:
     - src/server.ts
     - src/components/shared/TranscriptViewer.tsx
@@ -39,4 +41,4 @@ pr:
   status: tasks/pr/28_Bug_status.md
   commits: tasks/pr/28_commits/
 createdAt: '2025-10-30T14:38:26Z'
-updatedAt: '2025-11-01T13:14:08Z'
+updatedAt: '2025-11-01T14:30:00Z'
