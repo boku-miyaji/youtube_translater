@@ -77,31 +77,77 @@ YOUTUBE_API_KEY=YOUR_API_KEY_HERE
 
 #### 本番環境（Cloud Run）
 
-**Google Cloud Console から設定:**
+**方法 A: 環境変数として直接設定（シンプル、推奨）**
+
+Google Cloud Console から:
 
 1. [Cloud Run コンソール](https://console.cloud.google.com/run) にアクセス
 2. サービスを選択
 3. 「新しいリビジョンを編集してデプロイ」をクリック
 4. 「変数とシークレット」タブを選択
-5. 「変数を追加」をクリック
+5. **「変数」セクション**で「変数を追加」をクリック
 6. 以下を入力:
    - **名前**: `YOUTUBE_API_KEY`
    - **値**: `your_actual_api_key`
 7. 「デプロイ」をクリック
 
+**方法 B: Secret Manager を使用（より安全、推奨）**
+
+⚠️ **重要**: Secret Manager にシークレットを作成しただけでは不十分です。環境変数として**公開**する必要があります。
+
+1. まず、Secret Manager にシークレットを作成:
+   - [Secret Manager](https://console.cloud.google.com/security/secret-manager) にアクセス
+   - 「シークレットを作成」をクリック
+   - **名前**: `youtube-api-key`
+   - **シークレットの値**: `your_actual_api_key`
+   - 「シークレットを作成」をクリック
+
+2. 次に、Cloud Run でシークレットを環境変数として公開:
+   - [Cloud Run コンソール](https://console.cloud.google.com/run) にアクセス
+   - サービスを選択
+   - 「新しいリビジョンを編集してデプロイ」をクリック
+   - 「変数とシークレット」タブを選択
+   - **「シークレットを参照」セクション**で「シークレットを参照」をクリック
+   - Secret Manager から `youtube-api-key` を選択
+   - 「環境変数として公開」を選択
+   - **環境変数名**: `YOUTUBE_API_KEY` と入力（正確に）
+   - **バージョン**: `latest` を選択
+   - 「完了」→「デプロイ」をクリック
+
 **gcloud CLI から設定:**
 
+方法 A: 環境変数として直接設定:
 ```bash
 gcloud run services update youtube-translater \
   --set-env-vars YOUTUBE_API_KEY=your_actual_api_key \
   --region asia-northeast1
 ```
 
-**Dockerfile / Cloud Build から設定:**
+方法 B: Secret Manager から設定（事前にシークレット作成が必要）:
+```bash
+# 1. Secret Manager にシークレットを作成（初回のみ）
+echo -n "your_actual_api_key" | gcloud secrets create youtube-api-key \
+  --data-file=- \
+  --replication-policy=automatic
 
+# 2. Cloud Run サービスにシークレットを環境変数として公開
+gcloud run services update youtube-translater \
+  --update-secrets=YOUTUBE_API_KEY=youtube-api-key:latest \
+  --region asia-northeast1
+```
+
+**Cloud Build から設定:**
+
+方法 A: 環境変数として直接設定:
 ```yaml
 # cloudbuild.yaml
 steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/youtube-translater', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/youtube-translater']
+
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'run'
@@ -109,14 +155,32 @@ steps:
       - 'youtube-translater'
       - '--image=gcr.io/$PROJECT_ID/youtube-translater'
       - '--region=asia-northeast1'
-      - '--set-env-vars=YOUTUBE_API_KEY=$$YOUTUBE_API_KEY'
-    secretEnv: ['YOUTUBE_API_KEY']
-
-availableSecrets:
-  secretManager:
-    - versionName: projects/$PROJECT_ID/secrets/youtube-api-key/versions/latest
-      env: 'YOUTUBE_API_KEY'
+      - '--set-env-vars=YOUTUBE_API_KEY=your_actual_api_key'
 ```
+
+方法 B: Secret Manager から設定（推奨）:
+```yaml
+# cloudbuild.yaml
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/youtube-translater', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/youtube-translater']
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'youtube-translater'
+      - '--image=gcr.io/$PROJECT_ID/youtube-translater'
+      - '--region=asia-northeast1'
+      - '--platform=managed'
+      # ⭐ Secret Manager のシークレットを環境変数として公開
+      - '--update-secrets=YOUTUBE_API_KEY=youtube-api-key:latest'
+```
+
+⚠️ **注意**: Secret Manager を使用する場合、事前に `youtube-api-key` シークレットを作成しておく必要があります。
 
 #### 他のプラットフォーム
 
@@ -233,10 +297,41 @@ du -sh .cache/youtube/
 
 **原因**: 環境変数が設定されていない
 
-**解決策**:
+**解決策（ローカル環境）**:
 1. `.env` ファイルに `YOUTUBE_API_KEY` を追加
 2. API キーが正しくコピーされているか確認
 3. アプリケーションを再起動
+
+**解決策（Cloud Run）**:
+
+⚠️ **よくある間違い**: Secret Manager にシークレットを作成しただけでは動作しません！
+
+Secret Manager のシークレットは、Cloud Run サービスで**環境変数として公開**する必要があります:
+
+1. Cloud Run コンソールでサービスを選択
+2. 「新しいリビジョンを編集してデプロイ」をクリック
+3. 「変数とシークレット」タブ → 「シークレットを参照」
+4. Secret Manager から `youtube-api-key` を選択
+5. 「環境変数として公開」を選択
+6. **環境変数名**: `YOUTUBE_API_KEY`（大文字小文字を正確に）
+7. デプロイ
+
+または gcloud CLI で:
+```bash
+gcloud run services update youtube-translater \
+  --update-secrets=YOUTUBE_API_KEY=youtube-api-key:latest \
+  --region=asia-northeast1
+```
+
+**確認方法**:
+```bash
+# 環境変数が設定されているか確認
+gcloud run services describe youtube-translater \
+  --region=asia-northeast1 \
+  --format='get(spec.template.spec.containers[0].env)'
+```
+
+`YOUTUBE_API_KEY` が表示されない場合は、シークレットが環境変数として公開されていません。
 
 ### エラー: "Invalid API key"
 
