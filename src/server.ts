@@ -157,10 +157,9 @@ if (process.env.YOUTUBE_API_KEY) {
   console.log('  📖 Setup guide: docs/youtube-api-setup.md');
 }
 
-// Configure ytdl-core to avoid bot detection
+// Configure ytdl-core with basic headers (used only for audio download with Whisper)
 const getYtdlOptions = () => {
-  const options: any = {
-    // Add realistic user agent to mimic browser
+  return {
     requestOptions: {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -172,21 +171,7 @@ const getYtdlOptions = () => {
       }
     }
   };
-
-  // If YouTube cookies are provided in environment, use them
-  // Users can export cookies from browser using extensions like "Get cookies.txt"
-  if (process.env.YOUTUBE_COOKIES) {
-    console.log('🍪 Using YouTube cookies from environment');
-    options.agent = ytdl.createAgent(JSON.parse(process.env.YOUTUBE_COOKIES));
-  }
-
-  return options;
 };
-
-console.log('🎥 ytdl-core configuration:', {
-  hasCookies: !!process.env.YOUTUBE_COOKIES,
-  userAgent: 'Chrome/120.0.0.0'
-});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',

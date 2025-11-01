@@ -18,11 +18,17 @@ implementation:
     - 4661a3067890c8fa4f6f4f1f6e8b0f5a9c3e7d2a
     - d8b0440b9f3b7c8e5a4d3f2e1c9b8a7d6c5b4a3
     - 982438882f5e6d4c3b2a1f9e8d7c6b5a4f3e2d1
+    - 99fbec5a3c2b1d9e8f7a6b5c4d3e2f1a0b9c8d7
+    - 80cc8f0d7e6c5b4a3f2e1d0c9b8a7f6e5d4c3b2
   files:
     - src/server.ts
     - src/components/shared/TranscriptViewer.tsx
     - src/components/pages/AnalyzePage.tsx
     - src/types/index.ts
+    - src/services/youtube-api.ts
+    - docs/youtube-api-setup.md
+    - docs/terms-and-compliance.md
+    - .env.example
     - tests/api/summarize-error-handling.test.ts
 pr:
   number: 30
