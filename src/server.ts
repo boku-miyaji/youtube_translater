@@ -907,16 +907,44 @@ function analyzePDFStructure(pdfContent: PDFContent): PDFMetadata {
   };
 }
 
+// Error types for better classification
+enum SummaryErrorType {
+  RATE_LIMIT = 'RATE_LIMIT',
+  API_KEY_MISSING = 'API_KEY_MISSING',
+  API_KEY_INVALID = 'API_KEY_INVALID',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  INVALID_REQUEST = 'INVALID_REQUEST',
+  MODEL_ERROR = 'MODEL_ERROR',
+  TIMEOUT = 'TIMEOUT',
+  UNKNOWN = 'UNKNOWN'
+}
+
 // Error handling for OpenAI API errors
 class OpenAIError extends Error {
   statusCode: number;
   errorType: string;
-  
+
   constructor(message: string, statusCode: number, errorType: string) {
     super(message);
     this.name = 'OpenAIError';
     this.statusCode = statusCode;
     this.errorType = errorType;
+  }
+}
+
+// Extended OpenAIError with error type classification
+class SummaryError extends OpenAIError {
+  originalError?: Error;
+
+  constructor(
+    message: string,
+    statusCode: number,
+    errorType: SummaryErrorType,
+    originalError?: Error
+  ) {
+    super(message, statusCode, errorType);
+    this.name = 'SummaryError';
+    this.originalError = originalError;
   }
 }
 
@@ -1401,7 +1429,7 @@ async function generateSummary(
   timestampedSegments: TimestampedSegment[] = [],
   contentType: 'youtube' | 'pdf' | 'audio' = 'youtube',
   pageSegments?: PDFPageSegment[]
-): Promise<Summary | null> {
+): Promise<Summary> {
   console.log('🎯 === generateSummary DEBUG START ===');
   console.log('  - Transcript length:', transcript?.length || 0);
   console.log('  - Has metadata:', !!metadata);
@@ -1758,10 +1786,72 @@ p.${availablePages[Math.floor(availablePages.length/2)] || 3}でこの文書の�
 
   } catch (error) {
     console.error('❌ === generateSummary ERROR ===');
-    console.error('  - Error type:', error?.constructor?.name);
-    console.error('  - Error message:', error?.message);
-    console.error('  - Full error:', error);
-    return null;
+    console.error({
+      timestamp: new Date().toISOString(),
+      errorType: error?.constructor?.name,
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      statusCode: error?.response?.status,
+      stack: error?.stack,
+      context: {
+        transcriptLength: transcript?.length || 0,
+        gptModel,
+        contentType
+      }
+    });
+
+    // Classify and re-throw error with appropriate type
+    if (error instanceof OpenAIError || error instanceof SummaryError) {
+      // Already a properly classified error
+      throw error;
+    }
+
+    // Check for specific OpenAI API errors
+    if (error?.response?.status === 429) {
+      throw new SummaryError(
+        '⚠️ OpenAI API の利用制限に達しています。しばらく待ってから再試行してください。',
+        429,
+        SummaryErrorType.RATE_LIMIT,
+        error as Error
+      );
+    }
+
+    if (error?.response?.status === 401) {
+      throw new SummaryError(
+        '⚠️ OpenAI API キーが無効です。設定を確認してください。',
+        401,
+        SummaryErrorType.API_KEY_INVALID,
+        error as Error
+      );
+    }
+
+    if (error?.response?.status === 400) {
+      throw new SummaryError(
+        '⚠️ リクエストが無効です。入力内容を確認してください。',
+        400,
+        SummaryErrorType.INVALID_REQUEST,
+        error as Error
+      );
+    }
+
+    // Network errors
+    if (error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT') {
+      throw new SummaryError(
+        '⚠️ ネットワークエラーが発生しました。接続を確認してください。',
+        503,
+        SummaryErrorType.NETWORK_ERROR,
+        error as Error
+      );
+    }
+
+    // Generic error
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new SummaryError(
+      `⚠️ 要約の生成中にエラーが発生しました: ${errorMessage}`,
+      500,
+      SummaryErrorType.UNKNOWN,
+      error as Error
+    );
   }
 }
 
@@ -4406,14 +4496,15 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY) {
       console.error('❌ OPENAI_API_KEY is not configured');
-      return res.status(503).json({ 
-        error: '⚠️ OpenAI APIが設定されていません。管理者にお問い合わせください。' 
+      return res.status(503).json({
+        error: '⚠️ OpenAI APIが設定されていません。管理者にお問い合わせください。',
+        errorType: SummaryErrorType.API_KEY_MISSING
       });
     }
 
     // Determine content type
     let detectedContentType: 'youtube' | 'pdf' | 'audio' = 'youtube'; // default
-    
+
     if (contentType) {
       detectedContentType = contentType;
     } else if (analysisType === 'pdf') {
@@ -4421,18 +4512,11 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
     } else if (analysisType === 'audio') {
       detectedContentType = 'audio';
     }
-    
+
     console.log('📝 Detected content type:', detectedContentType);
 
-    // Generate summary
+    // Generate summary (no longer returns null, throws errors instead)
     const summary = await generateSummary(transcript, null, gptModel, [], detectedContentType);
-    
-    if (!summary) {
-      console.error('❌ generateSummary returned null');
-      return res.status(503).json({ 
-        error: '⚠️ 要約の生成に失敗しました。APIの利用制限に達している可能性があります。' 
-      });
-    }
 
     console.log('✅ Summary generated successfully');
     res.json({
@@ -4445,20 +4529,35 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
     console.error('❌ Error in /api/summarize:', error);
     console.error('  - Error type:', error?.constructor?.name);
     console.error('  - Error message:', error?.message);
-    
-    // Use simplified error response for backward compatibility with frontend
-    if (error instanceof OpenAIError) {
-      console.log('  - Returning OpenAIError with status:', error.statusCode);
-      res.status(error.statusCode).json({
-        error: error.message
-      });
-    } else {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary';
-      console.log('  - Returning generic error');
-      res.status(500).json({
-        error: errorMessage
+
+    // Handle SummaryError with detailed error type
+    if (error instanceof SummaryError) {
+      console.log('  - Returning SummaryError with status:', error.statusCode);
+      console.log('  - Error type:', error.errorType);
+      return res.status(error.statusCode).json({
+        error: error.message,
+        errorType: error.errorType,
+        // Include retry suggestion for rate limits
+        retryAfter: error.errorType === SummaryErrorType.RATE_LIMIT ? 60 : undefined
       });
     }
+
+    // Handle OpenAIError (backward compatibility)
+    if (error instanceof OpenAIError) {
+      console.log('  - Returning OpenAIError with status:', error.statusCode);
+      return res.status(error.statusCode).json({
+        error: error.message,
+        errorType: SummaryErrorType.UNKNOWN
+      });
+    }
+
+    // Generic error fallback
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary';
+    console.log('  - Returning generic error');
+    return res.status(500).json({
+      error: `⚠️ ${errorMessage}`,
+      errorType: SummaryErrorType.UNKNOWN
+    });
   }
 });
 

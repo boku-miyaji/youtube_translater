@@ -36,7 +36,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
 
   const generateSummary = async () => {
     if (!transcript) return
-    
+
     setLoadingSummary(true)
     try {
       const response = await fetch('/api/summarize', {
@@ -44,16 +44,31 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           transcript,
           analysisType: analysisType || 'youtube'
         }),
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Summary generation failed:', response.status, errorText)
-        throw new Error(`Failed to generate summary: ${response.status} ${response.statusText}`)
+        const errorData = await response.json().catch(() => ({ error: response.statusText }))
+        console.error('Summary generation failed:', response.status, errorData)
+
+        // Handle specific error types
+        const errorType = errorData.errorType
+        let userMessage = errorData.error || 'Failed to generate summary'
+
+        // Add user-friendly instructions based on error type
+        if (errorType === 'RATE_LIMIT') {
+          const retryAfter = errorData.retryAfter || 60
+          userMessage += `\n\n${retryAfter}秒後に再試行してください。`
+        } else if (errorType === 'API_KEY_MISSING' || errorType === 'API_KEY_INVALID') {
+          userMessage += '\n\n管理者に連絡してAPIキーの設定を確認してください。'
+        } else if (errorType === 'NETWORK_ERROR') {
+          userMessage += '\n\nインターネット接続を確認してください。'
+        }
+
+        throw new Error(userMessage)
       }
 
       const data = await response.json()
@@ -61,7 +76,7 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({ transcript, timesta
     } catch (error) {
       console.error('Error generating summary:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Failed to generate summary: ${errorMessage}`)
+      alert(`要約の生成に失敗しました:\n\n${errorMessage}`)
     } finally {
       setLoadingSummary(false)
     }
