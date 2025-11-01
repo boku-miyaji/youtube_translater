@@ -4904,10 +4904,29 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
     console.error('❌ Error estimating cost for URL:');
     console.error('❌ Error details:', error);
     console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
-    
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error during cost estimation';
     console.error('❌ Error message to client:', errorMessage);
-    
+
+    // Detect YouTube bot check error
+    const isBotCheckError = errorMessage.includes('Sign in to confirm') ||
+                           errorMessage.includes('not a bot') ||
+                           errorMessage.includes('bot') && errorMessage.includes('YouTube');
+
+    if (isBotCheckError) {
+      return res.status(503).json({
+        success: false,
+        error: 'YouTube が bot として検出しています',
+        suggestions: [
+          '少し時間をおいてから再試行してください',
+          'ブラウザで直接動画にアクセスできるか確認してください',
+          '異なる動画で試してください',
+          'VPN や プロキシを使用している場合は無効にしてください'
+        ],
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      } as CostEstimationResponse);
+    }
+
     res.status(500).json({
       success: false,
       error: errorMessage,

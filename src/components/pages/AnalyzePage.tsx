@@ -408,22 +408,37 @@ const AnalyzePage: React.FC = () => {
           console.log('⚠️ No estimatedProcessingTime in response')
         }
       } else {
-        let errorDetails = ''
         try {
           const errorData = await response.clone().json()
-          errorDetails = JSON.stringify(errorData, null, 2)
           console.error('❌ Failed to estimate cost (JSON):', response.status, errorData)
+
+          // Preserve structured error response if available
+          if (errorData.suggestions || errorData.details) {
+            setCostEstimation({
+              success: false,
+              error: errorData.error || `API Error ${response.status}`,
+              suggestions: errorData.suggestions,
+              details: errorData.details,
+              debug: true
+            })
+          } else {
+            // Fallback to stringified error for backward compatibility
+            const errorDetails = JSON.stringify(errorData, null, 2)
+            setCostEstimation({
+              success: false,
+              error: `API Error ${response.status}: ${errorDetails}`,
+              debug: true
+            })
+          }
         } catch {
           const errorText = await response.text()
-          errorDetails = errorText
           console.error('❌ Failed to estimate cost (Text):', response.status, errorText)
+          setCostEstimation({
+            success: false,
+            error: `API Error ${response.status}: ${errorText}`,
+            debug: true
+          })
         }
-        // Set error state with details for debugging
-        setCostEstimation({
-          success: false,
-          error: `API Error ${response.status}: ${errorDetails}`,
-          debug: true
-        })
       }
     } catch (error) {
       console.error('❌ Error estimating cost:', error)
@@ -473,22 +488,37 @@ const AnalyzePage: React.FC = () => {
           console.log('⚠️ No estimatedProcessingTime in response')
         }
       } else {
-        let errorDetails = ''
         try {
           const errorData = await response.clone().json()
-          errorDetails = JSON.stringify(errorData, null, 2)
           console.error('❌ Failed to estimate PDF cost (JSON):', response.status, errorData)
+
+          // Preserve structured error response if available
+          if (errorData.suggestions || errorData.details) {
+            setCostEstimation({
+              success: false,
+              error: errorData.error || `API Error ${response.status}`,
+              suggestions: errorData.suggestions,
+              details: errorData.details,
+              debug: true
+            })
+          } else {
+            // Fallback to stringified error for backward compatibility
+            const errorDetails = JSON.stringify(errorData, null, 2)
+            setCostEstimation({
+              success: false,
+              error: `API Error ${response.status}: ${errorDetails}`,
+              debug: true
+            })
+          }
         } catch {
           const errorText = await response.text()
-          errorDetails = errorText
           console.error('❌ Failed to estimate PDF cost (Text):', response.status, errorText)
+          setCostEstimation({
+            success: false,
+            error: `API Error ${response.status}: ${errorText}`,
+            debug: true
+          })
         }
-        // Set error state with details for debugging
-        setCostEstimation({
-          success: false,
-          error: `API Error ${response.status}: ${errorDetails}`,
-          debug: true
-        })
       }
     } catch (error) {
       console.error('❌ Error estimating PDF cost:', error)
@@ -1478,6 +1508,16 @@ const AnalyzePage: React.FC = () => {
               <div className="text-xs text-red-700">
                 {costEstimation.error}
               </div>
+              {costEstimation.suggestions && costEstimation.suggestions.length > 0 && (
+                <div className="mt-2 text-xs text-red-700">
+                  <div className="font-medium mb-1">対処方法:</div>
+                  <ul className="list-disc list-inside space-y-1">
+                    {costEstimation.suggestions.map((suggestion, index) => (
+                      <li key={index}>{suggestion}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="text-xs text-red-600 mt-1">
                 詳細はコンソールログを確認してください
               </div>
