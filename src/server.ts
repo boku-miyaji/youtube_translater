@@ -1327,15 +1327,15 @@ async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
 
     // Extract thumbnail URL (prefer maxres, then standard, then high)
     let thumbnailUrl = '';
-    if (apiMetadata.thumbnails.maxres) {
+    if (apiMetadata.thumbnails.maxres?.url) {
       thumbnailUrl = apiMetadata.thumbnails.maxres.url;
-    } else if (apiMetadata.thumbnails.standard) {
+    } else if (apiMetadata.thumbnails.standard?.url) {
       thumbnailUrl = apiMetadata.thumbnails.standard.url;
-    } else if (apiMetadata.thumbnails.high) {
+    } else if (apiMetadata.thumbnails.high?.url) {
       thumbnailUrl = apiMetadata.thumbnails.high.url;
-    } else if (apiMetadata.thumbnails.medium) {
+    } else if (apiMetadata.thumbnails.medium?.url) {
       thumbnailUrl = apiMetadata.thumbnails.medium.url;
-    } else if (apiMetadata.thumbnails.default) {
+    } else if (apiMetadata.thumbnails.default?.url) {
       thumbnailUrl = apiMetadata.thumbnails.default.url;
     }
 
