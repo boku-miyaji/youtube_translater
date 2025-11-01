@@ -61,6 +61,7 @@ import {
 } from './types/index';
 import { formatProcessingTime } from './utils/formatTime';
 import { analysisProgressDB } from './database/analysis-progress';
+import { getVideoMetadata, extractVideoId, getRateLimitStats } from './services/youtube-api';
 
 
 const app = express();
@@ -122,9 +123,39 @@ app.get('/debug/state', (req: Request, res: Response) => {
   });
 });
 
+console.log('\n' + '='.repeat(80));
+console.log('⚠️  IMPORTANT: TERMS OF SERVICE AND COPYRIGHT COMPLIANCE');
+console.log('='.repeat(80));
+console.log('');
+console.log('This application must ONLY be used for:');
+console.log('  ✅ Your own videos');
+console.log('  ✅ Videos you have explicit permission to use');
+console.log('  ✅ Educational/research purposes within fair use guidelines');
+console.log('');
+console.log('DO NOT use this application for:');
+console.log('  ❌ Downloading others\' videos without permission');
+console.log('  ❌ Commercial use without proper licensing');
+console.log('  ❌ Violating YouTube Terms of Service');
+console.log('');
+console.log('📖 Full details: docs/terms-and-compliance.md');
+console.log('🔗 YouTube ToS: https://www.youtube.com/static?template=terms');
+console.log('');
+console.log('By using this application, you agree to comply with all applicable');
+console.log('copyright laws and YouTube\'s Terms of Service.');
+console.log('='.repeat(80) + '\n');
+
 console.log('🔑 OpenAI API Key check:', process.env.OPENAI_API_KEY ? 'CONFIGURED' : 'MISSING');
 console.log('  - API Key length:', process.env.OPENAI_API_KEY?.length || 0);
 console.log('  - API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 10) + '...');
+
+console.log('🔑 YouTube API Key check:', process.env.YOUTUBE_API_KEY ? 'CONFIGURED' : 'MISSING');
+if (process.env.YOUTUBE_API_KEY) {
+  console.log('  - API Key length:', process.env.YOUTUBE_API_KEY?.length || 0);
+  console.log('  - API Key prefix:', process.env.YOUTUBE_API_KEY?.substring(0, 10) + '...');
+} else {
+  console.log('  ⚠️  YouTube Data API v3 will not work without API key');
+  console.log('  📖 Setup guide: docs/youtube-api-setup.md');
+}
 
 // Configure ytdl-core to avoid bot detection
 const getYtdlOptions = () => {
@@ -1282,72 +1313,70 @@ function addToHistory(
   return entry;
 }
 
-// YouTube metadata analysis
+// YouTube metadata analysis using YouTube Data API v3
 async function getYouTubeMetadata(url: string): Promise<VideoMetadata | null> {
   try {
     console.log('Fetching YouTube metadata for:', url);
-    const info = await ytdl.getInfo(url, getYtdlOptions());
-    const videoDetails = info.videoDetails;
-    const formats = info.formats;
-    
+
+    // Use YouTube Data API v3 instead of ytdl-core
+    const apiMetadata = await getVideoMetadata(url);
+
     console.log('Successfully retrieved video info:');
-    console.log('- Title:', videoDetails.title);
-    console.log('- Channel:', videoDetails.author?.name);
-    console.log('- Duration:', videoDetails.lengthSeconds);
-    console.log('- View Count:', videoDetails.viewCount);
-    
-    // Chapter information extraction
-    const description = videoDetails.description || '';
+    console.log('- Title:', apiMetadata.title);
+    console.log('- Channel:', apiMetadata.channelTitle);
+    console.log('- Duration:', apiMetadata.durationSeconds);
+    console.log('- View Count:', apiMetadata.viewCount);
+
+    // Chapter information extraction from description
+    const description = apiMetadata.description || '';
     const chapterRegex = /(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)/gm;
     const chapters = [];
     let match;
-    
+
     while ((match = chapterRegex.exec(description)) !== null) {
       chapters.push({
         timestamp: match[1],
         title: match[2].trim()
       });
     }
-    
-    // Caption information
-    const captions = (info as any).player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
-    
-    // Extract thumbnail URL (preferably maxresdefault, then hqdefault, then mqdefault)
+
+    // Extract thumbnail URL (prefer maxres, then standard, then high)
     let thumbnailUrl = '';
-    if (videoDetails.thumbnails && videoDetails.thumbnails.length > 0) {
-      // Sort thumbnails by width in descending order and pick the best quality
-      const sortedThumbnails = [...videoDetails.thumbnails].sort((a: any, b: any) => 
-        (b.width || 0) - (a.width || 0)
-      );
-      thumbnailUrl = sortedThumbnails[0]?.url || '';
+    if (apiMetadata.thumbnails.maxres) {
+      thumbnailUrl = apiMetadata.thumbnails.maxres.url;
+    } else if (apiMetadata.thumbnails.standard) {
+      thumbnailUrl = apiMetadata.thumbnails.standard.url;
+    } else if (apiMetadata.thumbnails.high) {
+      thumbnailUrl = apiMetadata.thumbnails.high.url;
+    } else if (apiMetadata.thumbnails.medium) {
+      thumbnailUrl = apiMetadata.thumbnails.medium.url;
+    } else if (apiMetadata.thumbnails.default) {
+      thumbnailUrl = apiMetadata.thumbnails.default.url;
     }
-    
+
     const metadata = {
       basic: {
-        title: videoDetails.title || 'Unknown Title',
-        videoId: videoDetails.videoId || extractVideoId(url) || '',
-        duration: parseInt(videoDetails.lengthSeconds || '0'),
-        channel: videoDetails.author?.name || videoDetails.ownerChannelName || 'Unknown Channel',
-        viewCount: parseInt(videoDetails.viewCount || '0'),
-        likes: parseInt(String(videoDetails.likes || '0')),
-        uploadDate: videoDetails.uploadDate || videoDetails.publishDate || '',
-        publishDate: videoDetails.publishDate || videoDetails.uploadDate || '',
-        category: videoDetails.category || 'Unknown Category',
-        description: (videoDetails.description || '').slice(0, 2000), // Limit description length
+        title: apiMetadata.title || 'Unknown Title',
+        videoId: apiMetadata.id,
+        duration: apiMetadata.durationSeconds,
+        channel: apiMetadata.channelTitle || 'Unknown Channel',
+        viewCount: parseInt(apiMetadata.viewCount || '0'),
+        likes: parseInt(apiMetadata.likeCount || '0'),
+        uploadDate: apiMetadata.publishedAt,
+        publishDate: apiMetadata.publishedAt,
+        category: apiMetadata.categoryId || 'Unknown Category',
+        description: (apiMetadata.description || '').slice(0, 2000), // Limit description length
         thumbnail: thumbnailUrl
       },
       chapters: chapters,
-      captions: captions.map((cap: any) => ({
-        language: cap.languageCode || cap.vssId || 'unknown',
-        name: cap.name?.simpleText || cap.name?.runs?.[0]?.text || 'Unknown'
-      })),
+      captions: [], // YouTube Data API v3 doesn't provide caption list for third-party videos
       stats: {
-        formatCount: formats.length,
-        hasSubtitles: captions.length > 0,
-        keywords: (videoDetails.keywords || []).slice(0, 10) // Limit keywords to first 10
+        formatCount: 0, // Not available in Data API v3
+        hasSubtitles: false, // Will be determined when fetching subtitles
+        keywords: (apiMetadata.tags || []).slice(0, 10) // Limit keywords to first 10
       }
     };
-    
+
     console.log('Metadata extraction completed successfully');
     return metadata;
   } catch (error) {
@@ -2216,11 +2245,7 @@ function getLanguageOrder(preferredLanguage: string): string[] {
   }
 }
 
-function extractVideoId(url: string): string | null {
-  const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
-  const match = url.match(regex);
-  return match ? match[1] : null;
-}
+// extractVideoId is now imported from youtube-api.ts service
 
 function calculateAudioDuration(audioPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -3852,13 +3877,11 @@ app.post('/upload-youtube', async (req: Request, res: Response) => {
       }
     }
 
-    const videoInfo = await ytdl.getInfo(url, getYtdlOptions());
-    const videoTitle = videoInfo.videoDetails.title;
-
-    // Get metadata
+    // Get metadata using YouTube Data API v3
     console.log('Getting video metadata...');
     const metadata = await getYouTubeMetadata(url);
     currentMetadata = metadata;
+    const videoTitle = metadata?.basic?.title || 'Unknown Title';
 
     // First try YouTube subtitles
     console.log(`Checking for YouTube subtitles (preferred language: ${language})...`);
@@ -4882,32 +4905,31 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
       } as CostEstimationResponse);
     }
     
-    // Get video info from YouTube
+    // Get video info from YouTube Data API v3
     console.log('📊 Getting video info from YouTube for:', url);
-    const info = await ytdl.getInfo(url, getYtdlOptions());
+    const apiMetadata = await getVideoMetadata(url);
     console.log('📊 Got video info successfully');
-    
-    const videoDetails = info.videoDetails;
-    const duration = parseInt(videoDetails.lengthSeconds || '0');
+
+    const duration = apiMetadata.durationSeconds;
     const durationMinutes = Math.ceil(duration / 60);
-    
-    console.log('📊 Video details:', { title: videoDetails.title, duration, durationMinutes });
-    
+
+    console.log('📊 Video details:', { title: apiMetadata.title, duration, durationMinutes });
+
     // Calculate costs
     console.log('📊 Calculating costs...');
     const transcriptionCost = calculateTranscriptionCost(transcriptionModel, durationMinutes);
     const gptCosts = estimateGPTCosts(durationMinutes, gptModel, generateSummary, generateArticle);
     const totalCost = transcriptionCost + gptCosts.summary + gptCosts.article;
-    
-    console.log(`📊 Cost estimation for "${videoDetails.title}": ${duration}s, $${totalCost.toFixed(4)}`);
-    
+
+    console.log(`📊 Cost estimation for "${apiMetadata.title}": ${duration}s, $${totalCost.toFixed(4)}`);
+
     // Calculate processing time
     const processingTime = calculateProcessingTime(transcriptionModel, gptModel, durationMinutes, 'youtube');
     console.log(`📊 Estimated processing time: ${processingTime.formatted}`);
-    
+
     const response: CostEstimationResponse = {
       success: true,
-      title: videoDetails.title,
+      title: apiMetadata.title,
       duration,
       durationFormatted: formatDuration(duration),
       gptModel,
@@ -4920,7 +4942,7 @@ app.post('/api/estimate-cost-url', async (req: Request, res: Response) => {
       estimatedProcessingTime: processingTime,
       message: 'Cost estimation completed'
     };
-    
+
     res.json(response);
     
   } catch (error) {
